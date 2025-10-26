@@ -5,6 +5,8 @@ from __future__ import annotations
 import importlib.resources as resources
 import os
 import re
+import shutil
+import subprocess
 from argparse import Namespace
 from getpass import getpass
 from pathlib import Path
@@ -12,6 +14,7 @@ from typing import Callable
 
 from nesdr_igate import config as config_module
 from nesdr_igate.config import StationConfig
+from nesdr_igate.diagnostics_helpers import probe_tcp_endpoint
 
 CALLSIGN_PATTERN = re.compile(r"^[A-Z0-9]{1,6}-[0-9]{1,2}$")
 
@@ -21,6 +24,12 @@ def run_setup(args: Namespace) -> int:
     config_path = config_module.resolve_config_path(args.config)
 
     if args.reset and config_path.exists():
+        try:
+            existing_config = config_module.load_config(config_path)
+        except Exception:  # pragma: no cover - best effort cleanup
+            existing_config = None
+        if existing_config and existing_config.passcode_in_keyring:
+            config_module.delete_passcode_from_keyring(existing_config.callsign)
         config_path.unlink()
         print(f"Removed existing configuration at {config_path}")
 
@@ -48,6 +57,7 @@ def run_setup(args: Namespace) -> int:
     print(f"Configuration saved to {saved_path}")
     print(config_module.config_summary(new_config))
     _maybe_render_direwolf_config(new_config, saved_path.parent)
+    _offer_hardware_validation(new_config)
     return 0
 
 
@@ -85,6 +95,30 @@ def _interactive_prompt(existing: StationConfig | None) -> StationConfig:
         "APRS-IS passcode",
         default=_default(existing, "passcode"),
     )
+    use_keyring = bool(getattr(existing, "passcode_in_keyring", False))
+    if config_module.keyring_supported():
+        store_choice = _prompt_yes_no(
+            "Store APRS-IS passcode in system keyring?",
+            default=use_keyring,
+        )
+        if store_choice:
+            try:
+                config_module.store_passcode_in_keyring(callsign, passcode)
+                use_keyring = True
+            except ValueError as exc:
+                print(f"Keyring unavailable: {exc}")
+                use_keyring = False
+        else:
+            if use_keyring:
+                config_module.delete_passcode_from_keyring(callsign)
+            use_keyring = False
+    elif use_keyring:
+        print(
+            "Warning: existing configuration referenced keyring-stored passcode, "
+            "but keyring backend is unavailable. Keeping passcode in config file."
+        )
+        use_keyring = False
+
     aprs_server = prompt.string(
         "APRS-IS server",
         default=_default(existing, "aprs_server", fallback="noam.aprs2.net"),
@@ -122,6 +156,7 @@ def _interactive_prompt(existing: StationConfig | None) -> StationConfig:
     return StationConfig(
         callsign=callsign,
         passcode=passcode,
+        passcode_in_keyring=use_keyring,
         aprs_server=aprs_server,
         aprs_port=aprs_port,
         latitude=latitude,
@@ -340,3 +375,65 @@ def _prompt_yes_no(message: str, *, default: bool) -> bool:
         if response in {"n", "no"}:
             return False
         print("Please answer 'y' or 'n'")
+
+
+def _offer_hardware_validation(config: StationConfig) -> None:
+    message = "Run a quick SDR/Direwolf validation now?"
+    if not _prompt_yes_no(message, default=False):
+        return
+    _run_hardware_validation(config)
+
+
+def _run_hardware_validation(config: StationConfig) -> None:
+    print("\nRunning hardware validation...")
+
+    command_checks = {
+        "rtl_fm": "RTL-SDR capture utility",
+        "rtl_test": "RTL-SDR self-test",
+        "direwolf": "Direwolf modem",
+    }
+    for command, description in command_checks.items():
+        path = shutil.which(command)
+        if path:
+            print(f"[OK     ] {command}: found ({description})")
+        else:
+            print(f"[WARNING] {command}: not found in PATH ({description})")
+
+    if shutil.which("rtl_test"):
+        try:
+            proc = subprocess.run(
+                ["rtl_test", "-t", "-d", "0"],
+                capture_output=True,
+                text=True,
+                timeout=8,
+                check=False,
+            )
+            if proc.returncode == 0:
+                print("[OK     ] rtl_test: tuner self-test completed")
+            else:
+                snippet = (proc.stderr.strip() or proc.stdout.strip())[:120]
+                print(f"[WARNING] rtl_test exit code {proc.returncode}: {snippet}")
+        except subprocess.TimeoutExpired:
+            print("[WARNING] rtl_test: timed out (ensure the SDR is connected)")
+        except OSError as exc:
+            print(f"[WARNING] rtl_test: failed to execute ({exc})")
+
+    result = probe_tcp_endpoint(config.kiss_host, config.kiss_port, timeout=1.0)
+    if result.success:
+        print(f"[OK     ] KISS: reachable at {config.kiss_host}:{config.kiss_port}")
+    else:
+        print(
+            f"[WARNING] KISS: unable to reach {config.kiss_host}:{config.kiss_port} ({result.error})"
+        )
+
+    aprs_result = probe_tcp_endpoint(config.aprs_server, config.aprs_port, timeout=2.0)
+    if aprs_result.success:
+        print(
+            f"[OK     ] APRS-IS: reachable at {config.aprs_server}:{config.aprs_port}"
+        )
+    else:
+        print(
+            f"[WARNING] APRS-IS: unable to reach {config.aprs_server}:{config.aprs_port} ({aprs_result.error})"
+        )
+
+    print("Hardware validation complete. Review warnings above for follow-up.")

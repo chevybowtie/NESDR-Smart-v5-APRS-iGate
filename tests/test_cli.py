@@ -27,6 +27,8 @@ def test_setup_non_interactive(tmp_path, monkeypatch, capsys) -> None:
 def test_setup_dry_run_interactive(tmp_path, monkeypatch, capsys) -> None:
     config_path = tmp_path / "config.toml"
     monkeypatch.setenv("NESDR_IGATE_CONFIG_PATH", str(config_path))
+    monkeypatch.setattr("nesdr_igate.commands.setup.config_module.keyring_supported", lambda: False)
+    monkeypatch.setattr("nesdr_igate.commands.setup._offer_hardware_validation", lambda *_: None)
 
     inputs: Iterator[str] = iter([
         "N0CALL-10",  # callsign
@@ -56,6 +58,8 @@ def test_setup_writes_direwolf_config(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("NESDR_IGATE_CONFIG_PATH", str(config_path))
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "xdg_data"))
+    monkeypatch.setattr("nesdr_igate.commands.setup.config_module.keyring_supported", lambda: False)
+    monkeypatch.setattr("nesdr_igate.commands.setup._offer_hardware_validation", lambda *_: None)
 
     inputs: Iterator[str] = iter([
         "KJ5EVH-10",  # callsign

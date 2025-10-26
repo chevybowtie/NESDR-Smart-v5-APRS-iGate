@@ -15,10 +15,19 @@ try:  # Python 3.11+
 except ModuleNotFoundError:  # pragma: no cover - fallback for <3.11
     import tomli as tomllib  # type: ignore[no-redef]
 
+try:  # Optional dependency for secure credential storage
+    import keyring as _keyring  # type: ignore[import]
+    from keyring.errors import KeyringError  # type: ignore[import]
+except ImportError:  # pragma: no cover - keyring not installed
+    _keyring = None
+    KeyringError = Exception
+
 CONFIG_VERSION = 1
 CONFIG_ENV_VAR = "NESDR_IGATE_CONFIG_PATH"
 CONFIG_DIR_NAME = "nesdr-igate"
 CONFIG_FILENAME = "config.toml"
+KEYRING_SERVICE = "nesdr-igate"
+KEYRING_SENTINEL = "__KEYRING__"
 
 
 def _xdg_path(env_var: str, default: Path) -> Path:
@@ -56,6 +65,7 @@ class StationConfig:
 
     callsign: str
     passcode: str
+    passcode_in_keyring: bool = False
     aprs_server: str = "noam.aprs2.net"
     aprs_port: int = 14580
     latitude: float | None = None
@@ -76,7 +86,7 @@ class StationConfig:
             "station": _drop_none(
                 {
                     "callsign": self.callsign,
-                    "passcode": self.passcode,
+                    "passcode": KEYRING_SENTINEL if self.passcode_in_keyring else self.passcode,
                     "latitude": self.latitude,
                     "longitude": self.longitude,
                     "altitude_m": self.altitude_m,
@@ -122,9 +132,15 @@ class StationConfig:
         if not callsign or not passcode:
             raise ValueError("Configuration missing required callsign/passcode")
 
+        passcode_in_keyring = False
+        if isinstance(passcode, str) and passcode == KEYRING_SENTINEL:
+            passcode = _retrieve_passcode_from_keyring(str(callsign))
+            passcode_in_keyring = True
+
         return cls(
             callsign=str(callsign),
             passcode=str(passcode),
+            passcode_in_keyring=passcode_in_keyring,
             aprs_server=str(aprs.get("server", "noam.aprs2.net")),
             aprs_port=int(aprs.get("port", 14580)),
             latitude=_optional_float(station.get("latitude")),
@@ -166,6 +182,8 @@ def load_config(path: str | Path | None = None) -> StationConfig:
 
 def save_config(config: StationConfig, path: str | Path | None = None) -> Path:
     """Persist configuration to disk and return the file path."""
+    if config.passcode_in_keyring:
+        _store_passcode_in_keyring(config.callsign, config.passcode)
     config_path = resolve_config_path(path)
     config_path.parent.mkdir(parents=True, exist_ok=True)
     toml_text = tomli_w.dumps(config.to_dict())
@@ -189,3 +207,44 @@ def config_summary(config: StationConfig) -> str:
         f"  KISS     : {config.kiss_host}:{config.kiss_port}\n"
         f"  Radio    : {config.center_frequency_hz/1e6:.3f} MHz @ {config.sample_rate_sps:.0f} sps"
     )
+
+
+def keyring_supported() -> bool:
+    """Return True if a keyring backend is available."""
+    return _keyring is not None
+
+
+def store_passcode_in_keyring(callsign: str, passcode: str) -> None:
+    """Persist the APRS-IS passcode in the system keyring."""
+    _store_passcode_in_keyring(callsign, passcode)
+
+
+def delete_passcode_from_keyring(callsign: str) -> None:
+    """Remove the APRS-IS passcode from the system keyring if present."""
+    if _keyring is None:
+        return
+    try:
+        _keyring.delete_password(KEYRING_SERVICE, callsign)
+    except KeyringError:  # pragma: no cover - backend quirks
+        pass
+
+
+def _store_passcode_in_keyring(callsign: str, passcode: str) -> None:
+    if _keyring is None:
+        raise ValueError("Keyring backend not available; install 'keyring' package")
+    try:
+        _keyring.set_password(KEYRING_SERVICE, callsign, passcode)
+    except KeyringError as exc:  # pragma: no cover - backend dependent
+        raise ValueError(f"Failed to store passcode in keyring: {exc}") from exc
+
+
+def _retrieve_passcode_from_keyring(callsign: str) -> str:
+    if _keyring is None:
+        raise ValueError("Keyring backend not available for stored passcode")
+    try:
+        value = _keyring.get_password(KEYRING_SERVICE, callsign)
+    except KeyringError as exc:  # pragma: no cover - backend dependent
+        raise ValueError(f"Failed to read passcode from keyring: {exc}") from exc
+    if not value:
+        raise ValueError("No APRS-IS passcode stored in keyring; rerun setup")
+    return value
