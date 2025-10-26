@@ -446,6 +446,10 @@ def _run_hardware_validation(config: StationConfig) -> None:
 
     _report_direwolf_log_summary()
 
+    if _can_launch_direwolf():
+        if _prompt_yes_no("Launch Direwolf for a 15-second live capture?", default=False):
+            _launch_direwolf_probe(config)
+
     if ppm_hint is not None:
         print(
             "Tip: set `ppm_correction` in the configuration to this value to improve tuning accuracy."
@@ -488,3 +492,99 @@ def _tail_file(path: Path, *, lines: int) -> list[str]:
     with path.open("r", encoding="utf-8", errors="ignore") as handle:
         buffer = deque(handle, maxlen=lines)
     return [entry.rstrip("\n") for entry in buffer]
+
+
+def _can_launch_direwolf() -> bool:
+    return shutil.which("rtl_fm") is not None and shutil.which("direwolf") is not None
+
+
+def _launch_direwolf_probe(config: StationConfig) -> None:
+    log_dir = config_module.get_data_dir() / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    temp_log = log_dir / "direwolf_probe.log"
+
+    rtl_cmd = [
+        "rtl_fm",
+        "-f",
+        str(int(config.center_frequency_hz)),
+        "-M",
+        "fm",
+        "-s",
+        "22050",
+        "-E",
+        "deemp",
+        "-A",
+        "fast",
+        "-F",
+        "9",
+    ]
+    if config.gain is not None:
+        rtl_cmd.extend(["-g", str(config.gain)])
+    if config.ppm_correction is not None:
+        rtl_cmd.extend(["-p", str(config.ppm_correction)])
+
+    direwolf_conf = config_module.get_config_dir() / "direwolf.conf"
+    if not direwolf_conf.exists():
+        direwolf_conf = config_module.get_config_dir() / "direwolf.conf"
+
+    if not direwolf_conf.exists():
+        print("[WARNING] Cannot launch Direwolf probe: direwolf.conf not found")
+        return
+
+    direwolf_cmd = [
+        "direwolf",
+        "-c",
+        str(direwolf_conf),
+        "-r",
+        "22050",
+        "-t",
+        "0",
+        "-",
+    ]
+
+    rtl_proc: subprocess.Popen[bytes] | None = None
+    try:
+        rtl_proc = subprocess.Popen(
+            rtl_cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+        )
+    except OSError as exc:
+        print(f"[WARNING] Failed to start rtl_fm for probe: {exc}")
+        return
+
+    try:
+        with open(temp_log, "w", encoding="utf-8") as log_handle:
+            direwolf_proc = subprocess.Popen(
+                direwolf_cmd,
+                stdin=rtl_proc.stdout,
+                stdout=log_handle,
+                stderr=subprocess.STDOUT,
+            )
+            try:
+                direwolf_proc.wait(timeout=15)
+            except subprocess.TimeoutExpired:
+                direwolf_proc.terminate()
+                direwolf_proc.wait(timeout=5)
+    except OSError as exc:
+        print(f"[WARNING] Failed to start Direwolf for probe: {exc}")
+    finally:
+        if rtl_proc is not None:
+            rtl_proc.terminate()
+            try:
+                rtl_proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                rtl_proc.kill()
+
+    try:
+        probe_lines = _tail_file(temp_log, lines=5)
+    except OSError as exc:
+        print(f"[WARNING] Unable to read probe log {temp_log}: {exc}")
+        return
+
+    if probe_lines:
+        print("[OK     ] Direwolf probe log:")
+        for line in probe_lines:
+            print(f"      {line}")
+    else:
+        print("[WARNING] Direwolf probe did not produce output; check connections.")

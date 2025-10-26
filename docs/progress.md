@@ -70,10 +70,10 @@
 - Setup command now supports keyring-stored passcodes and offers post-run hardware validation (Oct 25, 2025)
 - Hardware validation now parses `rtl_test -p` output and suggests ppm correction updates (Oct 25, 2025)
 - Hardware validation surfaces recent Direwolf log entries for quick inspection (Oct 25, 2025)
+- Extend hardware validation with optional Direwolf auto-launch for live capture (Oct 25, 2025)
 
 ## Next Steps
 - Flesh out DSP pipeline plan (filtering, demod staging) atop the radio layer
-- Extend hardware validation with optional Direwolf auto-launch for live capture
 
 ## DSP Pipeline Sketch (draft)
 - IQ capture remains via rtl_fm for MVP; long term swap to SoapySDR/SoapyRemote for multi-device support.
