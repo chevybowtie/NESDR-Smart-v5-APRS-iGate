@@ -3,11 +3,6 @@
 * Add `pyproject.toml` `[tool.coverage.run]` configuration for consistent coverage runs (`branch = true`).
 * Evaluate asyncio or trio for long-running IO loops instead of threads.
 
-## APRS Client (`aprsis_client.py`)
-### Follow-ups
-* Add connection lifecycle logging (connect, reconnect, close) at `INFO`/`DEBUG` to aid diagnostics.
-* Consider a retry/backoff helper to avoid rapid APRS-IS reconnect loops.
-
 ## Config Module (`config.py`)
 ### Follow-ups
 * Decide whether `_xdg_path` should be promoted to a public helper or documented as internal-only.

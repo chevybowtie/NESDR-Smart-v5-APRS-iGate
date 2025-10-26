@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import queue
 import socket
 import threading
@@ -13,6 +14,7 @@ from nesdr_igate.aprs.aprsis_client import (  # type: ignore[import]
     APRSISClient,
     APRSISClientError,
     APRSISConfig,
+    RetryBackoff,
 )
 
 
@@ -243,3 +245,80 @@ def test_aprsis_client_close_ignores_errors() -> None:
     assert client._writer is None  # type: ignore[attr-defined]
     assert client._reader is None  # type: ignore[attr-defined]
     assert client._socket is None  # type: ignore[attr-defined]
+
+
+def test_aprsis_client_logs_lifecycle(caplog) -> None:
+    def responder(conn: socket.socket) -> None:
+        conn.sendall(b"# aprsc 2.1 test\n")
+        conn.recv(1024)
+        conn.sendall(b"# logresp TEST verified\n")
+        time.sleep(0.1)
+
+    port, thread = _start_server(responder)
+
+    caplog.set_level(logging.DEBUG, logger="nesdr_igate.aprs.aprsis_client")
+
+    client = APRSISClient(
+        APRSISConfig(host="127.0.0.1", port=port, callsign="TEST", passcode="12345")
+    )
+
+    client.connect()
+    client.connect()
+    client.close()
+
+    thread.join(timeout=1)
+
+    messages = [record.message for record in caplog.records]
+    assert any("Connected to APRS-IS" in message for message in messages)
+    assert any("session already active" in message for message in messages)
+    assert any("Closed APRS-IS connection" in message for message in messages)
+
+
+def test_retry_backoff_progression() -> None:
+    current = 0.0
+
+    def fake_clock() -> float:
+        return current
+
+    backoff = RetryBackoff(base_delay=1.0, max_delay=8.0, multiplier=2.0, clock=fake_clock)
+
+    assert backoff.ready() is True
+    assert backoff.current_delay == 1.0
+
+    delay = backoff.record_failure()
+    assert delay == 1.0
+    assert backoff.current_delay == 2.0
+
+    current = 0.5
+    assert backoff.ready() is False
+
+    current = 1.0
+    assert backoff.ready() is True
+
+    delay = backoff.record_failure()
+    assert delay == 2.0
+    assert backoff.current_delay == 4.0
+
+    current = 4.0
+    backoff.record_success()
+    assert backoff.current_delay == 1.0
+    assert backoff.ready() is True
+
+
+def test_retry_backoff_reset_and_limits() -> None:
+    backoff = RetryBackoff(base_delay=2.0, max_delay=5.0, multiplier=3.0, clock=lambda: 0.0)
+
+    assert backoff.record_failure() == 2.0
+    assert backoff.current_delay == 5.0
+    assert backoff.record_failure() == 5.0
+    assert backoff.current_delay == 5.0
+
+    backoff.reset()
+    assert backoff.current_delay == 2.0
+
+    with pytest.raises(ValueError):
+        RetryBackoff(base_delay=0.0)
+    with pytest.raises(ValueError):
+        RetryBackoff(base_delay=2.0, max_delay=1.0)
+    with pytest.raises(ValueError):
+        RetryBackoff(base_delay=1.0, multiplier=0.5)

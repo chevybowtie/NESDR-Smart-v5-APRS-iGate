@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import io
 import socket
+import time
 from dataclasses import dataclass
-from typing import Optional
+from typing import Callable, Optional
+
+import logging
 
 
 class APRSISClientError(RuntimeError):
@@ -25,6 +28,69 @@ class APRSISConfig:
     filter_string: str | None = None
     timeout: float = 5.0
 
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
+
+
+class RetryBackoff:
+    """Simple exponential backoff helper for APRS-IS reconnect attempts."""
+
+    def __init__(
+        self,
+        *,
+        base_delay: float = 2.0,
+        max_delay: float = 120.0,
+        multiplier: float = 2.0,
+    clock: Optional[Callable[[], float]] = None,
+    ) -> None:
+        if base_delay <= 0:
+            raise ValueError("base_delay must be positive")
+        if max_delay < base_delay:
+            raise ValueError("max_delay must be >= base_delay")
+        if multiplier < 1.0:
+            raise ValueError("multiplier must be >= 1.0")
+
+        self._base = base_delay
+        self._max = max_delay
+        self._multiplier = multiplier
+        self._clock = clock or time.monotonic
+        self._current = base_delay
+        self._next_attempt = 0.0
+
+    @property
+    def current_delay(self) -> float:
+        """Return the delay that will be scheduled on the next failure."""
+
+        return self._current
+
+    def ready(self) -> bool:
+        """Return True if another attempt is allowed right now."""
+
+        return self._clock() >= self._next_attempt
+
+    def record_failure(self) -> float:
+        """Register a failed attempt and schedule the next retry.
+
+        Returns the delay (in seconds) that will elapse before the next
+        attempt is permitted. This value reflects the delay prior to
+        applying the multiplier for subsequent retries.
+        """
+
+        delay = self._current
+        self._next_attempt = self._clock() + delay
+        self._current = min(self._current * self._multiplier, self._max)
+        return delay
+
+    def record_success(self) -> None:
+        """Reset the backoff window after a successful attempt."""
+
+        self.reset()
+
+    def reset(self) -> None:
+        """Reset the backoff window unconditionally."""
+        self._current = self._base
+        self._next_attempt = 0.0
+
 
 class APRSISClient:
     """Manage APRS-IS connectivity for uploading APRS packets."""
@@ -39,7 +105,18 @@ class APRSISClient:
     def connect(self) -> None:
         """Establish the APRS-IS session, returning immediately if already connected."""
         if self._socket is not None:
+            logger.debug(
+                "APRS-IS session already active for %s:%s",
+                self._config.host,
+                self._config.port,
+            )
             return
+        logger.debug(
+            "Opening APRS-IS session to %s:%s as %s",
+            self._config.host,
+            self._config.port,
+            self._config.callsign,
+        )
         try:
             sock = socket.create_connection(
                 (self._config.host, self._config.port), timeout=self._config.timeout
@@ -60,6 +137,12 @@ class APRSISClient:
             writer.write(login)
             writer.flush()
             self._await_logresp()
+            logger.info(
+                "Connected to APRS-IS %s:%s as %s",
+                self._config.host,
+                self._config.port,
+                self._config.callsign,
+            )
         except Exception:
             # Ensure partially established sockets are released on failure.
             self.close()
@@ -77,6 +160,10 @@ class APRSISClient:
 
     def close(self) -> None:
         """Release all socket resources associated with the APRS-IS session."""
+        had_resources = any(
+            component is not None
+            for component in (self._writer, self._reader, self._socket)
+        )
         if self._writer is not None:
             try:
                 self._writer.close()
@@ -95,6 +182,18 @@ class APRSISClient:
             except OSError:
                 pass
             self._socket = None
+        if had_resources:
+            logger.info(
+                "Closed APRS-IS connection to %s:%s",
+                self._config.host,
+                self._config.port,
+            )
+        else:
+            logger.debug(
+                "APRS-IS close requested with no active session for %s:%s",
+                self._config.host,
+                self._config.port,
+            )
 
     def __enter__(self) -> "APRSISClient":
         """Open the connection when used as a context manager."""

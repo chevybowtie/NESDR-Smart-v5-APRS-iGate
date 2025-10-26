@@ -14,7 +14,12 @@ from typing import Optional
 
 from nesdr_igate import config as config_module
 from nesdr_igate.aprs.ax25 import AX25DecodeError, kiss_payload_to_tnc2  # type: ignore[import]
-from nesdr_igate.aprs.aprsis_client import APRSISClient, APRSISClientError, APRSISConfig  # type: ignore[import]
+from nesdr_igate.aprs.aprsis_client import (  # type: ignore[import]
+    APRSISClient,
+    APRSISClientError,
+    APRSISConfig,
+    RetryBackoff,
+)
 from nesdr_igate.aprs.kiss_client import KISSClient, KISSClientConfig, KISSClientError  # type: ignore[import]
 from nesdr_igate.radio.capture import AudioCaptureError, RtlFmAudioCapture, RtlFmConfig  # type: ignore[import]
 
@@ -76,10 +81,7 @@ def run_listen(args: Namespace) -> int:
     aprs_client: Optional[APRSISClient] = None
     aprs_enabled = not getattr(args, "no_aprsis", False)
     aprs_config: Optional[APRSISConfig] = None
-    aprs_retry_base = 2.0
-    aprs_retry_delay = aprs_retry_base
-    aprs_retry_max = 120.0
-    aprs_next_retry = 0.0
+    aprs_backoff = RetryBackoff(base_delay=2.0, max_delay=120.0, multiplier=2.0)
     aprs_forwarded = 0
     aprs_failed = 0
 
@@ -217,32 +219,28 @@ def run_listen(args: Namespace) -> int:
     frame_count = 0
 
     def _attempt_aprs_connect() -> None:
-        nonlocal aprs_client, aprs_retry_delay, aprs_next_retry
+        nonlocal aprs_client
         if not aprs_enabled or aprs_config is None:
             return
         if aprs_client is not None:
             return
-        now = time.monotonic()
-        if now < aprs_next_retry:
+        if not aprs_backoff.ready():
             return
         try:
             candidate = APRSISClient(aprs_config)
             candidate.connect()
             aprs_client = candidate
-            aprs_retry_delay = aprs_retry_base
-            aprs_next_retry = 0.0
+            aprs_backoff.record_success()
             logger.info(
                 "Connected to APRS-IS %s:%s",
                 aprs_config.host,
                 aprs_config.port,
             )
         except APRSISClientError as exc:
-            delay = aprs_retry_delay
+            delay = aprs_backoff.record_failure()
             logger.warning(
                 "APRS-IS connection failed: %s; retrying in %ss", exc, int(delay)
             )
-            aprs_next_retry = now + delay
-            aprs_retry_delay = min(aprs_retry_delay * 2, aprs_retry_max)
 
     _attempt_aprs_connect()
 
@@ -281,8 +279,7 @@ def run_listen(args: Namespace) -> int:
                     )
                     aprs_client.close()
                     aprs_client = None
-                    aprs_retry_delay = aprs_retry_base
-                    aprs_next_retry = 0.0
+                    aprs_backoff.reset()
 
             if getattr(args, "once", False):
                 stop_event.set()
