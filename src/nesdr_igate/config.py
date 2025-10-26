@@ -31,6 +31,8 @@ KEYRING_SENTINEL = "__KEYRING__"
 
 
 def _xdg_path(env_var: str, default: Path) -> Path:
+    """Resolve an XDG-style path override, falling back to the default."""
+
     value = os.environ.get(env_var)
     if value:
         return Path(value).expanduser()
@@ -61,7 +63,7 @@ def resolve_config_path(path: str | Path | None = None) -> Path:
 
 @dataclass(slots=True)
 class StationConfig:
-    """Contains station identity, APRS-IS credentials, and radio defaults."""
+    """Persisted station identity, APRS endpoints, and radio defaults."""
 
     callsign: str
     passcode: str
@@ -157,18 +159,24 @@ class StationConfig:
 
 
 def _optional_float(value: Any) -> float | None:
+    """Convert optional input to a float, returning None for blanks."""
+
     if value in (None, ""):
         return None
     return float(value)
 
 
 def _optional_int(value: Any) -> int | None:
+    """Convert optional input to an int, returning None for blanks."""
+
     if value in (None, ""):
         return None
     return int(value)
 
 
 def _drop_none(mapping: dict[str, Any]) -> dict[str, Any]:
+    """Return a copy of `mapping` containing only non-None values."""
+
     return {key: value for key, value in mapping.items() if value is not None}
 
 
@@ -230,6 +238,8 @@ def delete_passcode_from_keyring(callsign: str) -> None:
 
 
 def _store_passcode_in_keyring(callsign: str, passcode: str) -> None:
+    """Persist an APRS-IS passcode using the active keyring backend."""
+
     if _keyring is None:
         raise ValueError("Keyring backend not available; install 'keyring' package")
     try:
@@ -239,6 +249,8 @@ def _store_passcode_in_keyring(callsign: str, passcode: str) -> None:
 
 
 def _retrieve_passcode_from_keyring(callsign: str) -> str:
+    """Read an APRS-IS passcode from the keyring, raising on failure."""
+
     if _keyring is None:
         raise ValueError("Keyring backend not available for stored passcode")
     try:

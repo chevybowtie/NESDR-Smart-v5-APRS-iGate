@@ -63,6 +63,8 @@ def run_setup(args: Namespace) -> int:
 
 
 def _run_non_interactive(config_path: Path) -> int:
+    """Validate an existing config file without prompting the user."""
+
     try:
         config = config_module.load_config(config_path)
     except FileNotFoundError:
@@ -78,6 +80,8 @@ def _run_non_interactive(config_path: Path) -> int:
 
 
 def _load_existing(config_path: Path) -> StationConfig | None:
+    """Return a previously saved configuration if it loads successfully."""
+
     if not config_path.exists():
         return None
     try:
@@ -87,6 +91,8 @@ def _load_existing(config_path: Path) -> StationConfig | None:
 
 
 def _interactive_prompt(existing: StationConfig | None) -> StationConfig:
+    """Collect station details from stdin, seeding defaults from an existing config."""
+
     prompt = _Prompt(existing)
 
     callsign = prompt.string(
@@ -169,12 +175,16 @@ def _interactive_prompt(existing: StationConfig | None) -> StationConfig:
 
 
 def _default(config: StationConfig | None, attr: str, fallback: object | None = None) -> object | None:
+    """Return attribute value from config if present, else fallback."""
+
     if config is None:
         return fallback
     return getattr(config, attr)
 
 
 def _validate_callsign(value: str) -> None:
+    """Ensure a callsign-SSID matches standard APRS formatting."""
+
     if not CALLSIGN_PATTERN.match(value):
         raise ValueError("Enter callsign-SSID like N0CALL-10")
 
@@ -193,6 +203,8 @@ class _Prompt:
         transform: Callable[[str], str] | None = None,
         validator: Callable[[str], None] | None = None,
     ) -> str:
+        """Prompt user for a required string, applying optional transforms and validation."""
+
         while True:
             prompt = _format_prompt(label, default)
             raw = input(prompt).strip()
@@ -214,6 +226,8 @@ class _Prompt:
             return value
 
     def optional_string(self, label: str, default: object | None = None) -> str | None:
+        """Prompt for a string that may be left blank to keep or remove existing values."""
+
         prompt = _format_prompt(label, default)
         raw = input(prompt).strip()
         if not raw:
@@ -228,6 +242,8 @@ class _Prompt:
         minimum: int | None = None,
         maximum: int | None = None,
     ) -> int:
+        """Prompt for an integer within optional bounds, re-asking on invalid input."""
+
         while True:
             prompt = _format_prompt(label, default)
             raw = input(prompt).strip()
@@ -247,6 +263,8 @@ class _Prompt:
             return value
 
     def optional_float(self, label: str, default: object | None = None) -> float | None:
+        """Prompt for an optional float, treating blanks as None or existing default."""
+
         while True:
             prompt = _format_prompt(label, default)
             raw = input(prompt).strip()
@@ -259,6 +277,8 @@ class _Prompt:
             return parsed
 
     def secret(self, label: str, default: object | None = None) -> str:
+        """Prompt for a secret string with confirmation, defaulting when allowed."""
+
         while True:
             if default is not None:
                 prompt = f"{label} [leave blank to keep existing]: "
@@ -278,11 +298,15 @@ class _Prompt:
 
 
 def _format_prompt(label: str, default: object | None) -> str:
+    """Format a prompt label with optional default value hint."""
+
     suffix = f" [{default}]" if default not in (None, "") else ""
     return f"{label}{suffix}: "
 
 
 def _parse_int(raw: object) -> int | None:
+    """Attempt to parse an integer, returning None on failure."""
+
     try:
         return int(raw)  # type: ignore[arg-type]
     except (TypeError, ValueError):
@@ -290,6 +314,8 @@ def _parse_int(raw: object) -> int | None:
 
 
 def _parse_float(raw: object) -> float | None:
+    """Attempt to parse a float, returning None on failure."""
+
     try:
         return float(raw)  # type: ignore[arg-type]
     except (TypeError, ValueError):
@@ -297,6 +323,8 @@ def _parse_float(raw: object) -> float | None:
 
 
 def _maybe_render_direwolf_config(config: StationConfig, target_dir: Path) -> None:
+    """Render a direwolf.conf file based on the template and station config."""
+
     template = _load_direwolf_template()
     if template is None:
         print("Direwolf template unavailable; skipping auto-render")
@@ -349,6 +377,8 @@ def _maybe_render_direwolf_config(config: StationConfig, target_dir: Path) -> No
 
 
 def _load_direwolf_template() -> str | None:
+    """Load the direwolf configuration template text from package data."""
+
     try:
         return resources.files("nesdr_igate.templates").joinpath("direwolf.conf").read_text(encoding="utf-8")
     except (FileNotFoundError, OSError):  # pragma: no cover - defensive
@@ -356,16 +386,22 @@ def _load_direwolf_template() -> str | None:
 
 
 def _format_coordinate(value: float | None, *, fallback: str) -> str:
+    """Render a coordinate value or return a placeholder fallback."""
+
     if value is None:
         return fallback
     return f"{value:.6f}"
 
 
 def _escape_comment(comment: str) -> str:
+    """Escape double quotes in the beacon comment for Direwolf syntax."""
+
     return comment.replace("\"", "\\\"")
 
 
 def _prompt_yes_no(message: str, *, default: bool) -> bool:
+    """Solicit a yes/no answer, defaulting when the user presses enter."""
+
     suffix = " [Y/n]" if default else " [y/N]"
     while True:
         response = input(f"{message}{suffix}: ").strip().lower()
@@ -379,6 +415,8 @@ def _prompt_yes_no(message: str, *, default: bool) -> bool:
 
 
 def _offer_hardware_validation(config: StationConfig) -> None:
+    """Optionally kick off the post-setup hardware validation flow."""
+
     message = "Run a quick SDR/Direwolf validation now?"
     if not _prompt_yes_no(message, default=False):
         return
@@ -386,6 +424,8 @@ def _offer_hardware_validation(config: StationConfig) -> None:
 
 
 def _run_hardware_validation(config: StationConfig) -> None:
+    """Execute a series of checks to validate SDR and Direwolf readiness."""
+
     print("\nRunning hardware validation...")
 
     command_checks = {
@@ -459,6 +499,8 @@ def _run_hardware_validation(config: StationConfig) -> None:
 
 
 def _extract_ppm_from_output(output: str) -> str | None:
+    """Return the first rtl_test PPM line or None if not present."""
+
     for line in output.splitlines():
         line = line.strip()
         if "ppm" in line.lower() and any(ch.isdigit() for ch in line):
@@ -467,6 +509,8 @@ def _extract_ppm_from_output(output: str) -> str | None:
 
 
 def _report_direwolf_log_summary() -> None:
+    """Print a brief summary of recent Direwolf log entries if available."""
+
     log_dir = config_module.get_data_dir() / "logs"
     log_file = log_dir / "direwolf.log"
     if not log_file.exists():
@@ -489,16 +533,22 @@ def _report_direwolf_log_summary() -> None:
 
 
 def _tail_file(path: Path, *, lines: int) -> list[str]:
+    """Return the last `lines` entries from a text file."""
+
     with path.open("r", encoding="utf-8", errors="ignore") as handle:
         buffer = deque(handle, maxlen=lines)
     return [entry.rstrip("\n") for entry in buffer]
 
 
 def _can_launch_direwolf() -> bool:
+    """Return True when rtl_fm and Direwolf binaries are both available."""
+
     return shutil.which("rtl_fm") is not None and shutil.which("direwolf") is not None
 
 
 def _launch_direwolf_probe(config: StationConfig) -> None:
+    """Run a short rtl_fm + Direwolf session capturing output to a temp log."""
+
     log_dir = config_module.get_data_dir() / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
     temp_log = log_dir / "direwolf_probe.log"

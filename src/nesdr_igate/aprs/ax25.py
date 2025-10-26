@@ -11,11 +11,21 @@ class AX25DecodeError(ValueError):
 
 @dataclass(slots=True)
 class AX25Address:
+    """Represents a single AX.25 address field extracted from a frame."""
+
     callsign: str
     ssid: int
     has_been_repeated: bool
 
     def to_tnc2(self, include_asterisk: bool = False) -> str:
+        """Render the address into TNC2 text form.
+
+        Args:
+            include_asterisk: Whether to include a trailing `*` for digipeaters.
+
+        Returns:
+            Normalised callsign string with optional SSID and asterisk.
+        """
         suffix = f"-{self.ssid}" if self.ssid > 0 else ""
         indicator = "*" if include_asterisk and self.has_been_repeated else ""
         return f"{self.callsign}{suffix}{indicator}"
@@ -57,6 +67,7 @@ def kiss_payload_to_tnc2(payload: bytes) -> str:
 
 
 def _parse_address_fields(payload: bytes) -> tuple[list[AX25Address], int]:
+    """Decode the chained AX.25 address blocks from a KISS payload."""
     addresses: list[AX25Address] = []
     offset = 0
     while offset + 7 <= len(payload):
@@ -75,6 +86,7 @@ def _parse_address_fields(payload: bytes) -> tuple[list[AX25Address], int]:
 
 
 def _decode_callsign(raw: bytes) -> str:
+    """Convert a padded AX.25 callsign field to an uppercase string."""
     chars = []
     for byte in raw:
         value = (byte >> 1) & 0x7F

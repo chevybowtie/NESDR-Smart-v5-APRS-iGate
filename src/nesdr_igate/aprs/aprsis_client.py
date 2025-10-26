@@ -14,6 +14,8 @@ class APRSISClientError(RuntimeError):
 
 @dataclass(slots=True)
 class APRSISConfig:
+    """Connection parameters and metadata for APRS-IS sessions."""
+
     host: str
     port: int
     callsign: str
@@ -25,13 +27,17 @@ class APRSISConfig:
 
 
 class APRSISClient:
+    """Manage APRS-IS connectivity for uploading APRS packets."""
+
     def __init__(self, config: APRSISConfig) -> None:
+        """Initialise the client with the desired APRS-IS configuration."""
         self._config = config
         self._socket: Optional[socket.socket] = None
         self._reader: Optional[io.BufferedReader] = None
         self._writer: Optional[io.BufferedWriter] = None
 
     def connect(self) -> None:
+        """Establish a TCP session and complete the APRS-IS login handshake."""
         if self._socket is not None:
             return
         try:
@@ -52,6 +58,7 @@ class APRSISClient:
         self._await_logresp()
 
     def send_packet(self, packet: str) -> None:
+        """Transmit an already encoded TNC2 packet line to APRS-IS."""
         writer = self._require_writer()
         line = packet.rstrip("\r\n") + "\n"
         try:
@@ -61,6 +68,7 @@ class APRSISClient:
             raise APRSISClientError(f"Failed to send packet to APRS-IS: {exc}") from exc
 
     def close(self) -> None:
+        """Release all socket resources associated with the APRS-IS session."""
         if self._writer is not None:
             try:
                 self._writer.close()
@@ -81,13 +89,16 @@ class APRSISClient:
             self._socket = None
 
     def __enter__(self) -> "APRSISClient":
+        """Open the connection when used as a context manager."""
         self.connect()
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:
+        """Ensure the connection is closed when leaving a context manager."""
         self.close()
 
     def _await_logresp(self) -> None:
+        """Read initial server banner lines until a login response is received."""
         reader = self._require_reader()
         for _ in range(5):
             try:
@@ -106,17 +117,20 @@ class APRSISClient:
         raise APRSISClientError("APRS-IS login response not received")
 
     def _build_login_line(self) -> str:
+        """Compose the APRS-IS login command string."""
         base = f"user {self._config.callsign} pass {self._config.passcode} vers {self._config.software_name} {self._config.software_version}"
         if self._config.filter_string:
             base += f" filter {self._config.filter_string}"
         return base
 
     def _require_reader(self) -> io.BufferedReader:
+        """Return the socket reader, raising if the client is disconnected."""
         if self._reader is None:
             raise APRSISClientError("APRS-IS connection not established")
         return self._reader
 
     def _require_writer(self) -> io.BufferedWriter:
+        """Return the socket writer, raising if the client is disconnected."""
         if self._writer is None:
             raise APRSISClientError("APRS-IS connection not established")
         return self._writer

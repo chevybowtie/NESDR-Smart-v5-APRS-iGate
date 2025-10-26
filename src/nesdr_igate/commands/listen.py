@@ -78,6 +78,8 @@ def run_listen(args: Namespace) -> int:
     stop_event = threading.Event()
 
     def _pump_audio() -> None:
+        """Stream rtl_fm output into Direwolf until capture stops or errors arise."""
+
         try:
             while not stop_event.is_set():
                 chunk = capture.read(_AUDIO_CHUNK_BYTES)
@@ -95,6 +97,8 @@ def run_listen(args: Namespace) -> int:
             audio_errors.put(exc)
 
     def _cleanup() -> None:
+        """Tear down background resources gracefully before exiting."""
+
         nonlocal aprs_client
         stop_event.set()
         if audio_thread and audio_thread.is_alive():
@@ -118,6 +122,7 @@ def run_listen(args: Namespace) -> int:
     previous_sigint = signal.getsignal(signal.SIGINT)
 
     def _handle_sigint(signum, frame):  # type: ignore[override]
+        """Raise KeyboardInterrupt to unwind the main loop on Ctrl+C."""
         stop_event.set()
         raise KeyboardInterrupt
 
@@ -190,6 +195,8 @@ def run_listen(args: Namespace) -> int:
     frame_count = 0
 
     def _attempt_aprs_connect() -> None:
+        """Connect to APRS-IS with exponential back-off after failures."""
+
         nonlocal aprs_client, aprs_retry_delay, aprs_next_retry
         if not aprs_enabled or aprs_config is None:
             return
@@ -275,6 +282,8 @@ def run_listen(args: Namespace) -> int:
 
 
 def _resolve_direwolf_config(config_dir: Path) -> Optional[Path]:
+    """Return the best available direwolf.conf path for the listener."""
+
     candidate = config_dir / "direwolf.conf"
     if candidate.exists():
         return candidate
@@ -283,6 +292,8 @@ def _resolve_direwolf_config(config_dir: Path) -> Optional[Path]:
 
 
 def _wait_for_kiss(client: KISSClient, *, attempts: int, delay: float) -> bool:
+    """Attempt to establish a KISS connection, retrying with delays."""
+
     for attempt in range(attempts):
         try:
             client.connect()
@@ -293,6 +304,8 @@ def _wait_for_kiss(client: KISSClient, *, attempts: int, delay: float) -> bool:
 
 
 def _display_frame(count: int, port: int, tnc2_line: str) -> None:
+    """Print a formatted summary line for a decoded TNC2 packet."""
+
     snippet = tnc2_line
     if len(snippet) > 120:
         snippet = snippet[:117] + "…"
@@ -300,6 +313,8 @@ def _display_frame(count: int, port: int, tnc2_line: str) -> None:
 
 
 def _report_audio_error(queue: "Queue[Exception]") -> None:
+    """Emit and clear the first queued audio pipeline exception, if any."""
+
     try:
         exc = queue.get_nowait()
     except Empty:

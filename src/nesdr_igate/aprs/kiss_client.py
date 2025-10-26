@@ -44,6 +44,7 @@ class KISSClient:
 
     @property
     def is_connected(self) -> bool:
+        """Return True when a TCP socket is active."""
         return self._socket is not None
 
     def connect(self) -> None:
@@ -87,6 +88,7 @@ class KISSClient:
             self._buffer.extend(chunk)
 
     def send_frame(self, payload: bytes, port: int = 0, command: int = 0x00) -> None:
+        """Encode and send a frame payload to the remote KISS endpoint."""
         sock = self._require_socket()
         frame = bytearray()
         frame.append(FEND)
@@ -109,13 +111,16 @@ class KISSClient:
             self._buffer.clear()
 
     def __enter__(self) -> "KISSClient":
+        """Connect automatically when used via a context manager."""
         self.connect()
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:
+        """Ensure the socket is closed on context manager exit."""
         self.close()
 
     def _extract_frame(self) -> KISSFrame | None:
+        """Return a decoded frame when buffer contains a complete payload."""
         start = self._buffer.find(FEND)
         if start == -1:
             self._buffer.clear()
@@ -136,12 +141,14 @@ class KISSClient:
         return KISSFrame(port=port, command=command, payload=payload)
 
     def _require_socket(self) -> socket.socket:
+        """Return the active socket or raise if not connected."""
         if self._socket is None:
             raise KISSClientError("KISS connection not established")
         return self._socket
 
 
 def _kiss_escape(payload: bytes) -> bytes:
+    """Escape a payload per the KISS protocol rules."""
     escaped = bytearray()
     for value in payload:
         if value == FEND:
@@ -154,6 +161,7 @@ def _kiss_escape(payload: bytes) -> bytes:
 
 
 def _kiss_unescape(payload: bytes) -> bytes:
+    """Reverse KISS-specific escape sequences within a payload."""
     decoded = bytearray()
     iterator = iter(payload)
     for value in iterator:

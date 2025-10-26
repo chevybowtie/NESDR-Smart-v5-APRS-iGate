@@ -35,10 +35,12 @@ class RtlFmAudioCapture:
 
     @property
     def command(self) -> list[str] | None:
-        """Return the most recent command used to launch rtl_fm."""
+        """Return a copy of the last command issued to rtl_fm, if any."""
         return list(self._command) if self._command is not None else None
 
     def start(self) -> None:
+        """Launch rtl_fm with the configured parameters."""
+
         if self._process is not None:
             raise AudioCaptureError("rtl_fm capture already started")
         if shutil.which("rtl_fm") is None:
@@ -88,6 +90,8 @@ class RtlFmAudioCapture:
             raise AudioCaptureError("Failed to open rtl_fm stdout pipe")
 
     def read(self, num_bytes: int) -> bytes:
+        """Read a chunk of demodulated audio from rtl_fm."""
+
         if self._process is None or self._process.stdout is None:
             raise AudioCaptureError("rtl_fm capture not started")
         try:
@@ -104,6 +108,8 @@ class RtlFmAudioCapture:
         raise AudioCaptureError(f"rtl_fm exited unexpectedly with code {return_code}")
 
     def stop(self) -> None:
+        """Terminate the rtl_fm subprocess if it is running."""
+
         if self._process is None:
             return
         try:
@@ -115,8 +121,10 @@ class RtlFmAudioCapture:
             self._process = None
 
     def __enter__(self) -> "RtlFmAudioCapture":
+        """Start capture when entering a context manager block."""
         self.start()
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:
+        """Ensure rtl_fm terminates on context manager exit."""
         self.stop()
