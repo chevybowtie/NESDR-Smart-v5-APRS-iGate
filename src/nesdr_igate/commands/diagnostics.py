@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import logging
-import socket
 import sys
 import time
 from argparse import Namespace

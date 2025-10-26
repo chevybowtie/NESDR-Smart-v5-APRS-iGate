@@ -15,7 +15,6 @@ from nesdr_igate.aprs.kiss_client import (
     KISSClientConfig,
     KISSClientError,
     KISSCommand,
-    KISSFrame,
     _kiss_escape,
     _kiss_unescape,
 )
