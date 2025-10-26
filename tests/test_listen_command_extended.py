@@ -85,10 +85,10 @@ def test_display_frame_truncates_output(capsys) -> None:
     assert payload not in captured.out
 
 
-def test_report_audio_error_prints_message(capsys) -> None:
+def test_maybe_print_audio_error_prints_message(capsys) -> None:
     queue: Queue[Exception] = Queue()
     queue.put(RuntimeError("oops"))
-    listen._report_audio_error(queue)
+    listen._maybe_print_audio_error(queue)
     captured = capsys.readouterr()
     assert "Audio pipeline error" in captured.out
 
