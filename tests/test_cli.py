@@ -3,11 +3,48 @@
 from __future__ import annotations
 
 import json
+from argparse import Namespace
 from collections.abc import Iterator
 
 from nesdr_igate.aprs.aprsis_client import APRSISClientError
 from nesdr_igate.cli import main
 from nesdr_igate.config import CONFIG_ENV_VAR, StationConfig, save_config
+from nesdr_igate.aprs.kiss_client import KISSCommand
+
+
+def test_main_defaults_to_listen_when_no_command(monkeypatch) -> None:
+    captured: dict[str, Namespace] = {}
+
+    def fake_run_listen(args: Namespace) -> int:
+        captured["args"] = args
+        return 7
+
+    monkeypatch.setattr("nesdr_igate.cli.run_listen", fake_run_listen)
+
+    exit_code = main([])
+
+    assert exit_code == 7
+    namespace = captured["args"]
+    assert namespace.command == "listen"
+    assert hasattr(namespace, "once")
+    assert hasattr(namespace, "no_aprsis")
+
+
+def test_main_injects_listen_for_flag_only_invocation(monkeypatch) -> None:
+    captured: dict[str, Namespace] = {}
+
+    def fake_run_listen(args: Namespace) -> int:
+        captured["args"] = args
+        return 0
+
+    monkeypatch.setattr("nesdr_igate.cli.run_listen", fake_run_listen)
+
+    exit_code = main(["--no-aprsis"])
+
+    assert exit_code == 0
+    namespace = captured["args"]
+    assert namespace.command == "listen"
+    assert namespace.no_aprsis is True
 
 
 def test_setup_non_interactive(tmp_path, monkeypatch, capsys) -> None:
@@ -164,7 +201,7 @@ def test_listen_command_once(tmp_path, monkeypatch, capsys) -> None:
 
         def read_frame(self, timeout: float | None = None) -> KISSFrame:
             self.frames_returned += 1
-            return KISSFrame(port=0, command=0, payload=b"TEST")
+            return KISSFrame(port=0, command=KISSCommand.DATA, payload=b"TEST")
 
         def close(self) -> None:
             self.closed = True
@@ -286,7 +323,7 @@ def test_listen_reconnect_and_stats(tmp_path, monkeypatch, capsys) -> None:
             if self._index < len(self._frames):
                 payload = self._frames[self._index]
                 self._index += 1
-                return KISSFrame(port=0, command=0, payload=payload)
+                return KISSFrame(port=0, command=KISSCommand.DATA, payload=payload)
             raise KeyboardInterrupt
 
         def close(self) -> None:

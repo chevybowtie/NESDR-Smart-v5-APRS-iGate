@@ -22,7 +22,6 @@
 
 ## Setup Command (setup.py)
 ### Findings
-* `_run_non_interactive` duplicates load logic already in `_load_existing`.
 Extensive user interactivity logic makes unit testing difficult; consider isolating prompt I/O behind interfaces.
 ### Recommendations
 * Factor prompt utilities into separate module with injectable input/output streams for tests.
@@ -33,25 +32,18 @@ Extensive user interactivity logic makes unit testing difficult; consider isolat
 
 ## Listener Command (listen.py)
 ### Findings
-* run_listen (~200 lines) mixes config resolution, process orchestration, retries, stats, and signal handling.
-* _handle_sigint overrides global handler without restoring on early returns.
 * print for logging; migrating to logging would permit structured logs.
-* _report_audio_error pollutes STDOUT; consider raising to caller for structured handling.
 
 ### Recommendations
-* Split `run_listen` into composable helpers (_prepare_radio, _spawn_direwolf, _run_main_loop).
-* Refactor to use contextlib.ExitStack for capture/client lifecycle.
 * Swap print with logging.getLogger(__name__).
 
 
 ## CLI Layer (cli.py)
 ### Findings
-* `subparsers = parser.add_subparsers(... required=False)` allows empty command; consider default to `listen`.
-* `CommandHandler` lacks `Protocol`; adoption improves static typing.
+* Print-style diagnostics remain; aligns with broader logging work once adopted.
 
 ### Recommendations
-* Use typing.Protocol for handlers and centralize registration logic.
-* Replace print_help branch with parser.set_defaults to reduce conditional.
+* Swap print with logging.getLogger(__name__) once logging baseline lands.
 
 ## Dependency Modernization (pyproject.toml)
 
