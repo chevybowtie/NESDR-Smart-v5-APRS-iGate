@@ -29,11 +29,6 @@ Extensive user interactivity logic makes unit testing difficult; consider isolat
 * Review thread and subprocess lifecycle handling to guarantee clean shutdown on signals.
 * Add integration coverage for `--once` and `--no-aprsis` to protect CLI defaults.
 
-## CLI Layer (`cli.py`)
-### Follow-ups
-* Add a `--version` flag surfaced from package metadata.
-* Document environment variable overrides (e.g., `NESDR_IGATE_LOG_LEVEL`) in help output.
-
 ## Dependency Modernization (`pyproject.toml`)
 Recommendations
 * Update stanza:

@@ -9,6 +9,8 @@ import sys
 from argparse import Namespace
 from typing import Callable, Dict
 
+from importlib import metadata
+
 from nesdr_igate.commands import (  # type: ignore[import]
     run_diagnostics,
     run_listen,
@@ -24,6 +26,13 @@ _LOG_LEVEL_ALIASES: dict[str, int] = {
     "info": logging.INFO,
     "debug": logging.DEBUG,
 }
+
+
+def _package_version() -> str:
+    try:
+        return metadata.version("nesdr-igate")
+    except metadata.PackageNotFoundError:
+        return "0.0.0"
 
 
 def _resolve_log_level(candidate: str | None) -> int:
@@ -54,11 +63,22 @@ def build_parser() -> argparse.ArgumentParser:
     """Construct the top-level argument parser."""
     parser = argparse.ArgumentParser(
         prog="nesdr-igate",
-        description="NESDR Smart v5 APRS iGate utility (work in progress)",
+        description="NESDR Smart v5 APRS iGate utility.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "Environment overrides:\n"
+            "  NESDR_IGATE_LOG_LEVEL    Default logging level when --log-level is omitted.\n"
+            "  NESDR_IGATE_CONFIG_PATH  Path to config.toml used by setup/listen/diagnostics."
+        ),
     )
     parser.add_argument(
         "--log-level",
         help="Set log verbosity (DEBUG, INFO, WARNING, ERROR, CRITICAL or numeric)",
+    )
+    parser.add_argument(
+        "--version",
+        action="store_true",
+        help="Show package version and exit",
     )
     subparsers = parser.add_subparsers(dest="command", required=False)
     subparser_map: Dict[str, argparse.ArgumentParser] = {}
@@ -135,6 +155,10 @@ def main(argv: list[str] | None = None) -> int:
         parser, "_nesdr_subparser_map", {}
     )
     args, remainder = parser.parse_known_args(argv)
+
+    if getattr(args, "version", False):
+        print(f"{parser.prog} {_package_version()}")
+        return 0
 
     _configure_logging(getattr(args, "log_level", None))
 

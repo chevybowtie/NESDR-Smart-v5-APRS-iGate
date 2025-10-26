@@ -8,8 +8,19 @@ from collections.abc import Iterator
 
 from nesdr_igate.aprs.aprsis_client import APRSISClientError
 from nesdr_igate.cli import main
-from nesdr_igate.config import CONFIG_ENV_VAR, StationConfig, save_config
 from nesdr_igate.aprs.kiss_client import KISSCommand
+from nesdr_igate.config import CONFIG_ENV_VAR, StationConfig, save_config
+
+
+def test_cli_version_flag(monkeypatch, capsys) -> None:
+    monkeypatch.setattr("nesdr_igate.cli._package_version", lambda: "9.9.9")
+
+    exit_code = main(["--version"])
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert captured.out.strip() == "nesdr-igate 9.9.9"
+    assert captured.err == ""
 
 
 def test_main_defaults_to_listen_when_no_command(monkeypatch) -> None:
