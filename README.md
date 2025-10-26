@@ -1,74 +1,83 @@
-# NESDR APRS iGate Quickstart
+# NESDR APRS iGate
 
-Step-by-step guide to install the CLI, capture a minimal configuration, and start forwarding APRS packets with a NESDR Smart v5.
+Command-line utility for turning a NESDR Smart v5 RTL-SDR into a receive-only APRS iGate with optional APRS-IS uplink.
 
-## 1. Prerequisites
-- **Hardware**: NESDR Smart v5 (or compatible RTL-SDR) and access to the 144.390 MHz APRS channel.
-- **Operating system**: Linux (Debian/Ubuntu tested).
-- **Python**: 3.11 or 3.12. Install the `python3-venv` package if it is missing.
-- **System packages**:
-	```bash
-	sudo apt update
-	sudo apt install python3-dev python3-venv build-essential pkg-config rtl-sdr sox direwolf
-	```
-	Direwolf is required for packet decoding; `sox` is optional but useful for diagnostics.
+## Prerequisites
+- Linux host with Python 3.11 or newer
+- NESDR Smart v5 (or compatible RTL-SDR)
+- Direwolf packet modem installed and on `PATH`
+	- `rtl_fm`, `rtl_test`, and `direwolf` binaries must be callable
+- (Optional) `sox` for Direwolf audio tooling (installed automatically with the `direwolf` extra)
 
-## 2. Create a Virtual Environment
+On Debian- or Ubuntu-based systems you can install the radio tools and Direwolf with:
+```bash
+sudo apt install rtl-sdr direwolf
+```
+Add `sox` if you want the optional audio helpers:
+```bash
+sudo apt install sox
+```
+
+## 1. Create and activate a virtual environment
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
 ```
 
-## 3. Install the Project
-Install runtime + development tooling along with Direwolf helpers:
+## 2. Install project dependencies
+Install the project in editable mode along with the Direwolf helper extra:
 ```bash
-pip install -e '.[dev,direwolf]'
+pip install -e '.[direwolf]'
 ```
-Key Python dependencies installed by this command:
-- `numpy>=2`
-- `pyrtlsdr>=0.3`
-- `aprslib>=0.7.2`
-- `tomli-w>=1.1`
+Add `.[dev]` if you also want formatting, linting, and test tooling.
 
-## 4. Configure the Station
-Run the interactive setup wizard to collect station credentials and SDR preferences:
+## 3. Run the interactive setup
+Launch the onboarding wizard to capture station details and render the initial configuration:
 ```bash
 nesdr-igate setup
 ```
-- Answers are written to `~/.config/nesdr-igate/config.toml`.
-- Use `--non-interactive` to validate an existing config or `--dry-run` to preview changes.
-- The wizard can also render a Direwolf configuration under `~/.config/nesdr-igate/direwolf.conf`.
+During setup you will be asked for:
+- Callsign-SSID and APRS-IS passcode (optionally stored in the system keyring)
+- APRS-IS server endpoint
+- Station latitude/longitude (optional but recommended)
+- Direwolf KISS host/port
 
-## 5. Verify the Environment
-Capture a quick health report before listening:
+The wizard writes `config.toml` to `~/.config/nesdr-igate/` (override via `NESDR_IGATE_CONFIG_PATH`) and can render `direwolf.conf` plus run a quick hardware validation. Re-run with `--reset` to overwrite an existing config.
+
+To validate an existing configuration without prompts, use the non-interactive mode and point at the file you want to check:
+```bash
+nesdr-igate setup --non-interactive --config path/to/config.toml
+```
+If `--config` is omitted, the command looks for the file at `NESDR_IGATE_CONFIG_PATH` (when set) or in the default config directory.
+
+## 4. Verify the environment (optional)
+Use diagnostics to confirm software, SDR, and network reachability:
 ```bash
 nesdr-igate diagnostics --verbose
 ```
-This checks Python dependencies, configuration validity, SDR availability, and network reachability.
+Add `--json` for machine-readable output.
 
-## 6. Start Listening
-Launch the end-to-end pipeline:
+## 5. Start listening
 ```bash
 nesdr-igate listen
 ```
-- Defaults connect to Direwolf over KISS TCP and forward frames to APRS-IS using the stored credentials.
-- Run with `--no-aprsis` for receive-only mode.
-- Press `Ctrl+C` to stop; logs and packet summaries stay in the terminal for now.
 
-## 7. Next Steps
-- Review `TODO.md` for planned enhancements (logging, async pipeline, etc.).
-- Explore `docs/` for deeper architecture and Direwolf integration notes.
-- Use `pip install -e .` without extras only if you plan to run setup/diagnostics without live decoding (Direwolf remains required for `listen`).
+The listener will:
+1. Launch `rtl_fm` and pipe audio into Direwolf
+2. Read KISS frames from Direwolf
+3. Decode AX.25 payloads for console display
+4. Forward packets to APRS-IS using the configured credentials
 
-## Planned Components
-- SDR capture and demodulation pipeline with device abstraction (`src/nesdr_igate/radio/`)
-- APRS/Direwolf integration for decoding and uplink (`src/nesdr_igate/aprs/`)
-- CLI entry points for `listen`, `setup`, and diagnostics (`src/nesdr_igate/cli.py`)
-- Telemetry and logging utilities (`src/nesdr_igate/telemetry/`)
+Useful flags:
+- `--no-aprsis` to operate receive-only without APRS-IS uplink
+- `--once` to process a single frame batch (helpful for smoke tests)
+- `--config PATH` to point at an alternate configuration file
 
-## Direwolf Integration
-- Follow the step-by-step Debian guide in `docs/direwolf-setup-debian.md`
-- Render `docs/templates/direwolf.conf` (or run `nesdr-igate setup` once implemented) to populate `~/.config/nesdr-igate/direwolf.conf`
-- Launch the audio pipeline + Direwolf via `scripts/run_direwolf.sh` (ensure it is executable)
-- Logs are written to `~/.local/share/nesdr-igate/logs/direwolf.log`
+Logs and temporary probe outputs are stored beneath `~/.local/share/nesdr-igate/logs/` by default.
+
+## Troubleshooting
+- `nesdr-igate diagnostics` surfaces missing dependencies, SDR availability, and network reachability issues.
+- Ensure `rtl_fm`, `rtl_test`, `direwolf`, and `sox` (optional) are installed and executable.
+- Review Direwolf and listener logs under `~/.local/share/nesdr-igate/` for detailed errors.
+- Re-run `nesdr-igate setup --reset` if you need to regenerate configuration files or Direwolf templates.
