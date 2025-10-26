@@ -399,17 +399,24 @@ def _run_hardware_validation(config: StationConfig) -> None:
         else:
             print(f"[WARNING] {command}: not found in PATH ({description})")
 
+    ppm_hint: str | None = None
     if shutil.which("rtl_test"):
         try:
             proc = subprocess.run(
-                ["rtl_test", "-t", "-d", "0"],
+                ["rtl_test", "-p", "-d", "0"],
                 capture_output=True,
                 text=True,
-                timeout=8,
+                timeout=15,
                 check=False,
             )
             if proc.returncode == 0:
-                print("[OK     ] rtl_test: tuner self-test completed")
+                ppm_hint = _extract_ppm_from_output(proc.stdout)
+                if ppm_hint is not None:
+                    print(
+                        f"[OK     ] rtl_test: ppm offset {ppm_hint} detected; consider updating config"
+                    )
+                else:
+                    print("[OK     ] rtl_test: frequency drift measurement complete")
             else:
                 snippet = (proc.stderr.strip() or proc.stdout.strip())[:120]
                 print(f"[WARNING] rtl_test exit code {proc.returncode}: {snippet}")
@@ -436,4 +443,17 @@ def _run_hardware_validation(config: StationConfig) -> None:
             f"[WARNING] APRS-IS: unable to reach {config.aprs_server}:{config.aprs_port} ({aprs_result.error})"
         )
 
+    if ppm_hint is not None:
+        print(
+            "Tip: set `ppm_correction` in the configuration to this value to improve tuning accuracy."
+        )
+
     print("Hardware validation complete. Review warnings above for follow-up.")
+
+
+def _extract_ppm_from_output(output: str) -> str | None:
+    for line in output.splitlines():
+        line = line.strip()
+        if "ppm" in line.lower() and any(ch.isdigit() for ch in line):
+            return line
+    return None

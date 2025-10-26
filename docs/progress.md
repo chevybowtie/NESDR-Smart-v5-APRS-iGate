@@ -68,10 +68,11 @@
 - `listen` command now pipes rtl_fm audio into Direwolf, displays decoded packets, and forwards to APRS-IS with an opt-out flag (Oct 25, 2025)
 - APRS-IS reconnect/backoff logic with throughput stats added to `listen`; regression tests cover retry flow (Oct 25, 2025)
 - Setup command now supports keyring-stored passcodes and offers post-run hardware validation (Oct 25, 2025)
+- Hardware validation now parses `rtl_test -p` output and suggests ppm correction updates (Oct 25, 2025)
 
 ## Next Steps
 - Flesh out DSP pipeline plan (filtering, demod staging) atop the radio layer
-- Extend hardware validation with automated rtl_test ppm guidance and Direwolf log inspection
+- Extend hardware validation with Direwolf log inspection and auto-launch options
 
 ## DSP Pipeline Sketch (draft)
 - IQ capture remains via rtl_fm for MVP; long term swap to SoapySDR/SoapyRemote for multi-device support.
