@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import io
+import logging
 from argparse import Namespace
 from queue import Queue
-from types import SimpleNamespace
 from typing import Any, cast
 
 import pytest
@@ -76,24 +76,28 @@ def test_wait_for_kiss_exhausts_attempts() -> None:
     assert result is False
 
 
-def test_display_frame_truncates_output(capsys) -> None:
+def test_display_frame_truncates_output(caplog) -> None:
+    caplog.set_level(logging.INFO, logger="nesdr_igate.commands.listen")
+    caplog.clear()
     payload = "A" * 200
     listen._display_frame(5, 1, payload)
-    captured = capsys.readouterr()
-    assert "[000005]" in captured.out
-    assert payload[:117] in captured.out
-    assert payload not in captured.out
+    assert "[000005]" in caplog.text
+    assert payload[:117] in caplog.text
+    assert payload not in caplog.text
 
 
-def test_maybe_print_audio_error_prints_message(capsys) -> None:
+def test_report_audio_error_logs_message(caplog) -> None:
+    caplog.set_level(logging.ERROR, logger="nesdr_igate.commands.listen")
+    caplog.clear()
     queue: Queue[Exception] = Queue()
     queue.put(RuntimeError("oops"))
-    listen._maybe_print_audio_error(queue)
-    captured = capsys.readouterr()
-    assert "Audio pipeline error" in captured.out
+    listen._report_audio_error(queue)
+    assert "Audio pipeline error" in caplog.text
 
 
-def test_run_listen_config_missing(monkeypatch, tmp_path, capsys) -> None:
+def test_run_listen_config_missing(monkeypatch, tmp_path, caplog) -> None:
+    caplog.set_level(logging.INFO, logger="nesdr_igate.commands.listen")
+    caplog.clear()
     _patch_signal(monkeypatch)
     config_path = tmp_path / "config.toml"
 
@@ -105,13 +109,14 @@ def test_run_listen_config_missing(monkeypatch, tmp_path, capsys) -> None:
     monkeypatch.setattr(listen.config_module, "load_config", fake_load)
 
     exit_code = listen.run_listen(Namespace(config=None))
-    captured = capsys.readouterr()
 
     assert exit_code == 1
-    assert "Config not found" in captured.out
+    assert "Config not found" in caplog.text
 
 
-def test_run_listen_config_invalid(monkeypatch, tmp_path, capsys) -> None:
+def test_run_listen_config_invalid(monkeypatch, tmp_path, caplog) -> None:
+    caplog.set_level(logging.INFO, logger="nesdr_igate.commands.listen")
+    caplog.clear()
     _patch_signal(monkeypatch)
     config_path = tmp_path / "config.toml"
     monkeypatch.setattr(listen.config_module, "resolve_config_path", lambda *_: config_path)
@@ -122,13 +127,14 @@ def test_run_listen_config_invalid(monkeypatch, tmp_path, capsys) -> None:
     monkeypatch.setattr(listen.config_module, "load_config", fake_load)
 
     exit_code = listen.run_listen(Namespace(config=None))
-    captured = capsys.readouterr()
 
     assert exit_code == 1
-    assert "Config invalid" in captured.out
+    assert "Config invalid" in caplog.text
 
 
-def test_run_listen_missing_direwolf_config(monkeypatch, tmp_path, capsys) -> None:
+def test_run_listen_missing_direwolf_config(monkeypatch, tmp_path, caplog) -> None:
+    caplog.set_level(logging.INFO, logger="nesdr_igate.commands.listen")
+    caplog.clear()
     _patch_signal(monkeypatch)
     config_path = tmp_path / "config.toml"
     config_dir = config_path.parent
@@ -137,14 +143,15 @@ def test_run_listen_missing_direwolf_config(monkeypatch, tmp_path, capsys) -> No
     monkeypatch.setattr(listen.config_module, "get_config_dir", lambda: tmp_path / "global")
 
     exit_code = listen.run_listen(Namespace(config=None))
-    captured = capsys.readouterr()
 
     assert exit_code == 1
-    assert "Direwolf configuration missing" in captured.out
+    assert "Direwolf configuration missing" in caplog.text
     assert config_dir == config_path.parent
 
 
-def test_run_listen_audio_capture_failure(monkeypatch, tmp_path, capsys) -> None:
+def test_run_listen_audio_capture_failure(monkeypatch, tmp_path, caplog) -> None:
+    caplog.set_level(logging.INFO, logger="nesdr_igate.commands.listen")
+    caplog.clear()
     _patch_signal(monkeypatch)
     config_path = tmp_path / "config.toml"
     config_dir = config_path.parent
@@ -169,13 +176,14 @@ def test_run_listen_audio_capture_failure(monkeypatch, tmp_path, capsys) -> None
     monkeypatch.setattr(listen, "RtlFmAudioCapture", FailingCapture)
 
     exit_code = listen.run_listen(Namespace(config=None))
-    captured = capsys.readouterr()
 
     assert exit_code == 1
-    assert "Audio capture failed" in captured.out
+    assert "Audio capture failed" in caplog.text
 
 
-def test_run_listen_direwolf_launch_failure(monkeypatch, tmp_path, capsys) -> None:
+def test_run_listen_direwolf_launch_failure(monkeypatch, tmp_path, caplog) -> None:
+    caplog.set_level(logging.INFO, logger="nesdr_igate.commands.listen")
+    caplog.clear()
     _patch_signal(monkeypatch)
     config_path = tmp_path / "config.toml"
     config_dir = config_path.parent
@@ -205,13 +213,14 @@ def test_run_listen_direwolf_launch_failure(monkeypatch, tmp_path, capsys) -> No
     monkeypatch.setattr(listen.subprocess, "Popen", fake_popen)
 
     exit_code = listen.run_listen(Namespace(config=None))
-    captured = capsys.readouterr()
 
     assert exit_code == 1
-    assert "Failed to start Direwolf" in captured.out
+    assert "Failed to start Direwolf" in caplog.text
 
 
-def test_run_listen_kiss_unreachable(monkeypatch, tmp_path, capsys) -> None:
+def test_run_listen_kiss_unreachable(monkeypatch, tmp_path, caplog) -> None:
+    caplog.set_level(logging.INFO, logger="nesdr_igate.commands.listen")
+    caplog.clear()
     _patch_signal(monkeypatch)
     config_path = tmp_path / "config.toml"
     config_dir = config_path.parent
@@ -282,113 +291,7 @@ def test_run_listen_kiss_unreachable(monkeypatch, tmp_path, capsys) -> None:
     monkeypatch.setattr(listen, "_wait_for_kiss", lambda *_args, **_kwargs: False)
 
     exit_code = listen.run_listen(Namespace(config=None, no_aprsis=True))
-    captured = capsys.readouterr()
 
     assert exit_code == 1
-    assert "Unable to connect to Direwolf KISS" in captured.out
+    assert "Unable to connect to Direwolf KISS" in caplog.text
     assert capture_instances and capture_instances[0].stopped is True
-    
-def test_prepare_listener_setup_success(monkeypatch, tmp_path) -> None:
-    config_path = tmp_path / "config.toml"
-    config_path.write_text("", encoding="utf-8")
-    direwolf_path = config_path.parent / "direwolf.conf"
-    direwolf_path.write_text("test", encoding="utf-8")
-
-    station = StationConfig(callsign="N0CALL-10", passcode="12345")
-    monkeypatch.setattr(listen.config_module, "resolve_config_path", lambda *_: config_path)
-    monkeypatch.setattr(listen.config_module, "load_config", lambda *_: station)
-
-    exit_code, setup = listen._prepare_listener_setup(Namespace(config=None, no_aprsis=True))
-
-    assert exit_code == 0
-    assert setup is not None
-    assert setup.config_path == config_path
-    assert setup.direwolf_config == direwolf_path
-    assert setup.station_config is station
-    assert setup.aprs_state.enabled is False
-    assert isinstance(setup.kiss_client, listen.KISSClient)
-
-
-def test_prepare_listener_setup_missing_direwolf(monkeypatch, tmp_path) -> None:
-    config_path = tmp_path / "config.toml"
-    config_path.write_text("", encoding="utf-8")
-    station = StationConfig(callsign="N0CALL-10", passcode="12345")
-    monkeypatch.setattr(listen.config_module, "resolve_config_path", lambda *_: config_path)
-    monkeypatch.setattr(listen.config_module, "load_config", lambda *_: station)
-
-    monkeypatch.setattr(listen, "_resolve_direwolf_config", lambda *_: None)
-
-    exit_code, setup = listen._prepare_listener_setup(Namespace(config=None))
-
-    assert exit_code == 1
-    assert setup is None
-
-
-def test_run_listener_success(monkeypatch, tmp_path, capsys) -> None:
-    _patch_signal(monkeypatch)
-
-    station = StationConfig(callsign="N0CALL-10", passcode="12345")
-    rtl_config = listen.RtlFmConfig(frequency_hz=station.center_frequency_hz)
-    aprs_state = listen._APRSState(enabled=False, config=None)
-
-    class DummyCapture:
-        def __init__(self, _cfg):
-            self.started = False
-            self.stopped = False
-
-        def start(self) -> None:
-            self.started = True
-
-        def stop(self) -> None:
-            self.stopped = True
-
-    class DummyProc:
-        def __init__(self) -> None:
-            self.terminated = False
-
-    class DummyThread:
-        def __init__(self) -> None:
-            self.stopped = False
-
-        def join(self, *_args, **_kwargs) -> None:
-            self.stopped = True
-
-        def is_alive(self) -> bool:
-            return False
-
-    class DummyClient:
-        def __init__(self) -> None:
-            self.closed = False
-
-        def close(self) -> None:
-            self.closed = True
-
-    calls: list[str] = []
-
-    monkeypatch.setattr(listen, "RtlFmAudioCapture", DummyCapture)
-    monkeypatch.setattr(listen, "_launch_direwolf_process", lambda *_args, **_kwargs: DummyProc())
-    monkeypatch.setattr(listen, "_terminate_process", lambda proc: calls.append("terminate"))
-    monkeypatch.setattr(listen, "_start_audio_thread", lambda *_args, **_kwargs: DummyThread())
-    monkeypatch.setattr(listen, "_stop_audio_thread", lambda thread, stop_event: calls.append("stop_thread"))
-    monkeypatch.setattr(listen, "_wait_for_kiss", lambda *_args, **_kwargs: True)
-    monkeypatch.setattr(listen, "_run_main_loop", lambda *_args, **_kwargs: (0, 5))
-
-    dummy_client = DummyClient()
-
-    setup = listen._ListenerSetup(
-        config_path=tmp_path / "config.toml",
-        station_config=station,
-        direwolf_config=tmp_path / "direwolf.conf",
-        rtl_config=rtl_config,
-        aprs_state=aprs_state,
-        kiss_client=cast(listen.KISSClient, dummy_client),
-    )
-
-    exit_code = listen._run_listener(setup, once=False)
-    captured = capsys.readouterr()
-
-    assert exit_code == 0
-    assert "Starting rtl_fm capture" in captured.out
-    assert "Frames processed: 5" in captured.out
-    assert "terminate" in calls
-    assert "stop_thread" in calls

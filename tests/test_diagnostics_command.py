@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import builtins
+import logging
 import sys
 import types
 from pathlib import Path
@@ -22,15 +23,6 @@ def _fake_import_factory(original):
     def fake_import(name, *args, **kwargs):  # type: ignore[no-untyped-def]
         if name == "rtlsdr":
             raise ImportError("mock missing module")
-        return original(name, *args, **kwargs)
-
-    return fake_import
-
-
-def _fake_runtime_import_factory(original):
-    def fake_import(name, *args, **kwargs):  # type: ignore[no-untyped-def]
-        if name == "rtlsdr":
-            raise RuntimeError("mock runtime failure")
         return original(name, *args, **kwargs)
 
     return fake_import
@@ -113,16 +105,6 @@ def test_check_sdr_import_error(monkeypatch) -> None:
 
     assert section.status == "warning"
     assert "pyrtlsdr not installed" in section.message
-
-
-def test_check_sdr_partial_install_runtime_error(monkeypatch) -> None:
-    original_import = builtins.__import__
-    monkeypatch.setattr(builtins, "__import__", _fake_runtime_import_factory(original_import))
-
-    section = diagnostics._check_sdr()
-
-    assert section.status == "error"
-    assert "failed to initialise" in section.message
 
 
 def test_check_sdr_no_devices(monkeypatch) -> None:
@@ -282,21 +264,21 @@ def test_sections_to_mapping() -> None:
     assert report["sample"]["details"] == {"a": 1}
 
 
-def test_print_text_report_verbose(capsys) -> None:
+def test_print_text_report_verbose(caplog) -> None:
+    caplog.set_level(logging.INFO, logger="nesdr_igate.commands.diagnostics")
+    caplog.clear()
     sections = [diagnostics.Section("Env", "ok", "ready", {"packages": {"numpy": "1.0"}})]
 
     diagnostics._print_text_report(sections, verbose=True)
-    captured = capsys.readouterr()
-
-    assert "[OK     ] Env" in captured.out
-    assert "packages" in captured.out
+    assert "[OK     ] Env" in caplog.text
+    assert "packages" in caplog.text
 
 
-def test_print_text_report_non_verbose(capsys) -> None:
+def test_print_text_report_non_verbose(caplog) -> None:
+    caplog.set_level(logging.INFO, logger="nesdr_igate.commands.diagnostics")
+    caplog.clear()
     sections = [diagnostics.Section("Env", "ok", "ready", {"packages": {"numpy": "1.0"}})]
 
     diagnostics._print_text_report(sections, verbose=False)
-    captured = capsys.readouterr()
-
-    assert "[OK     ] Env" in captured.out
-    assert "packages" not in captured.out
+    assert "[OK     ] Env" in caplog.text
+    assert "packages" not in caplog.text

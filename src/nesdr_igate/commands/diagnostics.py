@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import json
 import socket
 import sys
@@ -21,6 +22,10 @@ except ImportError:  # pragma: no cover - fallback for older runtimes
     import importlib_metadata  # type: ignore[no-redef]
 
 SectionStatus = str
+
+
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
 
 
 @dataclass(slots=True)
@@ -57,8 +62,6 @@ def run_diagnostics(args: Namespace) -> int:
 
 
 def _check_environment() -> Section:
-    """Inspect Python runtime and required packages."""
-
     venv_active = sys.prefix != getattr(sys, "base_prefix", sys.prefix)
     status: SectionStatus = "ok" if venv_active else "warning"
     message = "Virtualenv active" if venv_active else "Using system interpreter"
@@ -89,8 +92,6 @@ def _check_environment() -> Section:
 
 
 def _check_config(config_path: Path) -> tuple[Section, StationConfig | None]:
-    """Load the station config and report its status."""
-
     if not config_path.exists():
         message = f"No config file found at {config_path}"
         section = Section(
@@ -126,8 +127,6 @@ def _check_config(config_path: Path) -> tuple[Section, StationConfig | None]:
 
 
 def _check_sdr() -> Section:
-    """Verify pyrtlsdr availability and enumerate attached devices."""
-
     try:
         from rtlsdr import RtlSdr  # type: ignore[import]
     except ImportError as exc:
@@ -135,13 +134,6 @@ def _check_sdr() -> Section:
             "SDR",
             "warning",
             "pyrtlsdr not installed; SDR checks skipped",
-            {"error": str(exc)},
-        )
-    except RuntimeError as exc:
-        return Section(
-            "SDR",
-            "error",
-            "pyrtlsdr installed but failed to initialise; SDR checks skipped",
             {"error": str(exc)},
         )
 
@@ -166,8 +158,6 @@ def _check_sdr() -> Section:
 
 
 def _check_direwolf(config: StationConfig | None) -> Section:
-    """Probe the configured Direwolf KISS endpoint if details are available."""
-
     if config is None:
         return Section(
             "Direwolf",
@@ -194,8 +184,6 @@ def _check_direwolf(config: StationConfig | None) -> Section:
 
 
 def _check_aprs_is(config: StationConfig | None) -> Section:
-    """Probe the configured APRS-IS endpoint if details are available."""
-
     if config is None:
         return Section(
             "APRS-IS",
@@ -222,8 +210,6 @@ def _check_aprs_is(config: StationConfig | None) -> Section:
 
 
 def _sections_to_mapping(sections: Iterable[Section]) -> dict[str, Any]:
-    """Serialise diagnostic sections into a mapping for JSON output."""
-
     report: dict[str, Any] = {}
     for section in sections:
         key = section.name.lower().replace(" ", "_")
@@ -236,19 +222,15 @@ def _sections_to_mapping(sections: Iterable[Section]) -> dict[str, Any]:
 
 
 def _print_text_report(sections: Iterable[Section], *, verbose: bool) -> None:
-    """Render diagnostic sections as human-readable text."""
-
     for section in sections:
-        print(f"[{section.status.upper():7}] {section.name}: {section.message}")
+        logger.info("[%s] %s: %s", section.status.upper().ljust(7), section.name, section.message)
         if verbose and section.details:
             for key, value in section.details.items():
                 formatted_value = _format_detail_value(value)
-                print(f"    {key}: {formatted_value}")
+                logger.info("    %s: %s", key, formatted_value)
 
 
 def _format_detail_value(value: Any) -> str:
-    """Format a detail payload for display in verbose output."""
-
     if isinstance(value, dict):
         return ", ".join(f"{k}={v}" for k, v in value.items()) or "{}"
     if isinstance(value, (list, tuple, set)):
@@ -257,7 +239,6 @@ def _format_detail_value(value: Any) -> str:
 
 
 def _json_default(value: Any) -> Any:  # pragma: no cover - exercised only when needed
-    """Default JSON encoder hook for non-serialisable objects."""
     if isinstance(value, Path):
         return str(value)
     return str(value)

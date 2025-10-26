@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import argparse
+import logging
+import os
 import sys
 from argparse import Namespace
-from typing import Protocol
+from typing import Callable, Dict
 
 from nesdr_igate.commands import (  # type: ignore[import]
     run_diagnostics,
@@ -13,33 +15,57 @@ from nesdr_igate.commands import (  # type: ignore[import]
     run_setup,
 )
 
-DEFAULT_COMMAND = "listen"
+CommandHandler = Callable[[Namespace], int]
+
+_LOG_LEVEL_ALIASES: dict[str, int] = {
+    "critical": logging.CRITICAL,
+    "error": logging.ERROR,
+    "warning": logging.WARNING,
+    "info": logging.INFO,
+    "debug": logging.DEBUG,
+}
 
 
-class CommandHandler(Protocol):
-    """Callable signature for CLI subcommands."""
+def _resolve_log_level(candidate: str | None) -> int:
+    for value in (candidate, os.getenv("NESDR_IGATE_LOG_LEVEL")):
+        if not value:
+            continue
+        stripped = value.strip()
+        if not stripped:
+            continue
+        lower = stripped.lower()
+        if lower in _LOG_LEVEL_ALIASES:
+            return _LOG_LEVEL_ALIASES[lower]
+        if stripped.isdigit():
+            return int(stripped)
+    return logging.INFO
 
-    def __call__(self, args: Namespace) -> int:  # pragma: no cover - typing hook
-        ...
+
+def _configure_logging(level_name: str | None) -> None:
+    logging.basicConfig(
+        level=_resolve_log_level(level_name),
+        format="%(message)s",
+        stream=sys.stdout,
+        force=True,
+    )
 
 
-def build_parser(handlers: dict[str, CommandHandler] | None = None) -> argparse.ArgumentParser:
+def build_parser() -> argparse.ArgumentParser:
     """Construct the top-level argument parser."""
-
-    handlers = handlers or _command_handlers()
-
     parser = argparse.ArgumentParser(
         prog="nesdr-igate",
         description="NESDR Smart v5 APRS iGate utility (work in progress)",
     )
-    parser.set_defaults(command=DEFAULT_COMMAND, handler=handlers[DEFAULT_COMMAND])
-
+    parser.add_argument(
+        "--log-level",
+        help="Set log verbosity (DEBUG, INFO, WARNING, ERROR, CRITICAL or numeric)",
+    )
     subparsers = parser.add_subparsers(dest="command", required=False)
+    subparser_map: Dict[str, argparse.ArgumentParser] = {}
 
     listen_parser = subparsers.add_parser(
         "listen", help="Run the SDR capture and APRS iGate pipeline"
     )
-    listen_parser.set_defaults(command="listen", handler=handlers["listen"])
     listen_parser.add_argument(
         "--config",
         help="Path to configuration file (overrides default location)",
@@ -54,9 +80,9 @@ def build_parser(handlers: dict[str, CommandHandler] | None = None) -> argparse.
         action="store_true",
         help="Disable APRS-IS uplink (receive-only mode)",
     )
+    subparser_map["listen"] = listen_parser
 
     setup_parser = subparsers.add_parser("setup", help="Run the onboarding wizard")
-    setup_parser.set_defaults(command="setup", handler=handlers["setup"])
     setup_parser.add_argument(
         "--reset",
         action="store_true",
@@ -76,11 +102,11 @@ def build_parser(handlers: dict[str, CommandHandler] | None = None) -> argparse.
         action="store_true",
         help="Run validation without writing any files",
     )
+    subparser_map["setup"] = setup_parser
 
     diagnostics_parser = subparsers.add_parser(
         "diagnostics", help="Display system and radio health checks"
     )
-    diagnostics_parser.set_defaults(command="diagnostics", handler=handlers["diagnostics"])
     diagnostics_parser.add_argument(
         "--config",
         help="Path to configuration file (overrides default location)",
@@ -95,57 +121,44 @@ def build_parser(handlers: dict[str, CommandHandler] | None = None) -> argparse.
         action="store_true",
         help="Show extended diagnostic information",
     )
+    subparser_map["diagnostics"] = diagnostics_parser
+
+    setattr(parser, "_nesdr_subparser_map", subparser_map)
 
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     """Process CLI arguments and dispatch to the requested command."""
+    parser = build_parser()
+    subparser_map: Dict[str, argparse.ArgumentParser] = getattr(parser, "_nesdr_subparser_map", {})
+    args, remainder = parser.parse_known_args(argv)
 
-    handlers = _command_handlers()
-    parser = build_parser(handlers)
+    _configure_logging(getattr(args, "log_level", None))
 
-    argv_list = list(sys.argv[1:] if argv is None else argv)
-    normalized = _normalize_argv(argv_list, handlers)
-    args = parser.parse_args(normalized)
-
-    handler = getattr(args, "handler", None)
-    if handler is None:
-        parser.print_help()
-        return 0
-
-    return handler(args)
-
-
-def _command_handlers() -> dict[str, CommandHandler]:
-    """Return the mapping of subcommand names to handler callables."""
-
-    return {
+    handlers: dict[str, CommandHandler] = {
         "listen": run_listen,
         "setup": run_setup,
         "diagnostics": run_diagnostics,
     }
 
+    if args.command is None:
+        listen_parser = subparser_map.get("listen")
+        if listen_parser is None:
+            parser.print_help()
+            return 0
+        listen_namespace = listen_parser.parse_args(remainder)
+        setattr(listen_namespace, "command", "listen")
+        return handlers["listen"](listen_namespace)
 
-def _normalize_argv(argv: list[str], handlers: dict[str, CommandHandler]) -> list[str]:
-    """Inject a default subcommand when the user omits one."""
+    if remainder:
+        parser.error(f"Unknown arguments: {' '.join(remainder)}")
 
-    if not argv:
-        return [DEFAULT_COMMAND]
+    handler = handlers.get(args.command)
+    if handler is None:  # pragma: no cover - future safeguard
+        parser.error(f"Unknown command: {args.command}")
 
-    first = argv[0]
-    if first in ("-h", "--help"):
-        return argv
-
-    known_commands = set(handlers.keys())
-
-    if first.startswith("-"):
-        return [DEFAULT_COMMAND, *argv]
-
-    if first in known_commands:
-        return argv
-
-    return argv
+    return handler(args)
 
 
 if __name__ == "__main__":  # pragma: no cover - direct CLI execution path
