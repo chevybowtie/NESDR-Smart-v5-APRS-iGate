@@ -37,10 +37,11 @@ def run_setup(args: Namespace) -> int:
     if args.non_interactive:
         return _run_non_interactive(config_path)
 
-    try:
-        existing = _load_existing(config_path)
-    except ValueError as exc:
-        print(f"Warning: existing configuration invalid ({exc}); starting fresh")
+    existing, load_error = _load_existing(config_path)
+    if load_error is not None and load_error != _MISSING_CONFIG_SENTINEL:
+        print(f"Warning: existing configuration invalid ({load_error}); starting fresh")
+        existing = None
+    elif load_error == _MISSING_CONFIG_SENTINEL:
         existing = None
 
     try:
@@ -66,13 +67,12 @@ def run_setup(args: Namespace) -> int:
 def _run_non_interactive(config_path: Path) -> int:
     """Validate an existing config file without prompting the user."""
 
-    try:
-        config = config_module.load_config(config_path)
-    except FileNotFoundError:
-        print(f"Configuration not found at {config_path}; run interactive setup first")
-        return 1
-    except ValueError as exc:
-        print(f"Configuration invalid: {exc}")
+    config, load_error = _load_existing(config_path)
+    if config is None:
+        if load_error == _MISSING_CONFIG_SENTINEL:
+            print(f"Configuration not found at {config_path}; run interactive setup first")
+        else:
+            print(f"Configuration invalid: {load_error}")
         return 1
 
     print("Configuration OK:")
@@ -80,15 +80,18 @@ def _run_non_interactive(config_path: Path) -> int:
     return 0
 
 
-def _load_existing(config_path: Path) -> StationConfig | None:
-    """Return a previously saved configuration if it loads successfully."""
+_MISSING_CONFIG_SENTINEL = "missing"
+
+
+def _load_existing(config_path: Path) -> tuple[StationConfig | None, str | None]:
+    """Return a previously saved configuration and any load error string."""
 
     if not config_path.exists():
-        return None
+        return None, _MISSING_CONFIG_SENTINEL
     try:
-        return config_module.load_config(config_path)
-    except (FileNotFoundError, ValueError):
-        return None
+        return config_module.load_config(config_path), None
+    except ValueError as exc:
+        return None, str(exc)
 
 
 def _interactive_prompt(existing: StationConfig | None) -> StationConfig:
