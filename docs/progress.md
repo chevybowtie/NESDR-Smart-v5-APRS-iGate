@@ -66,8 +66,8 @@
 - KISS TCP client implemented with escape handling and tests (`src/nesdr_igate/aprs/kiss_client.py`, Oct 25, 2025)
 - AX.25 payload decoder and APRS-IS client implemented with test coverage (Oct 25, 2025)
 - `listen` command now pipes rtl_fm audio into Direwolf, displays decoded packets, and forwards to APRS-IS with an opt-out flag (Oct 25, 2025)
+- APRS-IS reconnect/backoff logic with throughput stats added to `listen`; regression tests cover retry flow (Oct 25, 2025)
 
 ## Next Steps
-- Add APRS-IS reconnect/backoff strategy and basic throughput logging in `listen`
 - Flesh out DSP pipeline plan (filtering, demod staging) atop the radio layer
 - Plan enhancements to `setup` (hardware validation, passcode keyring integration)

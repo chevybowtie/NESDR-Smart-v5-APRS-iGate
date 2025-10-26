@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from collections.abc import Iterator
 
+from nesdr_igate.aprs.aprsis_client import APRSISClientError
 from nesdr_igate.cli import main
 from nesdr_igate.config import CONFIG_ENV_VAR, StationConfig, save_config
 
@@ -199,6 +200,136 @@ def test_listen_command_once(tmp_path, monkeypatch, capsys) -> None:
     assert DummyAPRSClient.instances[0].sent_packets == ["N0CALL-10>APRS:TEST"]
     assert DummyAPRSClient.instances[0].closed is True
 
+
+def test_listen_reconnect_and_stats(tmp_path, monkeypatch, capsys) -> None:
+    config_path = tmp_path / "config.toml"
+    direwolf_conf = tmp_path / "direwolf.conf"
+    direwolf_conf.write_text("dummy", encoding="utf-8")
+    cfg = StationConfig(
+        callsign="N0CALL-10",
+        passcode="12345",
+        aprs_server="test.aprs.net",
+        aprs_port=14580,
+        kiss_host="127.0.0.1",
+        kiss_port=9001,
+        center_frequency_hz=144_390_000.0,
+    )
+    save_config(cfg, path=config_path)
+
+    class TimeStub:
+        def __init__(self) -> None:
+            self.current = 0.0
+
+        def monotonic(self) -> float:
+            return self.current
+
+        def sleep(self, seconds: float) -> None:
+            self.current += seconds
+
+        def advance(self, seconds: float) -> None:
+            self.current += seconds
+
+    time_stub = TimeStub()
+    monkeypatch.setattr("nesdr_igate.commands.listen.time", time_stub)
+
+    class DummyCapture:
+        def __init__(self, *_: object, **__: object) -> None:
+            self.started = False
+
+        def start(self) -> None:
+            self.started = True
+
+        def read(self, num_bytes: int) -> bytes:
+            return b"\x00" * num_bytes
+
+        def stop(self) -> None:
+            self.started = False
+
+    class DummyProcess:
+        def __init__(self, *_: object, **__: object) -> None:
+            import io
+
+            self.pid = 1234
+            self.stdin = io.BytesIO()
+            self.stdout = io.BytesIO()
+            self.stderr = io.BytesIO()
+            self.terminated = False
+            self.killed = False
+
+        def terminate(self) -> None:
+            self.terminated = True
+
+        def wait(self, timeout: float | None = None) -> int:
+            return 0
+
+        def kill(self) -> None:
+            self.killed = True
+
+    from nesdr_igate.aprs.kiss_client import KISSFrame
+
+    class DummyKISSClient:
+        def __init__(self, config: object) -> None:
+            self.config = config
+            self.connected = False
+            self.closed = False
+            self._frames = [b"FIRST", b"SECOND"]
+            self._index = 0
+
+        def connect(self) -> None:
+            self.connected = True
+
+        def read_frame(self, timeout: float | None = None) -> KISSFrame:
+            if self._index < len(self._frames):
+                payload = self._frames[self._index]
+                self._index += 1
+                return KISSFrame(port=0, command=0, payload=payload)
+            raise KeyboardInterrupt
+
+        def close(self) -> None:
+            self.closed = True
+
+    class DummyAPRSClient:
+        instances: list["DummyAPRSClient"] = []
+
+        def __init__(self, config: object) -> None:
+            self.config = config
+            self.connected = False
+            self.closed = False
+            self.sent_packets: list[str] = []
+            self.instance_id = len(DummyAPRSClient.instances)
+            DummyAPRSClient.instances.append(self)
+
+        def connect(self) -> None:
+            self.connected = True
+
+        def send_packet(self, packet: str) -> None:
+            if self.instance_id == 0 and not self.sent_packets:
+                time_stub.advance(61)
+                raise APRSISClientError("boom")
+            self.sent_packets.append(packet)
+
+        def close(self) -> None:
+            self.closed = True
+
+    monkeypatch.setattr("nesdr_igate.commands.listen.RtlFmAudioCapture", DummyCapture)
+    monkeypatch.setattr("nesdr_igate.commands.listen.subprocess.Popen", lambda *a, **k: DummyProcess())
+    monkeypatch.setattr("nesdr_igate.commands.listen.KISSClient", DummyKISSClient)
+    monkeypatch.setattr("nesdr_igate.commands.listen.APRSISClient", DummyAPRSClient)
+    monkeypatch.setattr(
+        "nesdr_igate.commands.listen.kiss_payload_to_tnc2",
+        lambda payload: f"N0CALL-10>APRS:{payload.decode()}",
+    )
+
+    exit_code = main(["listen", "--config", str(config_path)])
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert "APRS-IS transmission error" in captured.out
+    assert "[stats] frames=1 aprs_ok=0 aprs_fail=1" in captured.out
+    assert "Frames processed: 2 (APRS-IS ok=1, failed=1)" in captured.out
+    assert len(DummyAPRSClient.instances) >= 2
+    assert DummyAPRSClient.instances[0].closed is True
+    assert DummyAPRSClient.instances[-1].sent_packets == ["N0CALL-10>APRS:SECOND"]
 
 def test_diagnostics_command_json(tmp_path, monkeypatch, capsys) -> None:
     cfg = StationConfig(

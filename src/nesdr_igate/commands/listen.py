@@ -63,6 +63,17 @@ def run_listen(args: Namespace) -> int:
     audio_errors: "Queue[Exception]" = Queue()
 
     aprs_client: Optional[APRSISClient] = None
+    aprs_enabled = not getattr(args, "no_aprsis", False)
+    aprs_config: Optional[APRSISConfig] = None
+    aprs_retry_base = 2.0
+    aprs_retry_delay = aprs_retry_base
+    aprs_retry_max = 120.0
+    aprs_next_retry = 0.0
+    aprs_forwarded = 0
+    aprs_failed = 0
+
+    stats_interval = 60.0
+    next_stats_report = time.monotonic() + stats_interval
 
     stop_event = threading.Event()
 
@@ -84,12 +95,14 @@ def run_listen(args: Namespace) -> int:
             audio_errors.put(exc)
 
     def _cleanup() -> None:
+        nonlocal aprs_client
         stop_event.set()
         if audio_thread and audio_thread.is_alive():
             audio_thread.join(timeout=1)
         capture.stop()
         if aprs_client is not None:
             aprs_client.close()
+            aprs_client = None
         if direwolf_proc is not None:
             if direwolf_proc.stdin:
                 try:
@@ -161,7 +174,7 @@ def run_listen(args: Namespace) -> int:
         signal.signal(signal.SIGINT, previous_sigint)
         return 1
 
-    if not getattr(args, "no_aprsis", False):
+    if aprs_enabled:
         aprs_config = APRSISConfig(
             host=station_config.aprs_server,
             port=station_config.aprs_port,
@@ -170,24 +183,39 @@ def run_listen(args: Namespace) -> int:
             software_name=_SOFTWARE_NAME,
             software_version=_SOFTWARE_VERSION,
         )
-        aprs_client = APRSISClient(aprs_config)
-        assert aprs_client is not None  # help static analysis
-        try:
-            aprs_client.connect()
-            print(f"Connected to APRS-IS {aprs_config.host}:{aprs_config.port}")
-        except APRSISClientError as exc:
-            _cleanup()
-            signal.signal(signal.SIGINT, previous_sigint)
-            print(f"Failed to connect to APRS-IS: {exc}")
-            return 1
     else:
         print("APRS-IS uplink disabled (receive-only mode)")
 
     print("Connected to Direwolf KISS port; awaiting frames...")
     frame_count = 0
 
+    def _attempt_aprs_connect() -> None:
+        nonlocal aprs_client, aprs_retry_delay, aprs_next_retry
+        if not aprs_enabled or aprs_config is None:
+            return
+        if aprs_client is not None:
+            return
+        now = time.monotonic()
+        if now < aprs_next_retry:
+            return
+        try:
+            candidate = APRSISClient(aprs_config)
+            candidate.connect()
+            aprs_client = candidate
+            aprs_retry_delay = aprs_retry_base
+            aprs_next_retry = 0.0
+            print(f"Connected to APRS-IS {aprs_config.host}:{aprs_config.port}")
+        except APRSISClientError as exc:
+            delay = aprs_retry_delay
+            print(f"APRS-IS connection failed: {exc}; retrying in {int(delay)}s")
+            aprs_next_retry = now + delay
+            aprs_retry_delay = min(aprs_retry_delay * 2, aprs_retry_max)
+
+    _attempt_aprs_connect()
+
     try:
         while True:
+            _attempt_aprs_connect()
             if stop_event.is_set():
                 break
             try:
@@ -211,14 +239,25 @@ def run_listen(args: Namespace) -> int:
             if aprs_client is not None:
                 try:
                     aprs_client.send_packet(tnc2_packet)
+                    aprs_forwarded += 1
                 except APRSISClientError as exc:
-                    print(f"APRS-IS transmission error: {exc}")
-                    return 1
+                    aprs_failed += 1
+                    print(f"APRS-IS transmission error: {exc}; scheduling reconnect")
+                    aprs_client.close()
+                    aprs_client = None
+                    aprs_retry_delay = aprs_retry_base
+                    aprs_next_retry = 0.0
 
             if getattr(args, "once", False):
                 break
 
             _report_audio_error(audio_errors)
+
+            if not getattr(args, "once", False) and time.monotonic() >= next_stats_report:
+                print(
+                    f"[stats] frames={frame_count} aprs_ok={aprs_forwarded} aprs_fail={aprs_failed}"
+                )
+                next_stats_report = time.monotonic() + stats_interval
     except KeyboardInterrupt:
         print("Stopping listener...")
     finally:
@@ -226,7 +265,12 @@ def run_listen(args: Namespace) -> int:
         _cleanup()
         signal.signal(signal.SIGINT, previous_sigint)
 
-    print(f"Frames processed: {frame_count}")
+    if aprs_enabled:
+        print(
+            f"Frames processed: {frame_count} (APRS-IS ok={aprs_forwarded}, failed={aprs_failed})"
+        )
+    else:
+        print(f"Frames processed: {frame_count}")
     return 0
 
 
