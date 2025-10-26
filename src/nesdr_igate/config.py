@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import stat
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -195,7 +196,22 @@ def save_config(config: StationConfig, path: str | Path | None = None) -> Path:
     config_path = resolve_config_path(path)
     config_path.parent.mkdir(parents=True, exist_ok=True)
     toml_text = tomli_w.dumps(config.to_dict())
-    config_path.write_text(toml_text, encoding="utf-8")
+
+    tmp_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            "w", encoding="utf-8", dir=config_path.parent, delete=False
+        ) as handle:
+            tmp_path = Path(handle.name)
+            handle.write(toml_text)
+            handle.flush()
+            os.fsync(handle.fileno())
+        tmp_path.replace(config_path)
+    except Exception:
+        if tmp_path is not None and tmp_path.exists():
+            tmp_path.unlink(missing_ok=True)
+        raise
+
     try:
         os.chmod(config_path, stat.S_IRUSR | stat.S_IWUSR)
     except PermissionError:  # pragma: no cover - some FS disallow chmod

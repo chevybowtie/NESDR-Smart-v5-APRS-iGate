@@ -12,7 +12,6 @@
 ## Config Module (config.py)
 ### Findings
 * _xdg_path should be public? If internal, docstring clarifies use.
-* Consider `pathlib.Path` for file operations (already used), but `save_config` should use `pathlib.Path`.write_text within a context manager for atomic writes (tempfile).
 * `_drop_none` is generic; could move to utils.
 
 # Diagnostics Command (diagnostics.py)
