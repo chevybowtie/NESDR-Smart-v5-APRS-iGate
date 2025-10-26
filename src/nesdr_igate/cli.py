@@ -1,0 +1,191 @@
+"""Command-line interface entry points for the NESDR APRS iGate."""
+
+from __future__ import annotations
+
+import argparse
+import logging
+import os
+import sys
+from argparse import Namespace
+from typing import Callable, Dict
+
+from importlib import metadata
+
+from nesdr_igate.commands import (  # type: ignore[import]
+    run_diagnostics,
+    run_listen,
+    run_setup,
+)
+
+CommandHandler = Callable[[Namespace], int]
+
+_LOG_LEVEL_ALIASES: dict[str, int] = {
+    "critical": logging.CRITICAL,
+    "error": logging.ERROR,
+    "warning": logging.WARNING,
+    "info": logging.INFO,
+    "debug": logging.DEBUG,
+}
+
+
+def _package_version() -> str:
+    try:
+        return metadata.version("nesdr-igate")
+    except metadata.PackageNotFoundError:
+        return "0.0.0"
+
+
+def _resolve_log_level(candidate: str | None) -> int:
+    for value in (candidate, os.getenv("NESDR_IGATE_LOG_LEVEL")):
+        if not value:
+            continue
+        stripped = value.strip()
+        if not stripped:
+            continue
+        lower = stripped.lower()
+        if lower in _LOG_LEVEL_ALIASES:
+            return _LOG_LEVEL_ALIASES[lower]
+        if stripped.isdigit():
+            return int(stripped)
+    return logging.INFO
+
+
+def _configure_logging(level_name: str | None) -> None:
+    logging.basicConfig(
+        level=_resolve_log_level(level_name),
+        format="%(message)s",
+        stream=sys.stdout,
+        force=True,
+    )
+
+
+def build_parser() -> argparse.ArgumentParser:
+    """Construct the top-level argument parser."""
+    parser = argparse.ArgumentParser(
+        prog="nesdr-igate",
+        description="NESDR Smart v5 APRS iGate utility.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "Environment overrides:\n"
+            "  NESDR_IGATE_LOG_LEVEL    Default logging level when --log-level is omitted.\n"
+            "  NESDR_IGATE_CONFIG_PATH  Path to config.toml used by setup/listen/diagnostics."
+        ),
+    )
+    parser.add_argument(
+        "--log-level",
+        help="Set log verbosity (DEBUG, INFO, WARNING, ERROR, CRITICAL or numeric)",
+    )
+    parser.add_argument(
+        "--version",
+        action="store_true",
+        help="Show package version and exit",
+    )
+    subparsers = parser.add_subparsers(dest="command", required=False)
+    subparser_map: Dict[str, argparse.ArgumentParser] = {}
+
+    listen_parser = subparsers.add_parser(
+        "listen", help="Run the SDR capture and APRS iGate pipeline"
+    )
+    listen_parser.add_argument(
+        "--config",
+        help="Path to configuration file (overrides default location)",
+    )
+    listen_parser.add_argument(
+        "--once",
+        action="store_true",
+        help="Process a single batch of samples and exit (debug/testing)",
+    )
+    listen_parser.add_argument(
+        "--no-aprsis",
+        action="store_true",
+        help="Disable APRS-IS uplink (receive-only mode)",
+    )
+    subparser_map["listen"] = listen_parser
+
+    setup_parser = subparsers.add_parser("setup", help="Run the onboarding wizard")
+    setup_parser.add_argument(
+        "--reset",
+        action="store_true",
+        help="Delete existing configuration before starting",
+    )
+    setup_parser.add_argument(
+        "--non-interactive",
+        action="store_true",
+        help="Load answers from a config file instead of prompting",
+    )
+    setup_parser.add_argument(
+        "--config",
+        help="Path to onboarding configuration template",
+    )
+    setup_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Run validation without writing any files",
+    )
+    subparser_map["setup"] = setup_parser
+
+    diagnostics_parser = subparsers.add_parser(
+        "diagnostics", help="Display system and radio health checks"
+    )
+    diagnostics_parser.add_argument(
+        "--config",
+        help="Path to configuration file (overrides default location)",
+    )
+    diagnostics_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit diagnostics in JSON format",
+    )
+    diagnostics_parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Show extended diagnostic information",
+    )
+    subparser_map["diagnostics"] = diagnostics_parser
+
+    setattr(parser, "_nesdr_subparser_map", subparser_map)
+
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Process CLI arguments and dispatch to the requested command."""
+    parser = build_parser()
+    subparser_map: Dict[str, argparse.ArgumentParser] = getattr(
+        parser, "_nesdr_subparser_map", {}
+    )
+    args, remainder = parser.parse_known_args(argv)
+
+    if getattr(args, "version", False):
+        print(f"{parser.prog} {_package_version()}")
+        return 0
+
+    _configure_logging(getattr(args, "log_level", None))
+
+    handlers: dict[str, CommandHandler] = {
+        "listen": run_listen,
+        "setup": run_setup,
+        "diagnostics": run_diagnostics,
+    }
+
+    if args.command is None:
+        listen_parser = subparser_map.get("listen")
+        if listen_parser is None:
+            parser.print_help()
+            return 0
+        listen_namespace = listen_parser.parse_args(remainder)
+        setattr(listen_namespace, "command", "listen")
+        return handlers["listen"](listen_namespace)
+
+    if remainder:
+        parser.error(f"Unknown arguments: {' '.join(remainder)}")
+
+    handler = handlers.get(args.command)
+    if handler is None:  # pragma: no cover - future safeguard
+        parser.error(f"Unknown command: {args.command}")
+
+    return handler(args)
+
+
+if __name__ == "__main__":  # pragma: no cover - direct CLI execution path
+    raise SystemExit(main())

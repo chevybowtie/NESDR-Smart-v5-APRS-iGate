@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environments
+.venv/
+
+# Coverage / test artifacts
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Local data captures
+samples/*.iq
+samples/*.raw
+samples/*.wav
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Ephemeral venvs used by verify_release
+.venv-check/
+.venv-release/

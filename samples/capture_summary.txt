@@ -1,0 +1,8 @@
+timestamp: 2025-10-25T17:23:47-05:00
+frequency_hz: 144390000
+iq_sample_rate: 250000
+audio_sample_rate: 22050
+gain: 35
+duration_s: 120
+rtl_device_index: 0
+rtl_ppm: 0
