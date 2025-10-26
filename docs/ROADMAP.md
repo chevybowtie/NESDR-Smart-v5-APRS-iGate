@@ -16,17 +16,19 @@ Extensive user interactivity logic makes unit testing difficult; consider isolat
 
 ## Dependency Modernization (`pyproject.toml`)
 Recommendations
-* Update stanza:
+Recommendations
+* Update stanza (example):
 ```
 numpy = ">=2.0,<3"
 pyrtlsdr = ">=0.3.0,<0.4"
-aprslib = ">=0.8.0,<0.9"
+aprslib = ">=0.7.2,<0.9"  # relaxed because aprslib>=0.8 is not available on PyPI as of Oct 2025
 tomli-w = ">=1.1,<2"
 pytest = ">=8.3"
 pytest-asyncio = ">=0.23"  # keep if still needed, else drop
 ```
-* Add dev extras: mypy, black, types-keyring, pytest-rerunfailures, coverage[toml].
-* Switch build-system requirements to `["setuptools>=69", "build>=1.0"]` and consider hatchling/pdm/uv for reproducible builds.
+* Add dev extras: mypy, black/ruff, pytest-rerunfailures, coverage[toml].
+	- Note: `types-keyring` is not published on PyPI; do not include it in dev extras. Use `keyring` at runtime for secure passcode storage and document typing/stub strategies separately.
+* Switch build-system requirements to `["setuptools>=69", "build>=1.0"]` and consider hatchling/pdm for reproducible builds.
 * Document runtime optional extras (`[project.optional-dependencies]`) for Direwolf integration vs. headless operation.
 
 

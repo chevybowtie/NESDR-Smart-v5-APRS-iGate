@@ -32,6 +32,8 @@ pip install -e '.[direwolf]'
 ```
 Add `.[dev]` if you also want formatting, linting, and test tooling.
 
+Note about APRS library: the project pins a relaxed constraint for `aprslib` in `pyproject.toml` (for example `aprslib>=0.7.2,<0.9`) because `aprslib>=0.8` is not available on PyPI as of Oct 2025. If you need a newer upstream release, pin to a VCS URL or wait for the official PyPI release. See `DEVELOPER_NOTES.md` for more details.
+
 ## 3. Run the interactive setup
 Launch the onboarding wizard to capture station details and render the initial configuration:
 ```bash
@@ -81,3 +83,9 @@ Logs and temporary probe outputs are stored beneath `~/.local/share/nesdr-igate/
 - Ensure `rtl_fm`, `rtl_test`, `direwolf`, and `sox` (optional) are installed and executable.
 - Review Direwolf and listener logs under `~/.local/share/nesdr-igate/` for detailed errors.
 - Re-run `nesdr-igate setup --reset` if you need to regenerate configuration files or Direwolf templates.
+
+## Onboarding and setup details
+
+For a full specification of the interactive onboarding flow (what `nesdr-igate setup` does, preconditions, prompts, validation rules, and implementation notes), see the detailed onboarding specification in the docs:
+
+- docs/onboarding-spec.md

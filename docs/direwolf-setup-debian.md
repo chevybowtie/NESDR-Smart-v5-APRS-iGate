@@ -91,10 +91,10 @@ The `nesdr-igate diagnostics` command will probe `127.0.0.1:8001`; adjust the CL
 
 ## 7. Test with Diagnostics
 
-With Direwolf running:
+With Direwolf running you can validate the setup using the CLI.
 
 ```
-python -m nesdr_igate.cli diagnostics
+nesdr-igate diagnostics
 ```
 
 Expected output snippet:
