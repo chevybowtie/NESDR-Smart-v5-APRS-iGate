@@ -110,9 +110,11 @@ def run_listen(args: Namespace) -> int:
     def _cleanup() -> None:
         nonlocal aprs_client
         stop_event.set()
+        capture.stop()
         if audio_thread and audio_thread.is_alive():
             audio_thread.join(timeout=1)
-        capture.stop()
+            if audio_thread.is_alive():
+                logger.debug("Audio pump thread still running after timeout")
         if aprs_client is not None:
             aprs_client.close()
             aprs_client = None
@@ -128,19 +130,27 @@ def run_listen(args: Namespace) -> int:
             except subprocess.TimeoutExpired:  # pragma: no cover - defensive
                 direwolf_proc.kill()
 
-    previous_sigint = signal.getsignal(signal.SIGINT)
+    previous_signals = {
+        signal.SIGINT: signal.getsignal(signal.SIGINT),
+        signal.SIGTERM: signal.getsignal(signal.SIGTERM),
+    }
 
-    def _handle_sigint(signum, frame):  # type: ignore[override]
+    def _restore_signals() -> None:
+        for sig, previous in previous_signals.items():
+            signal.signal(sig, previous)
+
+    def _handle_shutdown(signum, frame):  # type: ignore[override]
         stop_event.set()
         raise KeyboardInterrupt
 
-    signal.signal(signal.SIGINT, _handle_sigint)
+    for sig in previous_signals:
+        signal.signal(sig, _handle_shutdown)
 
     try:
         logger.info("Starting rtl_fm capture...")
         capture.start()
     except AudioCaptureError as exc:
-        signal.signal(signal.SIGINT, previous_sigint)
+        _restore_signals()
         logger.error("Audio capture failed: %s", exc)
         return 1
 
@@ -164,7 +174,7 @@ def run_listen(args: Namespace) -> int:
         logger.info("Direwolf launched (PID %s)", direwolf_proc.pid)
     except OSError as exc:
         capture.stop()
-        signal.signal(signal.SIGINT, previous_sigint)
+        _restore_signals()
         logger.error("Failed to start Direwolf: %s", exc)
         return 1
 
@@ -188,7 +198,7 @@ def run_listen(args: Namespace) -> int:
             station_config.kiss_port,
         )
         _cleanup()
-        signal.signal(signal.SIGINT, previous_sigint)
+        _restore_signals()
         return 1
 
     if aprs_enabled:
@@ -275,6 +285,7 @@ def run_listen(args: Namespace) -> int:
                     aprs_next_retry = 0.0
 
             if getattr(args, "once", False):
+                stop_event.set()
                 break
 
             _report_audio_error(audio_errors)
@@ -295,7 +306,7 @@ def run_listen(args: Namespace) -> int:
     finally:
         client.close()
         _cleanup()
-        signal.signal(signal.SIGINT, previous_sigint)
+        _restore_signals()
 
     if aprs_enabled:
         logger.info(

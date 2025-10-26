@@ -24,11 +24,6 @@ Extensive user interactivity logic makes unit testing difficult; consider isolat
 ### Follow-ups
 * Continue expanding automated coverage for additional prompt flows as new requirements emerge.
 
-## Listener Command (`listen.py`)
-### Follow-ups
-* Review thread and subprocess lifecycle handling to guarantee clean shutdown on signals.
-* Add integration coverage for `--once` and `--no-aprsis` to protect CLI defaults.
-
 ## Dependency Modernization (`pyproject.toml`)
 Recommendations
 * Update stanza:
