@@ -44,7 +44,9 @@ class RtlFmAudioCapture:
         if self._process is not None:
             raise AudioCaptureError("rtl_fm capture already started")
         if shutil.which("rtl_fm") is None:
-            raise AudioCaptureError("rtl_fm command not found in PATH; install rtl-sdr package")
+            raise AudioCaptureError(
+                "rtl_fm command not found in PATH; install rtl-sdr package"
+            )
 
         cmd: list[str] = [
             "rtl_fm",

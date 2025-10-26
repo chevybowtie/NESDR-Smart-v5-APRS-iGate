@@ -15,7 +15,13 @@ from nesdr_igate.radio.capture import (  # type: ignore[import]
 
 
 class _FakeProcess:
-    def __init__(self, args: list[str], *, data: bytes = b"\x00" * 8, return_code: int | None = None) -> None:
+    def __init__(
+        self,
+        args: list[str],
+        *,
+        data: bytes = b"\x00" * 8,
+        return_code: int | None = None,
+    ) -> None:
         self.args = args
         self.stdout = io.BytesIO(data)
         self.stderr = io.BytesIO()

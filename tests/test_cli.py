@@ -49,7 +49,9 @@ def test_main_injects_listen_for_flag_only_invocation(monkeypatch) -> None:
 
 def test_setup_non_interactive(tmp_path, monkeypatch, capsys) -> None:
     config_path = tmp_path / "config.toml"
-    cfg = StationConfig(callsign="N0CALL-10", passcode="12345", latitude=12.34, longitude=-56.78)
+    cfg = StationConfig(
+        callsign="N0CALL-10", passcode="12345", latitude=12.34, longitude=-56.78
+    )
     save_config(cfg, path=config_path)
     monkeypatch.setenv("NESDR_IGATE_CONFIG_PATH", str(config_path))
 
@@ -64,19 +66,25 @@ def test_setup_non_interactive(tmp_path, monkeypatch, capsys) -> None:
 def test_setup_dry_run_interactive(tmp_path, monkeypatch, capsys) -> None:
     config_path = tmp_path / "config.toml"
     monkeypatch.setenv("NESDR_IGATE_CONFIG_PATH", str(config_path))
-    monkeypatch.setattr("nesdr_igate.commands.setup.config_module.keyring_supported", lambda: False)
-    monkeypatch.setattr("nesdr_igate.commands.setup._offer_hardware_validation", lambda *_: None)
+    monkeypatch.setattr(
+        "nesdr_igate.commands.setup.config_module.keyring_supported", lambda: False
+    )
+    monkeypatch.setattr(
+        "nesdr_igate.commands.setup._offer_hardware_validation", lambda *_: None
+    )
 
-    inputs: Iterator[str] = iter([
-        "N0CALL-10",  # callsign
-        "",  # aprs server default
-        "",  # aprs port default
-        "",  # latitude
-        "",  # longitude
-        "",  # beacon comment
-        "",  # kiss host default
-        "",  # kiss port default
-    ])
+    inputs: Iterator[str] = iter(
+        [
+            "N0CALL-10",  # callsign
+            "",  # aprs server default
+            "",  # aprs port default
+            "",  # latitude
+            "",  # longitude
+            "",  # beacon comment
+            "",  # kiss host default
+            "",  # kiss port default
+        ]
+    )
     passwords: Iterator[str] = iter(["12345", "12345"])
 
     monkeypatch.setattr("builtins.input", lambda _: next(inputs))
@@ -95,20 +103,26 @@ def test_setup_writes_direwolf_config(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("NESDR_IGATE_CONFIG_PATH", str(config_path))
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "xdg_data"))
-    monkeypatch.setattr("nesdr_igate.commands.setup.config_module.keyring_supported", lambda: False)
-    monkeypatch.setattr("nesdr_igate.commands.setup._offer_hardware_validation", lambda *_: None)
+    monkeypatch.setattr(
+        "nesdr_igate.commands.setup.config_module.keyring_supported", lambda: False
+    )
+    monkeypatch.setattr(
+        "nesdr_igate.commands.setup._offer_hardware_validation", lambda *_: None
+    )
 
-    inputs: Iterator[str] = iter([
-        "KJ5EVH-10",  # callsign
-        "custom.aprs.net",  # aprs server
-        "14580",  # aprs port
-        "30.123456",  # latitude
-        "-97.987654",  # longitude
-        "Test beacon comment",  # beacon comment
-        "192.0.2.5",  # kiss host
-        "9001",  # kiss port
-        "",  # accept default yes for direwolf config render
-    ])
+    inputs: Iterator[str] = iter(
+        [
+            "KJ5EVH-10",  # callsign
+            "custom.aprs.net",  # aprs server
+            "14580",  # aprs port
+            "30.123456",  # latitude
+            "-97.987654",  # longitude
+            "Test beacon comment",  # beacon comment
+            "192.0.2.5",  # kiss host
+            "9001",  # kiss port
+            "",  # accept default yes for direwolf config render
+        ]
+    )
     passwords: Iterator[str] = iter(["s3cret", "s3cret"])
 
     monkeypatch.setattr("builtins.input", lambda _: next(inputs))
@@ -226,10 +240,15 @@ def test_listen_command_once(tmp_path, monkeypatch, capsys) -> None:
             self.closed = True
 
     monkeypatch.setattr("nesdr_igate.commands.listen.RtlFmAudioCapture", DummyCapture)
-    monkeypatch.setattr("nesdr_igate.commands.listen.subprocess.Popen", lambda *a, **k: DummyProcess())
+    monkeypatch.setattr(
+        "nesdr_igate.commands.listen.subprocess.Popen", lambda *a, **k: DummyProcess()
+    )
     monkeypatch.setattr("nesdr_igate.commands.listen.KISSClient", DummyKISSClient)
     monkeypatch.setattr("nesdr_igate.commands.listen.APRSISClient", DummyAPRSClient)
-    monkeypatch.setattr("nesdr_igate.commands.listen.kiss_payload_to_tnc2", lambda *_: "N0CALL-10>APRS:TEST")
+    monkeypatch.setattr(
+        "nesdr_igate.commands.listen.kiss_payload_to_tnc2",
+        lambda *_: "N0CALL-10>APRS:TEST",
+    )
 
     exit_code = main(["listen", "--once", "--config", str(config_path)])
     captured = capsys.readouterr()
@@ -353,7 +372,9 @@ def test_listen_reconnect_and_stats(tmp_path, monkeypatch, capsys) -> None:
             self.closed = True
 
     monkeypatch.setattr("nesdr_igate.commands.listen.RtlFmAudioCapture", DummyCapture)
-    monkeypatch.setattr("nesdr_igate.commands.listen.subprocess.Popen", lambda *a, **k: DummyProcess())
+    monkeypatch.setattr(
+        "nesdr_igate.commands.listen.subprocess.Popen", lambda *a, **k: DummyProcess()
+    )
     monkeypatch.setattr("nesdr_igate.commands.listen.KISSClient", DummyKISSClient)
     monkeypatch.setattr("nesdr_igate.commands.listen.APRSISClient", DummyAPRSClient)
     monkeypatch.setattr(
@@ -371,6 +392,7 @@ def test_listen_reconnect_and_stats(tmp_path, monkeypatch, capsys) -> None:
     assert len(DummyAPRSClient.instances) >= 2
     assert DummyAPRSClient.instances[0].closed is True
     assert DummyAPRSClient.instances[-1].sent_packets == ["N0CALL-10>APRS:SECOND"]
+
 
 def test_diagnostics_command_json(tmp_path, monkeypatch, capsys) -> None:
     cfg = StationConfig(

@@ -27,14 +27,18 @@ class NESDRBackend(RadioBackend):
         """Initialise the RTL-SDR handle."""
         if self._sdr is not None:
             return
-        if RtlSdr is None:  # pragma: no cover - exercised in environments without pyrtlsdr
+        if (
+            RtlSdr is None
+        ):  # pragma: no cover - exercised in environments without pyrtlsdr
             raise RadioError(
                 "pyrtlsdr (rtlsdr module) is not installed; please `pip install pyrtlsdr`."
             ) from _RTLSDR_IMPORT_ERROR
         try:
             self._sdr = RtlSdr(device_index=self._device_index)
         except Exception as exc:  # pragma: no cover - hardware-specific failures
-            raise RadioError(f"Failed to open NESDR device index {self._device_index}: {exc}") from exc
+            raise RadioError(
+                f"Failed to open NESDR device index {self._device_index}: {exc}"
+            ) from exc
 
     def configure(self, settings: RadioSettings) -> None:
         """Apply tuner settings using pyrtlsdr."""
@@ -59,7 +63,9 @@ class NESDRBackend(RadioBackend):
     def read_samples(self, num_samples: int) -> Iterable[complex]:
         """Fetch IQ samples from the SDR."""
         if self._sdr is None:
-            raise RadioError("NESDR backend is not open; call open() before reading samples")
+            raise RadioError(
+                "NESDR backend is not open; call open() before reading samples"
+            )
         try:
             return self._sdr.read_samples(num_samples)
         except Exception as exc:  # pragma: no cover - hardware-specific failures
@@ -71,7 +77,9 @@ class NESDRBackend(RadioBackend):
             return RadioStatus(
                 device="NESDR Smart v5",
                 serial=None,
-                center_frequency=self._settings.center_frequency if self._settings else None,
+                center_frequency=self._settings.center_frequency
+                if self._settings
+                else None,
                 sample_rate=self._settings.sample_rate if self._settings else None,
                 gain=self._settings.gain if self._settings else None,
                 ppm=self._settings.ppm if self._settings else None,

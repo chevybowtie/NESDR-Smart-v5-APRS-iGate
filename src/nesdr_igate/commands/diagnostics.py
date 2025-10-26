@@ -147,9 +147,16 @@ def _check_sdr() -> Section:
         except Exception:  # pragma: no cover - best effort only
             serials = []
         if serials:
-            details["serials"] = [s.decode() if isinstance(s, bytes) else str(s) for s in serials]
+            details["serials"] = [
+                s.decode() if isinstance(s, bytes) else str(s) for s in serials
+            ]
     except Exception as exc:  # pragma: no cover - hardware specific failures
-        return Section("SDR", "error", f"Failed to query RTL-SDR devices: {exc}", {"error": str(exc)})
+        return Section(
+            "SDR",
+            "error",
+            f"Failed to query RTL-SDR devices: {exc}",
+            {"error": str(exc)},
+        )
 
     if device_count == 0:
         return Section("SDR", "warning", "No RTL-SDR devices detected", details)
@@ -223,7 +230,12 @@ def _sections_to_mapping(sections: Iterable[Section]) -> dict[str, Any]:
 
 def _print_text_report(sections: Iterable[Section], *, verbose: bool) -> None:
     for section in sections:
-        logger.info("[%s] %s: %s", section.status.upper().ljust(7), section.name, section.message)
+        logger.info(
+            "[%s] %s: %s",
+            section.status.upper().ljust(7),
+            section.name,
+            section.message,
+        )
         if verbose and section.details:
             for key, value in section.details.items():
                 formatted_value = _format_detail_value(value)

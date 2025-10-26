@@ -157,6 +157,7 @@ def test_context_manager_opens_and_closes(dummy_sdr) -> None:
 def test_read_samples_error_wrapped(dummy_sdr) -> None:
     backend = nesdr.NESDRBackend()
     backend.open()
+
     def fail(self, _num: int) -> list[complex]:  # type: ignore[override]
         raise RuntimeError("boom")
 
@@ -168,6 +169,7 @@ def test_read_samples_error_wrapped(dummy_sdr) -> None:
 def test_configure_handles_exceptions(dummy_sdr) -> None:
     backend = nesdr.NESDRBackend()
     backend.open()
+
     class FailingSdr:
         def __init__(self) -> None:
             self.center_freq = None
@@ -202,6 +204,7 @@ def test_configure_handles_exceptions(dummy_sdr) -> None:
 def test_close_wraps_errors(dummy_sdr) -> None:
     backend = nesdr.NESDRBackend()
     backend.open()
+
     def fail(self) -> None:
         raise RuntimeError("boom")
 

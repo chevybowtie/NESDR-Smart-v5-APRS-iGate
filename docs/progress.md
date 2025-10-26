@@ -71,7 +71,7 @@
 - Hardware validation now parses `rtl_test -p` output and suggests ppm correction updates (Oct 25, 2025)
 - Hardware validation surfaces recent Direwolf log entries for quick inspection (Oct 25, 2025)
 - Extend hardware validation with optional Direwolf auto-launch for live capture (Oct 25, 2025)
-- Runtime and dev dependency set modernized for Python 3.11+ with optional extras documented (Oct 26, 2025)
+
 ## Next Steps
 - Flesh out DSP pipeline plan (filtering, demod staging) atop the radio layer
 

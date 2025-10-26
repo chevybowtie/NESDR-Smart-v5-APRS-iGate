@@ -7,7 +7,9 @@ import pytest
 from nesdr_igate.aprs.ax25 import AX25DecodeError, kiss_payload_to_tnc2  # type: ignore[import]
 
 
-def _encode_address(callsign: str, ssid: int = 0, *, last: bool, repeated: bool = False) -> bytes:
+def _encode_address(
+    callsign: str, ssid: int = 0, *, last: bool, repeated: bool = False
+) -> bytes:
     callsign = callsign.ljust(6)[:6].upper()
     field = bytearray()
     for char in callsign:

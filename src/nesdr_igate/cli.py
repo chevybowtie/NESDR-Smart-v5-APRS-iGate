@@ -131,7 +131,9 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     """Process CLI arguments and dispatch to the requested command."""
     parser = build_parser()
-    subparser_map: Dict[str, argparse.ArgumentParser] = getattr(parser, "_nesdr_subparser_map", {})
+    subparser_map: Dict[str, argparse.ArgumentParser] = getattr(
+        parser, "_nesdr_subparser_map", {}
+    )
     args, remainder = parser.parse_known_args(argv)
 
     _configure_logging(getattr(args, "log_level", None))

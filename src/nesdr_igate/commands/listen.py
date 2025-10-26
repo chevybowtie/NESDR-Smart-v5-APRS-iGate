@@ -29,7 +29,9 @@ _SOFTWARE_NAME = "nesdr-igate"
 
 try:
     _SOFTWARE_VERSION = importlib_metadata.version("nesdr-igate")
-except importlib_metadata.PackageNotFoundError:  # pragma: no cover - dev install fallback
+except (
+    importlib_metadata.PackageNotFoundError
+):  # pragma: no cover - dev install fallback
     _SOFTWARE_VERSION = "0.0.0"
 
 
@@ -43,7 +45,9 @@ def run_listen(args: Namespace) -> int:
     try:
         station_config = config_module.load_config(config_path)
     except FileNotFoundError:
-        logger.error("Config not found at %s; run `nesdr-igate setup` first.", config_path)
+        logger.error(
+            "Config not found at %s; run `nesdr-igate setup` first.", config_path
+        )
         return 1
     except ValueError as exc:
         logger.error("Config invalid: %s", exc)
@@ -51,7 +55,9 @@ def run_listen(args: Namespace) -> int:
 
     direwolf_conf = _resolve_direwolf_config(config_path.parent)
     if direwolf_conf is None:
-        logger.error("Direwolf configuration missing; rerun setup to render direwolf.conf")
+        logger.error(
+            "Direwolf configuration missing; rerun setup to render direwolf.conf"
+        )
         return 1
 
     rtl_config = RtlFmConfig(
@@ -93,7 +99,9 @@ def run_listen(args: Namespace) -> int:
                 try:
                     direwolf_proc.stdin.write(chunk)
                     direwolf_proc.stdin.flush()
-                except BrokenPipeError as exc:  # pragma: no cover - depends on direwolf exit timing
+                except (
+                    BrokenPipeError
+                ) as exc:  # pragma: no cover - depends on direwolf exit timing
                     audio_errors.put(exc)
                     break
         except Exception as exc:  # pragma: no cover - defensive
@@ -160,7 +168,9 @@ def run_listen(args: Namespace) -> int:
         logger.error("Failed to start Direwolf: %s", exc)
         return 1
 
-    audio_thread = threading.Thread(target=_pump_audio, name="rtl_fm_audio", daemon=True)
+    audio_thread = threading.Thread(
+        target=_pump_audio, name="rtl_fm_audio", daemon=True
+    )
     audio_thread.start()
 
     client = KISSClient(
@@ -218,7 +228,9 @@ def run_listen(args: Namespace) -> int:
             )
         except APRSISClientError as exc:
             delay = aprs_retry_delay
-            logger.warning("APRS-IS connection failed: %s; retrying in %ss", exc, int(delay))
+            logger.warning(
+                "APRS-IS connection failed: %s; retrying in %ss", exc, int(delay)
+            )
             aprs_next_retry = now + delay
             aprs_retry_delay = min(aprs_retry_delay * 2, aprs_retry_max)
 
@@ -267,7 +279,10 @@ def run_listen(args: Namespace) -> int:
 
             _report_audio_error(audio_errors)
 
-            if not getattr(args, "once", False) and time.monotonic() >= next_stats_report:
+            if (
+                not getattr(args, "once", False)
+                and time.monotonic() >= next_stats_report
+            ):
                 logger.info(
                     "[stats] frames=%s aprs_ok=%s aprs_fail=%s",
                     frame_count,

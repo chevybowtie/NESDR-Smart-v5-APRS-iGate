@@ -48,7 +48,9 @@ def kiss_payload_to_tnc2(payload: bytes) -> str:
     info = payload[offset + 2 :]
 
     if control != 0x03 or pid != 0xF0:
-        raise AX25DecodeError(f"Unsupported AX.25 frame type control={control:#x} pid={pid:#x}")
+        raise AX25DecodeError(
+            f"Unsupported AX.25 frame type control={control:#x} pid={pid:#x}"
+        )
 
     dest = addresses[0]
     src = addresses[1]
@@ -76,7 +78,11 @@ def _parse_address_fields(payload: bytes) -> tuple[list[AX25Address], int]:
         callsign = _decode_callsign(field[:6])
         ssid = (field[6] >> 1) & 0x0F
         has_been_repeated = bool(field[6] & 0x80)
-        addresses.append(AX25Address(callsign=callsign, ssid=ssid, has_been_repeated=has_been_repeated))
+        addresses.append(
+            AX25Address(
+                callsign=callsign, ssid=ssid, has_been_repeated=has_been_repeated
+            )
+        )
         if field[6] & 0x01:
             break
     else:

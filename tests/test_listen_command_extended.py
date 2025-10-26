@@ -61,7 +61,9 @@ def test_wait_for_kiss_success_after_retry(monkeypatch) -> None:
             self.calls += 1
 
     dummy = DummyClient()
-    result = listen._wait_for_kiss(cast(listen.KISSClient, dummy), attempts=3, delay=0.0)
+    result = listen._wait_for_kiss(
+        cast(listen.KISSClient, dummy), attempts=3, delay=0.0
+    )
     assert result is True
     assert dummy.calls == 3
 
@@ -72,7 +74,9 @@ def test_wait_for_kiss_exhausts_attempts() -> None:
             raise KISSClientError("still failing")
 
     dummy = DummyClient()
-    result = listen._wait_for_kiss(cast(listen.KISSClient, dummy), attempts=2, delay=0.0)
+    result = listen._wait_for_kiss(
+        cast(listen.KISSClient, dummy), attempts=2, delay=0.0
+    )
     assert result is False
 
 
@@ -101,7 +105,9 @@ def test_run_listen_config_missing(monkeypatch, tmp_path, caplog) -> None:
     _patch_signal(monkeypatch)
     config_path = tmp_path / "config.toml"
 
-    monkeypatch.setattr(listen.config_module, "resolve_config_path", lambda *_: config_path)
+    monkeypatch.setattr(
+        listen.config_module, "resolve_config_path", lambda *_: config_path
+    )
 
     def fake_load(_path):  # type: ignore[no-untyped-def]
         raise FileNotFoundError("missing")
@@ -119,7 +125,9 @@ def test_run_listen_config_invalid(monkeypatch, tmp_path, caplog) -> None:
     caplog.clear()
     _patch_signal(monkeypatch)
     config_path = tmp_path / "config.toml"
-    monkeypatch.setattr(listen.config_module, "resolve_config_path", lambda *_: config_path)
+    monkeypatch.setattr(
+        listen.config_module, "resolve_config_path", lambda *_: config_path
+    )
 
     def fake_load(_path):  # type: ignore[no-untyped-def]
         raise ValueError("bad")
@@ -138,9 +146,17 @@ def test_run_listen_missing_direwolf_config(monkeypatch, tmp_path, caplog) -> No
     _patch_signal(monkeypatch)
     config_path = tmp_path / "config.toml"
     config_dir = config_path.parent
-    monkeypatch.setattr(listen.config_module, "resolve_config_path", lambda *_: config_path)
-    monkeypatch.setattr(listen.config_module, "load_config", lambda *_: StationConfig(callsign="N0CALL-10", passcode="12345"))
-    monkeypatch.setattr(listen.config_module, "get_config_dir", lambda: tmp_path / "global")
+    monkeypatch.setattr(
+        listen.config_module, "resolve_config_path", lambda *_: config_path
+    )
+    monkeypatch.setattr(
+        listen.config_module,
+        "load_config",
+        lambda *_: StationConfig(callsign="N0CALL-10", passcode="12345"),
+    )
+    monkeypatch.setattr(
+        listen.config_module, "get_config_dir", lambda: tmp_path / "global"
+    )
 
     exit_code = listen.run_listen(Namespace(config=None))
 
@@ -160,7 +176,9 @@ def test_run_listen_audio_capture_failure(monkeypatch, tmp_path, caplog) -> None
 
     cfg = StationConfig(callsign="N0CALL-10", passcode="12345")
 
-    monkeypatch.setattr(listen.config_module, "resolve_config_path", lambda *_: config_path)
+    monkeypatch.setattr(
+        listen.config_module, "resolve_config_path", lambda *_: config_path
+    )
     monkeypatch.setattr(listen.config_module, "load_config", lambda *_: cfg)
 
     class FailingCapture:
@@ -204,7 +222,9 @@ def test_run_listen_direwolf_launch_failure(monkeypatch, tmp_path, caplog) -> No
             self.stopped = True
 
     monkeypatch.setattr(listen, "RtlFmAudioCapture", DummyCapture)
-    monkeypatch.setattr(listen.config_module, "resolve_config_path", lambda *_: config_path)
+    monkeypatch.setattr(
+        listen.config_module, "resolve_config_path", lambda *_: config_path
+    )
     monkeypatch.setattr(listen.config_module, "load_config", lambda *_: cfg)
 
     def fake_popen(*_args, **_kwargs):  # type: ignore[no-untyped-def]
@@ -227,9 +247,13 @@ def test_run_listen_kiss_unreachable(monkeypatch, tmp_path, caplog) -> None:
     config_dir.mkdir(parents=True, exist_ok=True)
     (config_dir / "direwolf.conf").write_text("test", encoding="utf-8")
 
-    cfg = StationConfig(callsign="N0CALL-10", passcode="12345", kiss_host="127.0.0.1", kiss_port=9001)
+    cfg = StationConfig(
+        callsign="N0CALL-10", passcode="12345", kiss_host="127.0.0.1", kiss_port=9001
+    )
 
-    monkeypatch.setattr(listen.config_module, "resolve_config_path", lambda *_: config_path)
+    monkeypatch.setattr(
+        listen.config_module, "resolve_config_path", lambda *_: config_path
+    )
     monkeypatch.setattr(listen.config_module, "load_config", lambda *_: cfg)
 
     capture_instances: list[Any] = []

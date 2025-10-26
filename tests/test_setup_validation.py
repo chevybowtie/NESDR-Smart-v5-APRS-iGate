@@ -17,7 +17,10 @@ def test_extract_ppm_from_output_detects_value() -> None:
     Average offset -0.95 ppm after 10 seconds
     Done.
     """
-    assert setup._extract_ppm_from_output(sample) == "Average offset -0.95 ppm after 10 seconds"
+    assert (
+        setup._extract_ppm_from_output(sample)
+        == "Average offset -0.95 ppm after 10 seconds"
+    )
 
 
 def test_extract_ppm_from_output_none() -> None:
@@ -36,22 +39,30 @@ def _configure_caplog(caplog, level=logging.INFO) -> None:
     caplog.clear()
 
 
-def test_report_direwolf_log_summary_missing(tmp_path: Path, monkeypatch, caplog) -> None:
+def test_report_direwolf_log_summary_missing(
+    tmp_path: Path, monkeypatch, caplog
+) -> None:
     _configure_caplog(caplog, level=logging.WARNING)
-    monkeypatch.setattr("nesdr_igate.commands.setup.config_module.get_data_dir", lambda: tmp_path)
+    monkeypatch.setattr(
+        "nesdr_igate.commands.setup.config_module.get_data_dir", lambda: tmp_path
+    )
 
     setup._report_direwolf_log_summary()
     assert "Direwolf log not found" in caplog.text
 
 
-def test_report_direwolf_log_summary_includes_recent_lines(tmp_path: Path, monkeypatch, caplog) -> None:
+def test_report_direwolf_log_summary_includes_recent_lines(
+    tmp_path: Path, monkeypatch, caplog
+) -> None:
     _configure_caplog(caplog)
     log_dir = tmp_path / "logs"
     log_dir.mkdir(parents=True)
     log_file = log_dir / "direwolf.log"
     log_file.write_text("\n".join(f"line {i}" for i in range(8)), encoding="utf-8")
 
-    monkeypatch.setattr("nesdr_igate.commands.setup.config_module.get_data_dir", lambda: tmp_path)
+    monkeypatch.setattr(
+        "nesdr_igate.commands.setup.config_module.get_data_dir", lambda: tmp_path
+    )
 
     setup._report_direwolf_log_summary()
     assert "[OK     ] Direwolf log found" in caplog.text
@@ -61,21 +72,32 @@ def test_report_direwolf_log_summary_includes_recent_lines(tmp_path: Path, monke
 
 
 def test_can_launch_direwolf_true(monkeypatch) -> None:
-    monkeypatch.setattr("nesdr_igate.commands.setup.shutil.which", lambda cmd: f"/usr/bin/{cmd}")
+    monkeypatch.setattr(
+        "nesdr_igate.commands.setup.shutil.which", lambda cmd: f"/usr/bin/{cmd}"
+    )
 
     assert setup._can_launch_direwolf() is True
 
 
 def test_can_launch_direwolf_false(monkeypatch) -> None:
-    monkeypatch.setattr("nesdr_igate.commands.setup.shutil.which", lambda cmd: None if cmd == "direwolf" else f"/usr/bin/{cmd}")
+    monkeypatch.setattr(
+        "nesdr_igate.commands.setup.shutil.which",
+        lambda cmd: None if cmd == "direwolf" else f"/usr/bin/{cmd}",
+    )
 
     assert setup._can_launch_direwolf() is False
 
 
-def test_launch_direwolf_probe_missing_config(tmp_path: Path, monkeypatch, caplog) -> None:
+def test_launch_direwolf_probe_missing_config(
+    tmp_path: Path, monkeypatch, caplog
+) -> None:
     _configure_caplog(caplog, level=logging.WARNING)
-    monkeypatch.setattr("nesdr_igate.commands.setup.config_module.get_data_dir", lambda: tmp_path)
-    monkeypatch.setattr("nesdr_igate.commands.setup.config_module.get_config_dir", lambda: tmp_path)
+    monkeypatch.setattr(
+        "nesdr_igate.commands.setup.config_module.get_data_dir", lambda: tmp_path
+    )
+    monkeypatch.setattr(
+        "nesdr_igate.commands.setup.config_module.get_config_dir", lambda: tmp_path
+    )
 
     config = StationConfig(callsign="N0CALL-10", passcode="12345")
 
@@ -126,8 +148,12 @@ def test_launch_direwolf_probe_success(tmp_path: Path, monkeypatch, caplog) -> N
     data_dir.mkdir(parents=True)
     (config_dir / "direwolf.conf").write_text("test", encoding="utf-8")
 
-    monkeypatch.setattr("nesdr_igate.commands.setup.config_module.get_data_dir", lambda: data_dir)
-    monkeypatch.setattr("nesdr_igate.commands.setup.config_module.get_config_dir", lambda: config_dir)
+    monkeypatch.setattr(
+        "nesdr_igate.commands.setup.config_module.get_data_dir", lambda: data_dir
+    )
+    monkeypatch.setattr(
+        "nesdr_igate.commands.setup.config_module.get_config_dir", lambda: config_dir
+    )
 
     rtl_process = _FakeRtlProcess()
     direwolf_process = _FakeDirewolfProcess()
@@ -163,7 +189,9 @@ def test_launch_direwolf_probe_success(tmp_path: Path, monkeypatch, caplog) -> N
     assert direwolf_process.wait_timeouts == [15]
 
 
-def test_launch_direwolf_probe_direwolf_timeout(tmp_path: Path, monkeypatch, caplog) -> None:
+def test_launch_direwolf_probe_direwolf_timeout(
+    tmp_path: Path, monkeypatch, caplog
+) -> None:
     _configure_caplog(caplog)
     data_dir = tmp_path / "data"
     config_dir = tmp_path / "config"
@@ -171,8 +199,12 @@ def test_launch_direwolf_probe_direwolf_timeout(tmp_path: Path, monkeypatch, cap
     data_dir.mkdir(parents=True)
     (config_dir / "direwolf.conf").write_text("test", encoding="utf-8")
 
-    monkeypatch.setattr("nesdr_igate.commands.setup.config_module.get_data_dir", lambda: data_dir)
-    monkeypatch.setattr("nesdr_igate.commands.setup.config_module.get_config_dir", lambda: config_dir)
+    monkeypatch.setattr(
+        "nesdr_igate.commands.setup.config_module.get_data_dir", lambda: data_dir
+    )
+    monkeypatch.setattr(
+        "nesdr_igate.commands.setup.config_module.get_config_dir", lambda: config_dir
+    )
 
     rtl_process = _FakeRtlProcess()
 

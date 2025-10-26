@@ -16,7 +16,9 @@ class ConnectivityResult:
     error: str | None = None
 
 
-def probe_tcp_endpoint(host: str, port: int, timeout: float = 1.0) -> ConnectivityResult:
+def probe_tcp_endpoint(
+    host: str, port: int, timeout: float = 1.0
+) -> ConnectivityResult:
     """Attempt to connect to a TCP endpoint, returning latency or error information."""
     start = time.perf_counter()
     try:

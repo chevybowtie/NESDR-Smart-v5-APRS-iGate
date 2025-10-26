@@ -71,7 +71,9 @@ def _run_non_interactive(config_path: Path) -> int:
     try:
         config = config_module.load_config(config_path)
     except FileNotFoundError:
-        logger.error("Configuration not found at %s; run interactive setup first", config_path)
+        logger.error(
+            "Configuration not found at %s; run interactive setup first", config_path
+        )
         return 1
     except ValueError as exc:
         logger.error("Configuration invalid: %s", exc)
@@ -95,7 +97,10 @@ def _interactive_prompt(existing: StationConfig | None) -> StationConfig:
     prompt = _Prompt(existing)
 
     callsign = prompt.string(
-        "APRS callsign-SSID", default=_default(existing, "callsign"), transform=str.upper, validator=_validate_callsign
+        "APRS callsign-SSID",
+        default=_default(existing, "callsign"),
+        transform=str.upper,
+        validator=_validate_callsign,
     )
     passcode = prompt.secret(
         "APRS-IS passcode",
@@ -172,7 +177,9 @@ def _interactive_prompt(existing: StationConfig | None) -> StationConfig:
     )
 
 
-def _default(config: StationConfig | None, attr: str, fallback: object | None = None) -> object | None:
+def _default(
+    config: StationConfig | None, attr: str, fallback: object | None = None
+) -> object | None:
     if config is None:
         return fallback
     return getattr(config, attr)
@@ -354,7 +361,11 @@ def _maybe_render_direwolf_config(config: StationConfig, target_dir: Path) -> No
 
 def _load_direwolf_template() -> str | None:
     try:
-        return resources.files("nesdr_igate.templates").joinpath("direwolf.conf").read_text(encoding="utf-8")
+        return (
+            resources.files("nesdr_igate.templates")
+            .joinpath("direwolf.conf")
+            .read_text(encoding="utf-8")
+        )
     except (FileNotFoundError, OSError):  # pragma: no cover - defensive
         return None
 
@@ -366,7 +377,7 @@ def _format_coordinate(value: float | None, *, fallback: str) -> str:
 
 
 def _escape_comment(comment: str) -> str:
-    return comment.replace("\"", "\\\"")
+    return comment.replace('"', '\\"')
 
 
 def _prompt_yes_no(message: str, *, default: bool) -> bool:
@@ -422,7 +433,9 @@ def _run_hardware_validation(config: StationConfig) -> None:
                         ppm_hint,
                     )
                 else:
-                    logger.info("[OK     ] rtl_test: frequency drift measurement complete")
+                    logger.info(
+                        "[OK     ] rtl_test: frequency drift measurement complete"
+                    )
             else:
                 snippet = (proc.stderr.strip() or proc.stdout.strip())[:120]
                 logger.warning(
@@ -431,13 +444,17 @@ def _run_hardware_validation(config: StationConfig) -> None:
                     snippet,
                 )
         except subprocess.TimeoutExpired:
-            logger.warning("[WARNING] rtl_test: timed out (ensure the SDR is connected)")
+            logger.warning(
+                "[WARNING] rtl_test: timed out (ensure the SDR is connected)"
+            )
         except OSError as exc:
             logger.warning("[WARNING] rtl_test: failed to execute (%s)", exc)
 
     result = probe_tcp_endpoint(config.kiss_host, config.kiss_port, timeout=1.0)
     if result.success:
-        logger.info("[OK     ] KISS: reachable at %s:%s", config.kiss_host, config.kiss_port)
+        logger.info(
+            "[OK     ] KISS: reachable at %s:%s", config.kiss_host, config.kiss_port
+        )
     else:
         logger.warning(
             "[WARNING] KISS: unable to reach %s:%s (%s)",
@@ -464,7 +481,9 @@ def _run_hardware_validation(config: StationConfig) -> None:
     _report_direwolf_log_summary()
 
     if _can_launch_direwolf():
-        if _prompt_yes_no("Launch Direwolf for a 15-second live capture?", default=False):
+        if _prompt_yes_no(
+            "Launch Direwolf for a 15-second live capture?", default=False
+        ):
             _launch_direwolf_probe(config)
 
     if ppm_hint is not None:
@@ -546,7 +565,9 @@ def _launch_direwolf_probe(config: StationConfig) -> None:
         direwolf_conf = config_module.get_config_dir() / "direwolf.conf"
 
     if not direwolf_conf.exists():
-        logger.warning("[WARNING] Cannot launch Direwolf probe: direwolf.conf not found")
+        logger.warning(
+            "[WARNING] Cannot launch Direwolf probe: direwolf.conf not found"
+        )
         return
 
     direwolf_cmd = [
@@ -605,4 +626,6 @@ def _launch_direwolf_probe(config: StationConfig) -> None:
         for line in probe_lines:
             logger.info("      %s", line)
     else:
-        logger.warning("[WARNING] Direwolf probe did not produce output; check connections.")
+        logger.warning(
+            "[WARNING] Direwolf probe did not produce output; check connections."
+        )

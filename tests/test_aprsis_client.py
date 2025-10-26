@@ -78,7 +78,9 @@ def test_aprsis_client_login_failure() -> None:
 
     port, thread = _start_server(responder)
 
-    client = APRSISClient(APRSISConfig(host="127.0.0.1", port=port, callsign="TEST", passcode="12345"))
+    client = APRSISClient(
+        APRSISConfig(host="127.0.0.1", port=port, callsign="TEST", passcode="12345")
+    )
 
     with pytest.raises(APRSISClientError):
         client.connect()
@@ -94,9 +96,14 @@ def test_aprsis_client_connect_failure(monkeypatch) -> None:
     def fake_create_connection(*_args, **_kwargs):  # type: ignore[no-untyped-def]
         raise OSError("boom")
 
-    monkeypatch.setattr("nesdr_igate.aprs.aprsis_client.socket.create_connection", fake_create_connection)
+    monkeypatch.setattr(
+        "nesdr_igate.aprs.aprsis_client.socket.create_connection",
+        fake_create_connection,
+    )
 
-    client = APRSISClient(APRSISConfig(host="invalid", port=1, callsign="TEST", passcode="12345"))
+    client = APRSISClient(
+        APRSISConfig(host="invalid", port=1, callsign="TEST", passcode="12345")
+    )
 
     with pytest.raises(APRSISClientError) as excinfo:
         client.connect()
@@ -113,7 +120,9 @@ def test_aprsis_client_connect_idempotent() -> None:
 
     port, thread = _start_server(responder)
 
-    client = APRSISClient(APRSISConfig(host="127.0.0.1", port=port, callsign="TEST", passcode="12345"))
+    client = APRSISClient(
+        APRSISConfig(host="127.0.0.1", port=port, callsign="TEST", passcode="12345")
+    )
     client.connect()
     client.connect()
     client.close()
@@ -128,7 +137,9 @@ def test_aprsis_client_login_connection_closed() -> None:
 
     port, thread = _start_server(responder)
 
-    client = APRSISClient(APRSISConfig(host="127.0.0.1", port=port, callsign="TEST", passcode="12345"))
+    client = APRSISClient(
+        APRSISConfig(host="127.0.0.1", port=port, callsign="TEST", passcode="12345")
+    )
 
     with pytest.raises(APRSISClientError) as excinfo:
         client.connect()
@@ -150,7 +161,9 @@ def test_aprsis_client_login_response_missing() -> None:
 
     port, thread = _start_server(responder)
 
-    client = APRSISClient(APRSISConfig(host="127.0.0.1", port=port, callsign="TEST", passcode="12345"))
+    client = APRSISClient(
+        APRSISConfig(host="127.0.0.1", port=port, callsign="TEST", passcode="12345")
+    )
 
     with pytest.raises(APRSISClientError) as excinfo:
         client.connect()
@@ -163,14 +176,18 @@ def test_aprsis_client_login_response_missing() -> None:
 
 
 def test_aprsis_client_send_without_connection() -> None:
-    client = APRSISClient(APRSISConfig(host="127.0.0.1", port=1, callsign="TEST", passcode="12345"))
+    client = APRSISClient(
+        APRSISConfig(host="127.0.0.1", port=1, callsign="TEST", passcode="12345")
+    )
 
     with pytest.raises(APRSISClientError):
         client.send_packet("TEST>APRS:hi")
 
 
 def test_aprsis_client_send_flush_error() -> None:
-    client = APRSISClient(APRSISConfig(host="127.0.0.1", port=1, callsign="TEST", passcode="12345"))
+    client = APRSISClient(
+        APRSISConfig(host="127.0.0.1", port=1, callsign="TEST", passcode="12345")
+    )
 
     class FailingWriter:
         def write(self, data: bytes) -> int:
@@ -192,14 +209,18 @@ def test_aprsis_client_send_flush_error() -> None:
 
 
 def test_aprsis_client_require_reader_without_connection() -> None:
-    client = APRSISClient(APRSISConfig(host="127.0.0.1", port=1, callsign="TEST", passcode="12345"))
+    client = APRSISClient(
+        APRSISConfig(host="127.0.0.1", port=1, callsign="TEST", passcode="12345")
+    )
 
     with pytest.raises(APRSISClientError):
         client._await_logresp()
 
 
 def test_aprsis_client_close_ignores_errors() -> None:
-    client = APRSISClient(APRSISConfig(host="127.0.0.1", port=1, callsign="TEST", passcode="12345"))
+    client = APRSISClient(
+        APRSISConfig(host="127.0.0.1", port=1, callsign="TEST", passcode="12345")
+    )
 
     class FailingCloser:
         def __init__(self) -> None:

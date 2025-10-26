@@ -95,7 +95,9 @@ class KISSClient:
             except socket.timeout as exc:
                 raise TimeoutError("Timed out waiting for KISS frame") from exc
             except OSError as exc:
-                raise KISSClientError(f"Socket error while reading frame: {exc}") from exc
+                raise KISSClientError(
+                    f"Socket error while reading frame: {exc}"
+                ) from exc
 
             if not chunk:
                 raise KISSClientError("KISS connection closed by remote host")

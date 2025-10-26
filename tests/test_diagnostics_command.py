@@ -13,7 +13,13 @@ from nesdr_igate.config import StationConfig, save_config
 
 
 class _ProbeResult:
-    def __init__(self, success: bool, *, latency_ms: float | None = None, error: str | None = None) -> None:
+    def __init__(
+        self,
+        success: bool,
+        *,
+        latency_ms: float | None = None,
+        error: str | None = None,
+    ) -> None:
         self.success = success
         self.latency_ms = latency_ms
         self.error = error
@@ -267,7 +273,9 @@ def test_sections_to_mapping() -> None:
 def test_print_text_report_verbose(caplog) -> None:
     caplog.set_level(logging.INFO, logger="nesdr_igate.commands.diagnostics")
     caplog.clear()
-    sections = [diagnostics.Section("Env", "ok", "ready", {"packages": {"numpy": "1.0"}})]
+    sections = [
+        diagnostics.Section("Env", "ok", "ready", {"packages": {"numpy": "1.0"}})
+    ]
 
     diagnostics._print_text_report(sections, verbose=True)
     assert "[OK     ] Env" in caplog.text
@@ -277,7 +285,9 @@ def test_print_text_report_verbose(caplog) -> None:
 def test_print_text_report_non_verbose(caplog) -> None:
     caplog.set_level(logging.INFO, logger="nesdr_igate.commands.diagnostics")
     caplog.clear()
-    sections = [diagnostics.Section("Env", "ok", "ready", {"packages": {"numpy": "1.0"}})]
+    sections = [
+        diagnostics.Section("Env", "ok", "ready", {"packages": {"numpy": "1.0"}})
+    ]
 
     diagnostics._print_text_report(sections, verbose=False)
     assert "[OK     ] Env" in caplog.text

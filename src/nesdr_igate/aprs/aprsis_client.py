@@ -41,9 +41,13 @@ class APRSISClient:
         if self._socket is not None:
             return
         try:
-            sock = socket.create_connection((self._config.host, self._config.port), timeout=self._config.timeout)
+            sock = socket.create_connection(
+                (self._config.host, self._config.port), timeout=self._config.timeout
+            )
         except OSError as exc:
-            raise APRSISClientError(f"Unable to connect to APRS-IS server {self._config.host}:{self._config.port}: {exc}") from exc
+            raise APRSISClientError(
+                f"Unable to connect to APRS-IS server {self._config.host}:{self._config.port}: {exc}"
+            ) from exc
 
         sock.settimeout(self._config.timeout)
         self._socket = sock
@@ -108,13 +112,18 @@ class APRSISClient:
             try:
                 line = reader.readline()
             except OSError as exc:
-                raise APRSISClientError(f"Error reading APRS-IS response: {exc}") from exc
+                raise APRSISClientError(
+                    f"Error reading APRS-IS response: {exc}"
+                ) from exc
             if not line:
                 raise APRSISClientError("APRS-IS server closed connection during login")
             decoded = line.decode("utf-8", errors="replace").strip()
             if decoded.startswith("# logresp"):
                 normalized = decoded.lower()
-                if any(term in normalized for term in ("unverified", "invalid", "reject", "bad")):
+                if any(
+                    term in normalized
+                    for term in ("unverified", "invalid", "reject", "bad")
+                ):
                     raise APRSISClientError(f"APRS-IS login failed: {decoded}")
                 if "verified" in normalized or " ok" in normalized:
                     return

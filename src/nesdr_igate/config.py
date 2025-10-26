@@ -86,7 +86,9 @@ class StationConfig:
             "station": _drop_none(
                 {
                     "callsign": self.callsign,
-                    "passcode": KEYRING_SENTINEL if self.passcode_in_keyring else self.passcode,
+                    "passcode": KEYRING_SENTINEL
+                    if self.passcode_in_keyring
+                    else self.passcode,
                     "latitude": self.latitude,
                     "longitude": self.longitude,
                     "altitude_m": self.altitude_m,
@@ -205,7 +207,7 @@ def config_summary(config: StationConfig) -> str:
         f"  APRS-IS : {config.aprs_server}:{config.aprs_port}\n"
         f"  Location : {location}\n"
         f"  KISS     : {config.kiss_host}:{config.kiss_port}\n"
-        f"  Radio    : {config.center_frequency_hz/1e6:.3f} MHz @ {config.sample_rate_sps:.0f} sps"
+        f"  Radio    : {config.center_frequency_hz / 1e6:.3f} MHz @ {config.sample_rate_sps:.0f} sps"
     )
 
 
