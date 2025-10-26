@@ -13,11 +13,6 @@
 * Decide whether `_xdg_path` should be promoted to a public helper or documented as internal-only.
 * `_drop_none` is generic; consider moving it into a shared utilities module.
 
-## Diagnostics Command (`diagnostics.py`)
-### Follow-ups
-* Expand the `--json` payload with tool version metadata so automated checks can assert expectations.
-* Ensure warning and error logs surface in a single summary record to help log aggregation.
-
 ## Setup Command (`setup.py`)
 ### Findings
 Extensive user interactivity logic makes unit testing difficult; consider isolating prompt I/O behind interfaces.

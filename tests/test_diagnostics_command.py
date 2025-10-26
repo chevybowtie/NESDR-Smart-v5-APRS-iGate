@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import builtins
+import json
 import logging
 import sys
 import types
 from pathlib import Path
+from argparse import Namespace
 
 from nesdr_igate.commands import diagnostics
 from nesdr_igate.config import StationConfig, save_config
@@ -292,3 +294,90 @@ def test_print_text_report_non_verbose(caplog) -> None:
     diagnostics._print_text_report(sections, verbose=False)
     assert "[OK     ] Env" in caplog.text
     assert "packages" not in caplog.text
+
+
+def test_run_diagnostics_json_includes_meta_and_summary(
+    monkeypatch, tmp_path, capsys, caplog
+) -> None:
+    caplog.set_level(logging.INFO, logger="nesdr_igate.commands.diagnostics")
+    caplog.clear()
+
+    env_section = diagnostics.Section("Environment", "ok", "env", {})
+    config_section = diagnostics.Section("Config", "ok", "cfg", {})
+    sdr_section = diagnostics.Section("SDR", "ok", "sdr", {})
+    direwolf_section = diagnostics.Section("Direwolf", "warning", "dw", {})
+    aprs_section = diagnostics.Section("APRS-IS", "ok", "aprs", {})
+
+    monkeypatch.setattr(diagnostics, "_check_environment", lambda: env_section)
+    monkeypatch.setattr(
+        diagnostics, "_check_config", lambda *_: (config_section, None)
+    )
+    monkeypatch.setattr(diagnostics, "_check_sdr", lambda: sdr_section)
+    monkeypatch.setattr(
+        diagnostics, "_check_direwolf", lambda *_: direwolf_section
+    )
+    monkeypatch.setattr(
+        diagnostics, "_check_aprs_is", lambda *_: aprs_section
+    )
+    monkeypatch.setattr(diagnostics, "_package_version", lambda: "9.9.9")
+    monkeypatch.setattr(
+        diagnostics.config_module,
+        "resolve_config_path",
+        lambda *_: tmp_path / "config.toml",
+    )
+
+    exit_code = diagnostics.run_diagnostics(
+        Namespace(config=None, json=True, verbose=False)
+    )
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    payload = json.loads(captured.out)
+    assert payload["meta"]["version"] == "9.9.9"
+    assert payload["summary"]["warnings"] == 1
+    assert payload["summary"]["warning_sections"] == ["Direwolf"]
+
+    summary_records = [
+        record for record in caplog.records if "Diagnostics summary" in record.message
+    ]
+    assert summary_records == []
+
+
+def test_run_diagnostics_text_emits_summary(monkeypatch, tmp_path, caplog) -> None:
+    caplog.set_level(logging.INFO, logger="nesdr_igate.commands.diagnostics")
+    caplog.clear()
+
+    env_section = diagnostics.Section("Environment", "ok", "env", {})
+    config_section = diagnostics.Section("Config", "ok", "cfg", {})
+    sdr_section = diagnostics.Section("SDR", "ok", "sdr", {})
+    direwolf_section = diagnostics.Section("Direwolf", "warning", "dw", {})
+    aprs_section = diagnostics.Section("APRS-IS", "ok", "aprs", {})
+
+    monkeypatch.setattr(diagnostics, "_check_environment", lambda: env_section)
+    monkeypatch.setattr(
+        diagnostics, "_check_config", lambda *_: (config_section, None)
+    )
+    monkeypatch.setattr(diagnostics, "_check_sdr", lambda: sdr_section)
+    monkeypatch.setattr(
+        diagnostics, "_check_direwolf", lambda *_: direwolf_section
+    )
+    monkeypatch.setattr(
+        diagnostics, "_check_aprs_is", lambda *_: aprs_section
+    )
+    monkeypatch.setattr(
+        diagnostics.config_module,
+        "resolve_config_path",
+        lambda *_: tmp_path / "config.toml",
+    )
+
+    exit_code = diagnostics.run_diagnostics(
+        Namespace(config=None, json=False, verbose=False)
+    )
+
+    assert exit_code == 0
+    summary_records = [
+        record for record in caplog.records if "Diagnostics summary" in record.message
+    ]
+    assert len(summary_records) == 1
+    assert summary_records[0].levelno == logging.WARNING
+    assert "warnings=1" in summary_records[0].message

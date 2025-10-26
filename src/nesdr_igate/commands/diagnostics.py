@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import logging
 import json
+import logging
 import socket
 import sys
 import time
@@ -26,6 +26,13 @@ SectionStatus = str
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
+
+
+def _package_version() -> str:
+    try:
+        return importlib_metadata.version("nesdr-igate")
+    except importlib_metadata.PackageNotFoundError:
+        return "0.0.0"
 
 
 @dataclass(slots=True)
@@ -51,12 +58,24 @@ def run_diagnostics(args: Namespace) -> int:
     sections.append(_check_direwolf(station_config))
     sections.append(_check_aprs_is(station_config))
 
+    generated_at = time.time()
+    summary = _summarize_sections(sections)
+
     if getattr(args, "json", False):
         report = _sections_to_mapping(sections)
+        report["meta"] = {
+            "tool": "nesdr-igate",
+            "version": _package_version(),
+            "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(generated_at)),
+        }
+        report["summary"] = summary
         indent = 2 if getattr(args, "verbose", False) else None
         print(json.dumps(report, indent=indent, default=_json_default))
     else:
         _print_text_report(sections, verbose=getattr(args, "verbose", False))
+
+    if not getattr(args, "json", False):
+        _log_summary(summary)
 
     return 1 if any(section.status == "error" for section in sections) else 0
 
@@ -226,6 +245,37 @@ def _sections_to_mapping(sections: Iterable[Section]) -> dict[str, Any]:
             "details": section.details,
         }
     return report
+
+
+def _summarize_sections(sections: Iterable[Section]) -> dict[str, Any]:
+    errors = [section.name for section in sections if section.status == "error"]
+    warnings = [section.name for section in sections if section.status == "warning"]
+    return {
+        "errors": len(errors),
+        "warnings": len(warnings),
+        "error_sections": errors,
+        "warning_sections": warnings,
+    }
+
+
+def _log_summary(summary: dict[str, Any]) -> None:
+    level = logging.INFO
+    if summary.get("errors", 0):
+        level = logging.ERROR
+    elif summary.get("warnings", 0):
+        level = logging.WARNING
+
+    error_sections = ", ".join(summary.get("error_sections", [])) or "-"
+    warning_sections = ", ".join(summary.get("warning_sections", [])) or "-"
+
+    logger.log(
+        level,
+        "Diagnostics summary: errors=%s warnings=%s error_sections=%s warning_sections=%s",
+        summary.get("errors", 0),
+        summary.get("warnings", 0),
+        error_sections,
+        warning_sections,
+    )
 
 
 def _print_text_report(sections: Iterable[Section], *, verbose: bool) -> None:
