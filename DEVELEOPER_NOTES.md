@@ -38,6 +38,43 @@
 - Build artifacts with `python -m build` (install the helper first via `python -m pip install build`) and verify `pip install dist/*.whl` inside a clean venv before tagging.
 - Update `README.md` quickstart steps whenever CLI defaults or required binaries change.
 
+### Build system & release guidance
+
+- Recommended `build-system` for `pyproject.toml` (this project):
+	- `requires = ["setuptools>=69", "build>=1.0"]`
+	- `build-backend = "setuptools.build_meta"`
+
+- Why this choice:
+	- `setuptools` is the widest-supported build backend and works well with our current code and packaging layout (src/ layout, package-data, entry points).
+	- `build` is a small, well-maintained wrapper to produce sdist and wheel in isolated environments.
+
+- Actionable practices:
+	- Create a clean ephemeral venv for release verification:
+
+		```bash
+		python3 -m venv .venv-release
+		.venv-release/bin/pip install --upgrade pip
+		.venv-release/bin/pip install -e '.[direwolf]' '.[dev]'
+		.venv-release/bin/python -m build
+		.venv-release/bin/pip install dist/*.whl
+		```
+
+	- Use the included `scripts/verify_release.sh` helper which automates the above steps in a repeatable way.
+
+- Notes & compatibility concerns:
+	- Setuptools deprecation: `project.license` as a TOML table is deprecated in newer setuptools; switch to an SPDX string (for example `license = { text = "MIT" }` -> `license = "MIT"` or `license-files`) before 2026-Feb-18 to avoid future build breaks. The verification build will emit a deprecation warning until this is changed.
+	- Transient warning: some runtime dependencies (notably `pyrtlsdr` / `rtlsdr`) may emit runtime warnings referencing `pkg_resources` from `setuptools`. If these warnings are problematic, two options exist:
+		- Pin `setuptools` to a safe version in CI/build environments (for example `setuptools<81`) until transitive deps remove `pkg_resources` usage.
+		- Upgrade or replace the transitive dependency if a newer release removes the `pkg_resources` usage.
+
+- Alternatives to consider (longer-term):
+	- `hatchling` (via `hatchling`/`hatch`) offers a modern, fast build backend with simpler configuration for some workflows; migrating requires updating CI and developer docs.
+	- `pdm` provides an opinionated workflow with dependency resolution through PEP 621 + PEP 517 but may be heavier to adopt for contributors.
+
+- CI implications:
+	- Keep the project's CI build step to run `python -m build` inside an isolated environment (this mirrors how PyPI builds packages) and to run the `scripts/verify_release.sh` on merge to main.
+	- Consider adding a lightweight gate that checks for `setuptools` deprecation warnings and fails only on new severe errors (so we catch regressions early without being brittle).
+
 ## Documentation Habits
 - Prefer README updates alongside behavioral changes; keep troubleshooting tips user-focused.
 - Use `docs/` for deeper architecture notes if functionality grows beyond this summary.
