@@ -71,3 +71,12 @@
 ## Next Steps
 - Flesh out DSP pipeline plan (filtering, demod staging) atop the radio layer
 - Plan enhancements to `setup` (hardware validation, passcode keyring integration)
+
+## DSP Pipeline Sketch (draft)
+- IQ capture remains via rtl_fm for MVP; long term swap to SoapySDR/SoapyRemote for multi-device support.
+- Front-end filter: complex low-pass around 12 kHz to isolate APRS channel, followed by decimation to ~48 ksps to reduce CPU load.
+- FM demodulator: quadrature discriminator on complex stream, yielding real-valued audio; add deemphasis (75 µs) and DC offset removal.
+- Audio conditioning: AGC or limiter stage to normalize level, optional narrow low-pass (~3 kHz) to suppress wideband noise.
+- Symbol timing: align to 1200 baud via Gardner timing error detector; sample to obtain soft bits.
+- NRZI decode + bit unstuffing; hand off to AX.25 frame parser (reuse existing code).
+- Diagnostics: expose per-stage levels (RMS, clipping) and allow recording intermediate buffers for analysis.
