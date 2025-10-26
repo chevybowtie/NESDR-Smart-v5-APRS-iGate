@@ -8,6 +8,7 @@ import re
 import shutil
 import subprocess
 from argparse import Namespace
+from collections import deque
 from getpass import getpass
 from pathlib import Path
 from typing import Callable
@@ -443,6 +444,8 @@ def _run_hardware_validation(config: StationConfig) -> None:
             f"[WARNING] APRS-IS: unable to reach {config.aprs_server}:{config.aprs_port} ({aprs_result.error})"
         )
 
+    _report_direwolf_log_summary()
+
     if ppm_hint is not None:
         print(
             "Tip: set `ppm_correction` in the configuration to this value to improve tuning accuracy."
@@ -457,3 +460,31 @@ def _extract_ppm_from_output(output: str) -> str | None:
         if "ppm" in line.lower() and any(ch.isdigit() for ch in line):
             return line
     return None
+
+
+def _report_direwolf_log_summary() -> None:
+    log_dir = config_module.get_data_dir() / "logs"
+    log_file = log_dir / "direwolf.log"
+    if not log_file.exists():
+        print(
+            f"[WARNING] Direwolf log not found at {log_file}. Run `nesdr-igate listen` to generate logs."
+        )
+        return
+
+    try:
+        recent_lines = _tail_file(log_file, lines=6)
+    except OSError as exc:
+        print(f"[WARNING] Unable to read Direwolf log {log_file}: {exc}")
+        return
+
+    print(f"[OK     ] Direwolf log found at {log_file}")
+    if recent_lines:
+        print("    Recent log entries:")
+        for line in recent_lines:
+            print(f"      {line}")
+
+
+def _tail_file(path: Path, *, lines: int) -> list[str]:
+    with path.open("r", encoding="utf-8", errors="ignore") as handle:
+        buffer = deque(handle, maxlen=lines)
+    return [entry.rstrip("\n") for entry in buffer]
