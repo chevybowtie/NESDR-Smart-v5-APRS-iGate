@@ -1,2 +1,0 @@
-[console_scripts]
-nesdr-igate = nesdr_igate.cli:main

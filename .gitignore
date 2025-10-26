@@ -16,3 +16,12 @@ htmlcov/
 samples/*.iq
 samples/*.raw
 samples/*.wav
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Ephemeral venvs used by verify_release
+.venv-check/
+.venv-release/
