@@ -137,6 +137,13 @@ def _check_sdr() -> Section:
             "pyrtlsdr not installed; SDR checks skipped",
             {"error": str(exc)},
         )
+    except RuntimeError as exc:
+        return Section(
+            "SDR",
+            "error",
+            "pyrtlsdr installed but failed to initialise; SDR checks skipped",
+            {"error": str(exc)},
+        )
 
     rtl_sdr_cls = cast(Any, RtlSdr)
 

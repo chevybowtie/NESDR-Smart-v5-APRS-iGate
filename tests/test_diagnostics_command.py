@@ -27,6 +27,15 @@ def _fake_import_factory(original):
     return fake_import
 
 
+def _fake_runtime_import_factory(original):
+    def fake_import(name, *args, **kwargs):  # type: ignore[no-untyped-def]
+        if name == "rtlsdr":
+            raise RuntimeError("mock runtime failure")
+        return original(name, *args, **kwargs)
+
+    return fake_import
+
+
 def test_check_environment_reports_missing_packages(monkeypatch) -> None:
     monkeypatch.setattr(diagnostics.sys, "prefix", "/usr")
     monkeypatch.setattr(diagnostics.sys, "base_prefix", "/usr")
@@ -104,6 +113,16 @@ def test_check_sdr_import_error(monkeypatch) -> None:
 
     assert section.status == "warning"
     assert "pyrtlsdr not installed" in section.message
+
+
+def test_check_sdr_partial_install_runtime_error(monkeypatch) -> None:
+    original_import = builtins.__import__
+    monkeypatch.setattr(builtins, "__import__", _fake_runtime_import_factory(original_import))
+
+    section = diagnostics._check_sdr()
+
+    assert section.status == "error"
+    assert "failed to initialise" in section.message
 
 
 def test_check_sdr_no_devices(monkeypatch) -> None:

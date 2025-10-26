@@ -7,7 +7,6 @@
 ## APRS Client (aprsis_client.py)
 ### Findings
 * Lacks logging when reconnecting; consider injecting logger.
-* connect quietly returns when already connected; docstring should note idempotence.
 
 ## Config Module (config.py)
 ### Findings
@@ -17,7 +16,6 @@
 # Diagnostics Command (diagnostics.py)
 ### Findings
 * Uses print for output with ad-hoc formatting; consider rich or logging for structured reports.
-* _check_sdr handles ImportError but not partially installed pyrtlsdr (raises RuntimeError); cross-check.
 
 ## Setup Command (setup.py)
 ### Findings
@@ -25,16 +23,12 @@ Extensive user interactivity logic makes unit testing difficult; consider isolat
 ### Recommendations
 * Continue expanding automated coverage for additional prompt flows as new requirements emerge.
 
-
-
-
 ## Listener Command (listen.py)
 ### Findings
 * print for logging; migrating to logging would permit structured logs.
 
 ### Recommendations
 * Swap print with logging.getLogger(__name__).
-
 
 ## CLI Layer (cli.py)
 ### Findings
