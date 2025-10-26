@@ -1,57 +1,52 @@
 ## Best Practices & Tooling
-* Adopt logging across commands to replace print, enabling log levels and redirection.
-* Introduce mypy with --strict for key modules (aprs, radio) to catch protocol mismatches early.
-* Add pyproject [tool.coverage.run] config for consistent coverage runs (branch = true).
-* Consider asyncio or trio for long-running IO loops instead of threads.
+* Introduce mypy with `--strict` for key modules (APRS, radio) to catch protocol mismatches early.
+* Add `pyproject.toml` `[tool.coverage.run]` configuration for consistent coverage runs (`branch = true`).
+* Evaluate asyncio or trio for long-running IO loops instead of threads.
 
-## APRS Client (aprsis_client.py)
-### Findings
-* Lacks logging when reconnecting; consider injecting logger.
+## APRS Client (`aprsis_client.py`)
+### Follow-ups
+* Add connection lifecycle logging (connect, reconnect, close) at `INFO`/`DEBUG` to aid diagnostics.
+* Consider a retry/backoff helper to avoid rapid APRS-IS reconnect loops.
 
-## Config Module (config.py)
-### Findings
-* _xdg_path should be public? If internal, docstring clarifies use.
-* `_drop_none` is generic; could move to utils.
+## Config Module (`config.py`)
+### Follow-ups
+* Decide whether `_xdg_path` should be promoted to a public helper or documented as internal-only.
+* `_drop_none` is generic; consider moving it into a shared utilities module.
 
-# Diagnostics Command (diagnostics.py)
-### Findings
-* Uses print for output with ad-hoc formatting; consider rich or logging for structured reports.
+## Diagnostics Command (`diagnostics.py`)
+### Follow-ups
+* Expand the `--json` payload with tool version metadata so automated checks can assert expectations.
+* Ensure warning and error logs surface in a single summary record to help log aggregation.
 
-## Setup Command (setup.py)
+## Setup Command (`setup.py`)
 ### Findings
 Extensive user interactivity logic makes unit testing difficult; consider isolating prompt I/O behind interfaces.
-### Recommendations
+### Follow-ups
 * Continue expanding automated coverage for additional prompt flows as new requirements emerge.
 
-## Listener Command (listen.py)
-### Findings
-* print for logging; migrating to logging would permit structured logs.
+## Listener Command (`listen.py`)
+### Follow-ups
+* Review thread and subprocess lifecycle handling to guarantee clean shutdown on signals.
+* Add integration coverage for `--once` and `--no-aprsis` to protect CLI defaults.
 
-### Recommendations
-* Swap print with logging.getLogger(__name__).
+## CLI Layer (`cli.py`)
+### Follow-ups
+* Add a `--version` flag surfaced from package metadata.
+* Document environment variable overrides (e.g., `NESDR_IGATE_LOG_LEVEL`) in help output.
 
-## CLI Layer (cli.py)
-### Findings
-* Print-style diagnostics remain; aligns with broader logging work once adopted.
-
-### Recommendations
-* Swap print with logging.getLogger(__name__) once logging baseline lands.
-
-## Dependency Modernization (pyproject.toml)
-
+## Dependency Modernization (`pyproject.toml`)
 Recommendations
- * Update stanza:
+* Update stanza:
 ```
-numpy = ">=2.0,<3"
-pyrtlsdr = ">=0.3.0,<0.4"
-aprslib = ">=0.8.0,<0.9"
-tomli-w = ">=1.1,<2"
-pytest = ">=8.3"
-pytest-asyncio = ">=0.23"  # keep if still needed, else drop
+numpy = ">=2.0,<3"
+pyrtlsdr = ">=0.3.0,<0.4"
+aprslib = ">=0.8.0,<0.9"
+tomli-w = ">=1.1,<2"
+pytest = ">=8.3"
+pytest-asyncio = ">=0.23"  # keep if still needed, else drop
 ```
-
 * Add dev extras: mypy, black, types-keyring, pytest-rerunfailures, coverage[toml].
-* Switch build-system requirements to ["setuptools>=69", "build>=1.0"] and adopt hatchling/pdm or uv for reproducible builds.
-* Document runtime optional extras ([project.optional-dependencies]) for Direwolf integration vs. headless operation.
+* Switch build-system requirements to `["setuptools>=69", "build>=1.0"]` and consider hatchling/pdm/uv for reproducible builds.
+* Document runtime optional extras (`[project.optional-dependencies]`) for Direwolf integration vs. headless operation.
 
 
