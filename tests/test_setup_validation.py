@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 import subprocess
 from pathlib import Path
+from types import SimpleNamespace
 
 from nesdr_igate.commands import setup
 from nesdr_igate.config import StationConfig
@@ -235,3 +236,85 @@ def test_launch_direwolf_probe_direwolf_timeout(tmp_path: Path, monkeypatch, cap
     assert rtl_process.wait_timeouts == [5]
     assert direwolf_process.terminated is True
     assert 5 in direwolf_process.wait_timeouts
+
+
+def test_report_command_availability(monkeypatch, capsys) -> None:
+    responses = {"rtl_fm": "/usr/bin/rtl_fm", "rtl_test": None, "direwolf": "/usr/bin/direwolf"}
+    monkeypatch.setattr(setup.shutil, "which", lambda cmd: responses.get(cmd))
+
+    setup._report_command_availability()
+    captured = capsys.readouterr()
+
+    assert "[OK     ] rtl_fm" in captured.out
+    assert "[WARNING] rtl_test" in captured.out
+
+
+def test_measure_rtl_ppm_offset_success(monkeypatch, capsys) -> None:
+    monkeypatch.setattr(setup.shutil, "which", lambda cmd: "/usr/bin/rtl_test" if cmd == "rtl_test" else None)
+
+    class _Result:
+        returncode = 0
+        stdout = "Average offset -0.95 ppm"
+        stderr = ""
+
+    monkeypatch.setattr(setup.subprocess, "run", lambda *_a, **_k: _Result())
+
+    ppm_hint = setup._measure_rtl_ppm_offset()
+    captured = capsys.readouterr()
+
+    assert ppm_hint == "Average offset -0.95 ppm"
+    assert "ppm offset" in captured.out
+
+
+def test_measure_rtl_ppm_offset_failure(monkeypatch, capsys) -> None:
+    monkeypatch.setattr(setup.shutil, "which", lambda cmd: "/usr/bin/rtl_test" if cmd == "rtl_test" else None)
+
+    class _Result:
+        returncode = 1
+        stdout = "oops"
+        stderr = ""
+
+    monkeypatch.setattr(setup.subprocess, "run", lambda *_a, **_k: _Result())
+
+    ppm_hint = setup._measure_rtl_ppm_offset()
+    captured = capsys.readouterr()
+
+    assert ppm_hint is None
+    assert "exit code" in captured.out
+
+
+def test_report_connectivity(monkeypatch, capsys) -> None:
+    results = iter([
+        SimpleNamespace(success=True, error=None),
+        SimpleNamespace(success=False, error="timeout"),
+    ])
+
+    monkeypatch.setattr(setup, "probe_tcp_endpoint", lambda *_a, **_k: next(results))
+
+    config = StationConfig(callsign="N0CALL-10", passcode="12345")
+    setup._report_connectivity(config)
+    captured = capsys.readouterr()
+
+    assert "KISS: reachable" in captured.out
+    assert "APRS-IS: unable" in captured.out
+
+
+def test_prompt_launch_direwolf_probe(monkeypatch) -> None:
+    calls: list[str] = []
+    monkeypatch.setattr(setup, "_can_launch_direwolf", lambda: True)
+    monkeypatch.setattr(setup, "_prompt_yes_no", lambda *_a, **_k: True)
+    monkeypatch.setattr(setup, "_launch_direwolf_probe", lambda *_a, **_k: calls.append("launch"))
+
+    setup._prompt_launch_direwolf_probe(StationConfig(callsign="N0CALL-10", passcode="12345"), Path("/tmp"))
+
+    assert calls == ["launch"]
+
+
+def test_print_ppm_tip(monkeypatch, capsys) -> None:
+    setup._print_ppm_tip("Average offset -0.95 ppm")
+    captured = capsys.readouterr()
+    assert "Tip: set `ppm_correction`" in captured.out
+
+    setup._print_ppm_tip(None)
+    captured = capsys.readouterr()
+    assert captured.out == ""
