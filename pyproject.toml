@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=65", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nesdr-igate"
+version = "0.0.0"
+description = "NESDR Smart v5 APRS iGate CLI (MVP in development)"
+authors = [{ name = "TODO" }]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+	"numpy>=1.26,<2.0",
+	"pyrtlsdr>=0.2.92,<0.4",
+	"aprslib>=0.7.0,<0.8",
+	"tomli-w>=1.0.0,<2.0",
+]
+
+[project.scripts]
+nesdr-igate = "nesdr_igate.cli:main"
+
+[project.optional-dependencies]
+dev = [
+	"pytest>=7.4",
+	"pytest-asyncio>=0.23",
+	"pytest-cov>=4.1",
+	"ruff>=0.5",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.package-data]
+nesdr_igate = ["templates/direwolf.conf"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 88
+src = ["src", "tests"]

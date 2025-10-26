@@ -1,0 +1,52 @@
+Metadata-Version: 2.4
+Name: nesdr-igate
+Version: 0.0.0
+Summary: NESDR Smart v5 APRS iGate CLI (MVP in development)
+Author: TODO
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+Requires-Dist: numpy<2.0,>=1.26
+Requires-Dist: pyrtlsdr<0.4,>=0.2.92
+Requires-Dist: aprslib<0.8,>=0.7.0
+Requires-Dist: tomli-w<2.0,>=1.0.0
+Provides-Extra: dev
+Requires-Dist: pytest>=7.4; extra == "dev"
+Requires-Dist: pytest-asyncio>=0.23; extra == "dev"
+Requires-Dist: pytest-cov>=4.1; extra == "dev"
+Requires-Dist: ruff>=0.5; extra == "dev"
+
+# NESDR APRS iGate (MVP Planning)
+
+Work-in-progress CLI utility for turning a NESDR Smart v5 into a minimal APRS iGate.
+
+## Status
+- Planning and scaffolding phase
+- Core design notes tracked in `docs/progress.md`
+
+## Planned Components
+- SDR capture and demodulation pipeline with device abstraction (`src/nesdr_igate/radio/`)
+- APRS/Direwolf integration for decoding and uplink (`src/nesdr_igate/aprs/`)
+- CLI entry points for `listen`, `setup`, and diagnostics (`src/nesdr_igate/cli.py`)
+- Telemetry and logging utilities (`src/nesdr_igate/telemetry/`)
+
+## Development Setup
+- Requires Python 3.11+
+- Create venv: `python3 -m venv .venv` then `source .venv/bin/activate`
+- Install deps: `pip install -e '.[dev]'` (installs runtime + dev tooling)
+- Primary runtime deps: `pyrtlsdr`, `numpy`, `aprslib`, `tomli-w`
+- Capture guidance: see `docs/samples.md` and run `scripts/capture_samples.sh`
+- Debian prerequisite packages (for NumPy build tooling, etc.):
+	`sudo apt install python3-dev build-essential pkg-config`
+
+## Direwolf Integration
+- Follow the step-by-step Debian guide in `docs/direwolf-setup-debian.md`
+- Render `docs/templates/direwolf.conf` (or run `nesdr-igate setup` once implemented) to populate `~/.config/nesdr-igate/direwolf.conf`
+- Launch the audio pipeline + Direwolf via `scripts/run_direwolf.sh` (ensure it is executable)
+- Logs are written to `~/.local/share/nesdr-igate/logs/direwolf.log`
+
+## CLI (Work in Progress)
+- `python -m nesdr_igate.cli setup` – interactive onboarding; use `--dry-run` to preview without writing, `--non-interactive` to validate an existing config
+- Override config location by setting `NESDR_IGATE_CONFIG_PATH=/path/to/config.toml`
+- `python -m nesdr_igate.cli diagnostics [--json] [--verbose]` – snapshot of environment, config, SDR, and connectivity health
+- `python -m nesdr_igate.cli listen` – launches rtl_fm → Direwolf audio pipeline, displays decoded packets, and forwards them to APRS-IS (requires rendered `direwolf.conf`, Direwolf in PATH, and valid APRS-IS credentials)
+	- Use `--no-aprsis` to run in receive-only mode without touching APRS-IS
