@@ -37,7 +37,7 @@ class APRSISClient:
         self._writer: Optional[io.BufferedWriter] = None
 
     def connect(self) -> None:
-        """Establish a TCP session and complete the APRS-IS login handshake."""
+        """Establish the APRS-IS session, returning immediately if already connected."""
         if self._socket is not None:
             return
         try:
