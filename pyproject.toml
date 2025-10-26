@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=65", "wheel"]
+requires = ["setuptools>=69", "build>=1.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -9,22 +9,42 @@ description = "NESDR Smart v5 APRS iGate CLI (MVP in development)"
 authors = [{ name = "Paul Sturm" }]
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = [
-	"numpy>=1.26,<2.0",
-	"pyrtlsdr>=0.2.92,<0.4",
-	"aprslib>=0.7.0,<0.8",
-	"tomli-w>=1.0.0,<2.0",
+license = { text = "Proprietary" }
+keywords = ["aprs", "igate", "sdr", "rtl-sdr"]
+classifiers = [
+	"Programming Language :: Python :: 3",
+	"Programming Language :: Python :: 3 :: Only",
+	"Programming Language :: Python :: 3.11",
+	"Programming Language :: Python :: 3.12",
+	"Operating System :: POSIX :: Linux",
+	"Topic :: Communications :: Ham Radio"
 ]
+dependencies = [
+	"numpy>=2.0,<3",
+	"pyrtlsdr>=0.3.0,<0.4",
+	"aprslib>=0.7.2,<0.8",
+	"tomli-w>=1.1,<2",
+]
+
+[project.urls]
+Homepage = "https://github.com/paulsturm/nesdr-aprs-igate"
 
 [project.scripts]
 nesdr-igate = "nesdr_igate.cli:main"
 
 [project.optional-dependencies]
 dev = [
-	"pytest>=7.4",
+	"pytest>=8.3",
 	"pytest-asyncio>=0.23",
-	"pytest-cov>=4.1",
-	"ruff>=0.5",
+	"pytest-cov>=5.0",
+	"pytest-rerunfailures>=14.0",
+	"black>=24.4",
+	"mypy>=1.10",
+	"ruff>=0.6",
+	"coverage[toml]>=7.6",
+]
+direwolf = [
+	"sox>=1.5",
 ]
 
 [tool.setuptools]

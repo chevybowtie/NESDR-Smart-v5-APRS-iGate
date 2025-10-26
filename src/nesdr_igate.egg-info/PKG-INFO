@@ -1,19 +1,34 @@
 Metadata-Version: 2.4
 Name: nesdr-igate
-Version: 0.0.0
+Version: 0.1.0
 Summary: NESDR Smart v5 APRS iGate CLI (MVP in development)
-Author: TODO
+Author: Paul Sturm
+License: Proprietary
+Project-URL: Homepage, https://github.com/paulsturm/nesdr-aprs-igate
+Keywords: aprs,igate,sdr,rtl-sdr
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3 :: Only
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Operating System :: POSIX :: Linux
+Classifier: Topic :: Communications :: Ham Radio
 Requires-Python: >=3.11
 Description-Content-Type: text/markdown
-Requires-Dist: numpy<2.0,>=1.26
-Requires-Dist: pyrtlsdr<0.4,>=0.2.92
-Requires-Dist: aprslib<0.8,>=0.7.0
-Requires-Dist: tomli-w<2.0,>=1.0.0
+Requires-Dist: numpy<3,>=2.0
+Requires-Dist: pyrtlsdr<0.4,>=0.3.0
+Requires-Dist: aprslib<0.8,>=0.7.2
+Requires-Dist: tomli-w<2,>=1.1
 Provides-Extra: dev
-Requires-Dist: pytest>=7.4; extra == "dev"
+Requires-Dist: pytest>=8.3; extra == "dev"
 Requires-Dist: pytest-asyncio>=0.23; extra == "dev"
-Requires-Dist: pytest-cov>=4.1; extra == "dev"
-Requires-Dist: ruff>=0.5; extra == "dev"
+Requires-Dist: pytest-cov>=5.0; extra == "dev"
+Requires-Dist: pytest-rerunfailures>=14.0; extra == "dev"
+Requires-Dist: black>=24.4; extra == "dev"
+Requires-Dist: mypy>=1.10; extra == "dev"
+Requires-Dist: ruff>=0.6; extra == "dev"
+Requires-Dist: coverage[toml]>=7.6; extra == "dev"
+Provides-Extra: direwolf
+Requires-Dist: sox>=1.5; extra == "direwolf"
 
 # NESDR APRS iGate (MVP Planning)
 
@@ -33,7 +48,8 @@ Work-in-progress CLI utility for turning a NESDR Smart v5 into a minimal APRS iG
 - Requires Python 3.11+
 - Create venv: `python3 -m venv .venv` then `source .venv/bin/activate`
 - Install deps: `pip install -e '.[dev]'` (installs runtime + dev tooling)
-- Primary runtime deps: `pyrtlsdr`, `numpy`, `aprslib`, `tomli-w`
+- Optional extras: `pip install -e '.[dev,direwolf]'` to pull helper utilities for Direwolf workflows
+- Primary runtime deps: `numpy>=2`, `pyrtlsdr>=0.3`, `aprslib>=0.7.2`, `tomli-w>=1.1`
 - Capture guidance: see `docs/samples.md` and run `scripts/capture_samples.sh`
 - Debian prerequisite packages (for NumPy build tooling, etc.):
 	`sudo apt install python3-dev build-essential pkg-config`
@@ -50,3 +66,10 @@ Work-in-progress CLI utility for turning a NESDR Smart v5 into a minimal APRS iG
 - `python -m nesdr_igate.cli diagnostics [--json] [--verbose]` – snapshot of environment, config, SDR, and connectivity health
 - `python -m nesdr_igate.cli listen` – launches rtl_fm → Direwolf audio pipeline, displays decoded packets, and forwards them to APRS-IS (requires rendered `direwolf.conf`, Direwolf in PATH, and valid APRS-IS credentials)
 	- Use `--no-aprsis` to run in receive-only mode without touching APRS-IS
+
+## Troubleshooting Tips
+- Verify the dongle is hearing RF by piping audio to PulseAudio speakers:
+	`rtl_fm -f 144390000 -M fm -s 22050 -g 35 -E deemp -A fast -F 9 | paplay --raw --rate=22050 --channels=1 --format=s16le --`
+	Adjust gain (`-g`) or center frequency slightly if APRS tones sound weak.
+- Use `rtl_test -p` to measure your dongle's PPM error and update the config (`ppm_correction`) so rtl_fm and the CLI stay on frequency.
+- If the CLI isn't decoding your handheld, double-check the handheld is transmitting right on 144.390 MHz; small offsets are enough to confuse Direwolf.

@@ -19,6 +19,7 @@ src/nesdr_igate/commands/__init__.py
 src/nesdr_igate/commands/diagnostics.py
 src/nesdr_igate/commands/listen.py
 src/nesdr_igate/commands/setup.py
+src/nesdr_igate/commands/setup_io.py
 src/nesdr_igate/radio/__init__.py
 src/nesdr_igate/radio/base.py
 src/nesdr_igate/radio/capture.py
@@ -30,6 +31,12 @@ tests/test_aprsis_client.py
 tests/test_ax25.py
 tests/test_cli.py
 tests/test_config.py
+tests/test_diagnostics_command.py
+tests/test_diagnostics_helpers.py
 tests/test_kiss_client.py
+tests/test_listen_command_extended.py
 tests/test_placeholder.py
 tests/test_radio_capture.py
+tests/test_radio_nesdr.py
+tests/test_setup_additional.py
+tests/test_setup_validation.py
