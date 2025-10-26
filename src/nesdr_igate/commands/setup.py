@@ -305,6 +305,13 @@ def _offer_hardware_validation(config: StationConfig, config_dir: Path | None = 
     _run_hardware_validation(config, config_dir)
 
 
+_COMMAND_CHECKS: list[tuple[str, str]] = [
+    ("rtl_fm", "RTL-SDR capture utility"),
+    ("rtl_test", "RTL-SDR self-test"),
+    ("direwolf", "Direwolf modem"),
+]
+
+
 def _run_hardware_validation(config: StationConfig, config_dir: Path | None = None) -> None:
     """Execute a series of checks to validate SDR and Direwolf readiness.
 
@@ -315,43 +322,63 @@ def _run_hardware_validation(config: StationConfig, config_dir: Path | None = No
 
     print("\nRunning hardware validation...")
 
-    command_checks = {
-        "rtl_fm": "RTL-SDR capture utility",
-        "rtl_test": "RTL-SDR self-test",
-        "direwolf": "Direwolf modem",
-    }
-    for command, description in command_checks.items():
+    _report_command_availability()
+    ppm_hint = _measure_rtl_ppm_offset()
+    _report_connectivity(config)
+    _report_direwolf_log_summary()
+    _prompt_launch_direwolf_probe(config, config_dir)
+    _print_ppm_tip(ppm_hint)
+
+    print("Hardware validation complete. Review warnings above for follow-up.")
+
+
+def _report_command_availability() -> None:
+    """Emit status lines for essential external commands."""
+
+    for command, description in _COMMAND_CHECKS:
         path = shutil.which(command)
         if path:
             print(f"[OK     ] {command}: found ({description})")
         else:
             print(f"[WARNING] {command}: not found in PATH ({description})")
 
-    ppm_hint: str | None = None
-    if shutil.which("rtl_test"):
-        try:
-            proc = subprocess.run(
-                ["rtl_test", "-p", "-d", "0"],
-                capture_output=True,
-                text=True,
-                timeout=15,
-                check=False,
-            )
-            if proc.returncode == 0:
-                ppm_hint = _extract_ppm_from_output(proc.stdout)
-                if ppm_hint is not None:
-                    print(
-                        f"[OK     ] rtl_test: ppm offset {ppm_hint} detected; consider updating config"
-                    )
-                else:
-                    print("[OK     ] rtl_test: frequency drift measurement complete")
-            else:
-                snippet = (proc.stderr.strip() or proc.stdout.strip())[:120]
-                print(f"[WARNING] rtl_test exit code {proc.returncode}: {snippet}")
-        except subprocess.TimeoutExpired:
-            print("[WARNING] rtl_test: timed out (ensure the SDR is connected)")
-        except OSError as exc:
-            print(f"[WARNING] rtl_test: failed to execute ({exc})")
+
+def _measure_rtl_ppm_offset() -> str | None:
+    """Run rtl_test to estimate ppm offset, returning the parsed hint if available."""
+
+    if shutil.which("rtl_test") is None:
+        return None
+
+    try:
+        proc = subprocess.run(
+            ["rtl_test", "-p", "-d", "0"],
+            capture_output=True,
+            text=True,
+            timeout=15,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        print("[WARNING] rtl_test: timed out (ensure the SDR is connected)")
+        return None
+    except OSError as exc:
+        print(f"[WARNING] rtl_test: failed to execute ({exc})")
+        return None
+
+    if proc.returncode == 0:
+        ppm_hint = _extract_ppm_from_output(proc.stdout)
+        if ppm_hint is not None:
+            print(f"[OK     ] rtl_test: ppm offset {ppm_hint} detected; consider updating config")
+            return ppm_hint
+        print("[OK     ] rtl_test: frequency drift measurement complete")
+        return None
+
+    snippet = (proc.stderr.strip() or proc.stdout.strip())[:120]
+    print(f"[WARNING] rtl_test exit code {proc.returncode}: {snippet}")
+    return None
+
+
+def _report_connectivity(config: StationConfig) -> None:
+    """Print connectivity status for KISS and APRS-IS endpoints."""
 
     result = probe_tcp_endpoint(config.kiss_host, config.kiss_port, timeout=1.0)
     if result.success:
@@ -363,26 +390,29 @@ def _run_hardware_validation(config: StationConfig, config_dir: Path | None = No
 
     aprs_result = probe_tcp_endpoint(config.aprs_server, config.aprs_port, timeout=2.0)
     if aprs_result.success:
-        print(
-            f"[OK     ] APRS-IS: reachable at {config.aprs_server}:{config.aprs_port}"
-        )
+        print(f"[OK     ] APRS-IS: reachable at {config.aprs_server}:{config.aprs_port}")
     else:
         print(
             f"[WARNING] APRS-IS: unable to reach {config.aprs_server}:{config.aprs_port} ({aprs_result.error})"
         )
 
-    _report_direwolf_log_summary()
 
-    if _can_launch_direwolf():
-        if _prompt_yes_no("Launch Direwolf for a 15-second live capture?", default=False):
-            _launch_direwolf_probe(config, config_dir)
+def _prompt_launch_direwolf_probe(config: StationConfig, config_dir: Path | None) -> None:
+    """Offer to launch a short Direwolf capture when binaries are available."""
+
+    if not _can_launch_direwolf():
+        return
+    if _prompt_yes_no("Launch Direwolf for a 15-second live capture?", default=False):
+        _launch_direwolf_probe(config, config_dir)
+
+
+def _print_ppm_tip(ppm_hint: str | None) -> None:
+    """Output a configuration hint when a ppm offset measurement was captured."""
 
     if ppm_hint is not None:
         print(
             "Tip: set `ppm_correction` in the configuration to this value to improve tuning accuracy."
         )
-
-    print("Hardware validation complete. Review warnings above for follow-up.")
 
 
 def _extract_ppm_from_output(output: str) -> str | None:

@@ -95,33 +95,49 @@ class _APRSState:
             self.client = None
 
 
+@dataclass
+class _ListenerSetup:
+    """Immutable listener prerequisites prepared prior to launching the pipeline."""
+
+    config_path: Path
+    station_config: StationConfig
+    direwolf_config: Path
+    rtl_config: RtlFmConfig
+    aprs_state: _APRSState
+    kiss_client: KISSClient
+
+
 def run_listen(args: Namespace) -> int:
     """Run the igate listening loop."""
+
+    exit_code, setup = _prepare_listener_setup(args)
+    if setup is None:
+        return exit_code
+
+    return _run_listener(setup, once=getattr(args, "once", False))
+
+
+def _prepare_listener_setup(args: Namespace) -> tuple[int, Optional[_ListenerSetup]]:
+    """Load configuration and assemble supporting objects before starting the loop."""
 
     config_path = config_module.resolve_config_path(getattr(args, "config", None))
     try:
         station_config = config_module.load_config(config_path)
     except FileNotFoundError:
         print(f"Config not found at {config_path}; run `nesdr-igate setup` first.")
-        return 1
+        return 1, None
     except ValueError as exc:
         print(f"Config invalid: {exc}")
-        return 1
+        return 1, None
 
     direwolf_conf = _resolve_direwolf_config(config_path.parent)
     if direwolf_conf is None:
         print("Direwolf configuration missing; rerun setup to render direwolf.conf")
-        return 1
+        return 1, None
 
     rtl_config = _build_rtl_config(station_config)
     aprs_state = _initialize_aprs_state(station_config, not getattr(args, "no_aprsis", False))
-
-    audio_errors: "Queue[Exception]" = Queue()
-    stop_event = threading.Event()
-    exit_code = 0
-    frame_count = 0
-
-    client = KISSClient(
+    kiss_client = KISSClient(
         KISSClientConfig(
             host=station_config.kiss_host,
             port=station_config.kiss_port,
@@ -129,11 +145,32 @@ def run_listen(args: Namespace) -> int:
         )
     )
 
+    setup = _ListenerSetup(
+        config_path=config_path,
+        station_config=station_config,
+        direwolf_config=direwolf_conf,
+        rtl_config=rtl_config,
+        aprs_state=aprs_state,
+        kiss_client=kiss_client,
+    )
+    return 0, setup
+
+
+def _run_listener(setup: _ListenerSetup, *, once: bool) -> int:
+    """Execute the listener pipeline using precomputed setup artefacts."""
+
+    aprs_state = setup.aprs_state
+    client = setup.kiss_client
+    audio_errors: "Queue[Exception]" = Queue()
+    stop_event = threading.Event()
+    exit_code = 0
+    frame_count = 0
+
     with ExitStack() as stack:
         stack.callback(client.close)
         stack.callback(aprs_state.close)
 
-        capture = RtlFmAudioCapture(rtl_config)
+        capture = RtlFmAudioCapture(setup.rtl_config)
         stack.callback(capture.stop)
 
         handler = _make_sigint_handler(stop_event)
@@ -146,7 +183,7 @@ def run_listen(args: Namespace) -> int:
                 return 1
 
             try:
-                direwolf_proc = _launch_direwolf_process(direwolf_conf, rtl_config.sample_rate)
+                direwolf_proc = _launch_direwolf_process(setup.direwolf_config, setup.rtl_config.sample_rate)
             except OSError as exc:
                 print(f"Failed to start Direwolf: {exc}")
                 return 1
@@ -158,7 +195,7 @@ def run_listen(args: Namespace) -> int:
 
             if not _wait_for_kiss(client, attempts=10, delay=0.5):
                 print(
-                    f"Unable to connect to Direwolf KISS at {station_config.kiss_host}:{station_config.kiss_port}."
+                    f"Unable to connect to Direwolf KISS at {setup.station_config.kiss_host}:{setup.station_config.kiss_port}."
                 )
                 return 1
 
@@ -169,7 +206,7 @@ def run_listen(args: Namespace) -> int:
                 aprs_state,
                 stop_event,
                 audio_errors,
-                getattr(args, "once", False),
+                once,
             )
 
     if exit_code == 0:

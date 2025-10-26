@@ -55,7 +55,3 @@ pytest-asyncio = ">=0.23"  # keep if still needed, else drop
 * Document runtime optional extras ([project.optional-dependencies]) for Direwolf integration vs. headless operation.
 
 
-
-## Audit Summary
-
-* Medium: Several long, imperative routines (run_listen, _run_hardware_validation) mix I/O, retry logic, and user prompts without decomposition, hindering testing and violating SRP.
