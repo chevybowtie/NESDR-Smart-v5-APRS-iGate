@@ -74,7 +74,7 @@ def test_launch_direwolf_probe_missing_config(tmp_path: Path, monkeypatch, capsy
 
     config = StationConfig(callsign="N0CALL-10", passcode="12345")
 
-    setup._launch_direwolf_probe(config)
+    setup._launch_direwolf_probe(config, tmp_path)
     captured = capsys.readouterr()
 
     assert "direwolf.conf not found" in captured.out
@@ -150,7 +150,7 @@ def test_launch_direwolf_probe_success(tmp_path: Path, monkeypatch, capsys) -> N
         ppm_correction=1,
     )
 
-    setup._launch_direwolf_probe(config)
+    setup._launch_direwolf_probe(config, config_dir)
     captured = capsys.readouterr()
 
     assert "[OK     ] Direwolf probe log" in captured.out
@@ -158,6 +158,37 @@ def test_launch_direwolf_probe_success(tmp_path: Path, monkeypatch, capsys) -> N
     assert rtl_process.terminated is True
     assert rtl_process.wait_timeouts == [5]
     assert direwolf_process.wait_timeouts == [15]
+
+
+def test_launch_direwolf_probe_prefers_explicit_dir(tmp_path: Path, monkeypatch) -> None:
+    data_dir = tmp_path / "data"
+    explicit_dir = tmp_path / "explicit"
+    fallback_dir = tmp_path / "fallback"
+    data_dir.mkdir()
+    explicit_dir.mkdir()
+    fallback_dir.mkdir()
+    conf_path = explicit_dir / "direwolf.conf"
+    conf_path.write_text("preferred", encoding="utf-8")
+
+    monkeypatch.setattr("nesdr_igate.commands.setup.config_module.get_data_dir", lambda: data_dir)
+    monkeypatch.setattr("nesdr_igate.commands.setup.config_module.get_config_dir", lambda: fallback_dir)
+
+    rtl_process = _FakeRtlProcess()
+    direwolf_process = _FakeDirewolfProcess()
+
+    def fake_popen(cmd, **kwargs):  # type: ignore[no-untyped-def]
+        if cmd[0] == "rtl_fm":
+            return rtl_process
+        if cmd[0] == "direwolf":
+            assert str(conf_path) in cmd
+            return direwolf_process
+        raise AssertionError(cmd)
+
+    monkeypatch.setattr("nesdr_igate.commands.setup.subprocess.Popen", fake_popen)
+
+    config = StationConfig(callsign="N0CALL-10", passcode="12345")
+
+    setup._launch_direwolf_probe(config, explicit_dir)
 
 
 def test_launch_direwolf_probe_direwolf_timeout(tmp_path: Path, monkeypatch, capsys) -> None:
@@ -195,7 +226,7 @@ def test_launch_direwolf_probe_direwolf_timeout(tmp_path: Path, monkeypatch, cap
 
     config = StationConfig(callsign="N0CALL-10", passcode="12345")
 
-    setup._launch_direwolf_probe(config)
+    setup._launch_direwolf_probe(config, config_dir)
     captured = capsys.readouterr()
 
     assert "timeout test" in captured.out

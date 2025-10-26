@@ -135,7 +135,7 @@ def test_maybe_render_direwolf_config_existing_decline(tmp_path: Path, monkeypat
     assert prompts and "Overwrite existing" in prompts[0]
 
 
-def test_run_hardware_validation_reports(monkeypatch, capsys) -> None:
+def test_run_hardware_validation_reports(tmp_path: Path, monkeypatch, capsys) -> None:
     which_calls: list[str] = []
 
     def fake_which(command: str) -> str | None:
@@ -163,8 +163,12 @@ def test_run_hardware_validation_reports(monkeypatch, capsys) -> None:
     monkeypatch.setattr(setup, "probe_tcp_endpoint", fake_probe)
     monkeypatch.setattr(setup, "_report_direwolf_log_summary", lambda: None)
     monkeypatch.setattr(setup, "_can_launch_direwolf", lambda: True)
-    launch_calls: list[StationConfig] = []
-    monkeypatch.setattr(setup, "_launch_direwolf_probe", lambda cfg: launch_calls.append(cfg))
+    launch_calls: list[tuple[StationConfig, Path | None]] = []
+
+    def fake_launch(cfg: StationConfig, cfg_dir: Path | None = None) -> None:
+        launch_calls.append((cfg, cfg_dir))
+
+    monkeypatch.setattr(setup, "_launch_direwolf_probe", fake_launch)
     prompt_calls: list[str] = []
     monkeypatch.setattr(setup, "_prompt_yes_no", lambda message, default: prompt_calls.append(message) or False)
 
@@ -177,7 +181,7 @@ def test_run_hardware_validation_reports(monkeypatch, capsys) -> None:
         kiss_port=9001,
     )
 
-    setup._run_hardware_validation(cfg)
+    setup._run_hardware_validation(cfg, tmp_path / "config")
     captured = capsys.readouterr()
 
     assert "rtl_test: ppm offset" in captured.out
@@ -188,7 +192,7 @@ def test_run_hardware_validation_reports(monkeypatch, capsys) -> None:
     assert set(which_calls) == {"rtl_fm", "rtl_test", "direwolf"}
 
 
-def test_run_hardware_validation_launches_probe(monkeypatch, capsys) -> None:
+def test_run_hardware_validation_launches_probe(tmp_path: Path, monkeypatch, capsys) -> None:
     monkeypatch.setattr(setup.shutil, "which", lambda command: "/usr/bin/" + command)
     monkeypatch.setattr(
         setup,
@@ -197,8 +201,12 @@ def test_run_hardware_validation_launches_probe(monkeypatch, capsys) -> None:
     )
     monkeypatch.setattr(setup, "_report_direwolf_log_summary", lambda: None)
     monkeypatch.setattr(setup.subprocess, "run", lambda *a, **k: type("Result", (), {"returncode": 1, "stdout": "", "stderr": "boom"})())
-    launch_calls: list[StationConfig] = []
-    monkeypatch.setattr(setup, "_launch_direwolf_probe", lambda cfg: launch_calls.append(cfg))
+    launch_calls: list[tuple[StationConfig, Path | None]] = []
+
+    def record_launch(cfg: StationConfig, cfg_dir: Path | None = None) -> None:
+        launch_calls.append((cfg, cfg_dir))
+
+    monkeypatch.setattr(setup, "_launch_direwolf_probe", record_launch)
 
     prompts = iter([True])
     monkeypatch.setattr(setup, "_prompt_yes_no", lambda message, default: next(prompts))
@@ -213,8 +221,9 @@ def test_run_hardware_validation_launches_probe(monkeypatch, capsys) -> None:
         kiss_port=9001,
     )
 
-    setup._run_hardware_validation(cfg)
+    explicit_dir = tmp_path / "explicit"
+    setup._run_hardware_validation(cfg, explicit_dir)
     captured = capsys.readouterr()
 
     assert "rtl_test exit code" in captured.out
-    assert launch_calls == [cfg]
+    assert launch_calls == [(cfg, explicit_dir)]

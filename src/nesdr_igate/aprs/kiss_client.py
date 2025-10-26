@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import socket
+from collections.abc import ByteString
 from dataclasses import dataclass
 from typing import Optional
 
@@ -16,7 +17,7 @@ class KISSClientError(RuntimeError):
     """Raised when the KISS client encounters a connection or protocol issue."""
 
 
-@dataclass
+@dataclass(slots=True)
 class KISSClientConfig:
     """Connection parameters for a KISS TCP server."""
 
@@ -87,13 +88,14 @@ class KISSClient:
 
             self._buffer.extend(chunk)
 
-    def send_frame(self, payload: bytes, port: int = 0, command: int = 0x00) -> None:
+    def send_frame(self, payload: ByteString, port: int = 0, command: int = 0x00) -> None:
         """Encode and send a frame payload to the remote KISS endpoint."""
         sock = self._require_socket()
+        payload_bytes = bytes(payload)
         frame = bytearray()
         frame.append(FEND)
         frame.append(((command & 0x0F) << 4) | (port & 0x0F))
-        frame.extend(_kiss_escape(payload))
+        frame.extend(_kiss_escape(payload_bytes))
         frame.append(FEND)
         try:
             sock.sendall(frame)
@@ -147,10 +149,10 @@ class KISSClient:
         return self._socket
 
 
-def _kiss_escape(payload: bytes) -> bytes:
+def _kiss_escape(payload: ByteString) -> bytes:
     """Escape a payload per the KISS protocol rules."""
     escaped = bytearray()
-    for value in payload:
+    for value in bytes(payload):
         if value == FEND:
             escaped.extend((FESC, TFEND))
         elif value == FESC:

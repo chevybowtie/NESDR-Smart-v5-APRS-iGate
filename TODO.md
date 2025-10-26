@@ -6,10 +6,8 @@
 
 ## KISS Client (kiss_client.py)
 ### Findings
-* dataclass KISSClientConfig lacks slots; consider slots=True.
 Best Practices
 * Replace magic numbers with enums for KISS commands.
-* Add type hints for ByteString.
 
 ## APRS Client (aprsis_client.py)
 ### Findings
@@ -30,15 +28,8 @@ Best Practices
 ## Setup Command (setup.py)
 ### Findings
 * `_run_non_interactive` duplicates load logic already in `_load_existing`.
-* `_launch_direwolf_probe` reassigns direwolf_conf to the same default, ignoring target_dir; bug prevents probing newly rendered configs.
 Extensive user interactivity logic makes unit testing difficult; consider isolating prompt I/O behind interfaces.
 ### Recommendations
-* Fix fallback:
-```
-direwolf_conf = target_dir / "direwolf.conf"
-if not direwolf_conf.exists():
-    direwolf_conf = config_module.get_config_dir() / "direwolf.conf"
-```
 * Factor prompt utilities into separate module with injectable input/output streams for tests.
 * Use pathlib.Path.unlink(missing_ok=True) (Python 3.11+) instead of exists + unlink.
 
@@ -89,7 +80,6 @@ pytest-asyncio = ">=0.23"  # keep if still needed, else drop
 ## Audit Summary
 
 * High: pyproject.toml pins pre-2024 releases (numpy<2, pytest<8) and omits publish-time metadata; upgrade paths needed for Python 3.11+ support and security posture.
-* Medium: _launch_direwolf_probe in setup.py never falls back to a per-run Direwolf config because it reassigns the same default path twice; live probes can fail even when a rendered config exists beside the onboarding target.
 * Medium: Several long, imperative routines (run_listen, _run_hardware_validation) mix I/O, retry logic, and user prompts without decomposition, hindering testing and violating SRP.
-* Low: Numerous helper functions, methods, and dataclasses lack docstrings; this breaks internal documentation standards and makes onboarding harder for non-Python specialists.
+* Low: APRSISClient and KISSClient expose file-like sockets but do not use context managers/logging best practices and rely on manual print, limiting observability.
 * Low: APRSISClient and KISSClient expose file-like sockets but do not use context managers/logging best practices and rely on manual print, limiting observability.

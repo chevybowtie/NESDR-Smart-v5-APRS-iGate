@@ -57,8 +57,9 @@ def run_setup(args: Namespace) -> int:
     saved_path = config_module.save_config(new_config, path=config_path)
     print(f"Configuration saved to {saved_path}")
     print(config_module.config_summary(new_config))
-    _maybe_render_direwolf_config(new_config, saved_path.parent)
-    _offer_hardware_validation(new_config)
+    config_dir = saved_path.parent
+    _maybe_render_direwolf_config(new_config, config_dir)
+    _offer_hardware_validation(new_config, config_dir)
     return 0
 
 
@@ -414,17 +415,27 @@ def _prompt_yes_no(message: str, *, default: bool) -> bool:
         print("Please answer 'y' or 'n'")
 
 
-def _offer_hardware_validation(config: StationConfig) -> None:
-    """Optionally kick off the post-setup hardware validation flow."""
+def _offer_hardware_validation(config: StationConfig, config_dir: Path | None = None) -> None:
+    """Optionally kick off the post-setup hardware validation flow.
+
+    Args:
+        config: The station configuration to validate.
+        config_dir: Directory containing generated configuration files, if known.
+    """
 
     message = "Run a quick SDR/Direwolf validation now?"
     if not _prompt_yes_no(message, default=False):
         return
-    _run_hardware_validation(config)
+    _run_hardware_validation(config, config_dir)
 
 
-def _run_hardware_validation(config: StationConfig) -> None:
-    """Execute a series of checks to validate SDR and Direwolf readiness."""
+def _run_hardware_validation(config: StationConfig, config_dir: Path | None = None) -> None:
+    """Execute a series of checks to validate SDR and Direwolf readiness.
+
+    Args:
+        config: The station configuration under validation.
+        config_dir: Preferred directory for Direwolf assets created during setup.
+    """
 
     print("\nRunning hardware validation...")
 
@@ -488,7 +499,7 @@ def _run_hardware_validation(config: StationConfig) -> None:
 
     if _can_launch_direwolf():
         if _prompt_yes_no("Launch Direwolf for a 15-second live capture?", default=False):
-            _launch_direwolf_probe(config)
+            _launch_direwolf_probe(config, config_dir)
 
     if ppm_hint is not None:
         print(
@@ -546,8 +557,14 @@ def _can_launch_direwolf() -> bool:
     return shutil.which("rtl_fm") is not None and shutil.which("direwolf") is not None
 
 
-def _launch_direwolf_probe(config: StationConfig) -> None:
-    """Run a short rtl_fm + Direwolf session capturing output to a temp log."""
+def _launch_direwolf_probe(config: StationConfig, config_dir: Path | None = None) -> None:
+    """Run a short rtl_fm + Direwolf session capturing output to a temp log.
+
+    Args:
+        config: Station configuration providing frequency and gain defaults.
+        config_dir: Preferred directory containing direwolf.conf; falls back to the
+            global config directory when absent.
+    """
 
     log_dir = config_module.get_data_dir() / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
@@ -573,11 +590,21 @@ def _launch_direwolf_probe(config: StationConfig) -> None:
     if config.ppm_correction is not None:
         rtl_cmd.extend(["-p", str(config.ppm_correction)])
 
-    direwolf_conf = config_module.get_config_dir() / "direwolf.conf"
-    if not direwolf_conf.exists():
-        direwolf_conf = config_module.get_config_dir() / "direwolf.conf"
+    candidate_dirs: list[Path] = []
+    if config_dir is not None:
+        candidate_dirs.append(config_dir)
+    default_dir = config_module.get_config_dir()
+    if default_dir not in candidate_dirs:
+        candidate_dirs.append(default_dir)
 
-    if not direwolf_conf.exists():
+    direwolf_conf: Path | None = None
+    for directory in candidate_dirs:
+        candidate = directory / "direwolf.conf"
+        if candidate.exists():
+            direwolf_conf = candidate
+            break
+
+    if direwolf_conf is None:
         print("[WARNING] Cannot launch Direwolf probe: direwolf.conf not found")
         return
 
