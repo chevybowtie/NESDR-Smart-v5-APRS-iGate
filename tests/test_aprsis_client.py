@@ -83,6 +83,10 @@ def test_aprsis_client_login_failure() -> None:
     with pytest.raises(APRSISClientError):
         client.connect()
 
+    assert client._socket is None  # type: ignore[attr-defined]
+    assert client._reader is None  # type: ignore[attr-defined]
+    assert client._writer is None  # type: ignore[attr-defined]
+
     thread.join(timeout=1)
 
 
@@ -130,6 +134,9 @@ def test_aprsis_client_login_connection_closed() -> None:
         client.connect()
 
     assert "Error reading APRS-IS response" in str(excinfo.value)
+    assert client._socket is None  # type: ignore[attr-defined]
+    assert client._reader is None  # type: ignore[attr-defined]
+    assert client._writer is None  # type: ignore[attr-defined]
     thread.join(timeout=1)
 
 
@@ -149,6 +156,9 @@ def test_aprsis_client_login_response_missing() -> None:
         client.connect()
 
     assert "not received" in str(excinfo.value)
+    assert client._socket is None  # type: ignore[attr-defined]
+    assert client._reader is None  # type: ignore[attr-defined]
+    assert client._writer is None  # type: ignore[attr-defined]
     thread.join(timeout=1)
 
 

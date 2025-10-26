@@ -58,7 +58,4 @@ pytest-asyncio = ">=0.23"  # keep if still needed, else drop
 
 ## Audit Summary
 
-* High: pyproject.toml pins pre-2024 releases (numpy<2, pytest<8) and omits publish-time metadata; upgrade paths needed for Python 3.11+ support and security posture.
 * Medium: Several long, imperative routines (run_listen, _run_hardware_validation) mix I/O, retry logic, and user prompts without decomposition, hindering testing and violating SRP.
-* Low: APRSISClient and KISSClient expose file-like sockets but do not use context managers/logging best practices and rely on manual print, limiting observability.
-* Low: APRSISClient and KISSClient expose file-like sockets but do not use context managers/logging best practices and rely on manual print, limiting observability.

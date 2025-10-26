@@ -50,12 +50,16 @@ class APRSISClient:
         self._reader = sock.makefile("rb")
         self._writer = sock.makefile("wb")
 
-        login = self._build_login_line().encode("ascii") + b"\n"
-        writer = self._require_writer()
-        writer.write(login)
-        writer.flush()
-
-        self._await_logresp()
+        try:
+            login = self._build_login_line().encode("ascii") + b"\n"
+            writer = self._require_writer()
+            writer.write(login)
+            writer.flush()
+            self._await_logresp()
+        except Exception:
+            # Ensure partially established sockets are released on failure.
+            self.close()
+            raise
 
     def send_packet(self, packet: str) -> None:
         """Transmit an already encoded TNC2 packet line to APRS-IS."""
