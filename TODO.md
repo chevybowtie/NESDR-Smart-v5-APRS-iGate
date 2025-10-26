@@ -4,11 +4,6 @@
 * Add pyproject [tool.coverage.run] config for consistent coverage runs (branch = true).
 * Consider asyncio or trio for long-running IO loops instead of threads.
 
-## KISS Client (kiss_client.py)
-### Findings
-Best Practices
-* Replace magic numbers with enums for KISS commands.
-
 ## APRS Client (aprsis_client.py)
 ### Findings
 * Lacks logging when reconnecting; consider injecting logger.

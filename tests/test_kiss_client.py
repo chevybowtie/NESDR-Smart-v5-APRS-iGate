@@ -14,6 +14,7 @@ from nesdr_igate.aprs.kiss_client import (
     KISSClient,
     KISSClientConfig,
     KISSClientError,
+    KISSCommand,
     KISSFrame,
     _kiss_escape,
     _kiss_unescape,
@@ -63,7 +64,7 @@ def test_kiss_client_receives_frame() -> None:
 
     thread.join(timeout=1)
     assert received.port == 0x02
-    assert received.command == 0
+    assert received.command is KISSCommand.DATA
     assert received.payload == frame_payload
 
 
@@ -113,6 +114,46 @@ def test_kiss_client_send_frame() -> None:
     assert sent[0] == FEND
     assert sent[-1] == FEND
     assert sent[1] == 0x03  # port 3, command 0
+    assert _kiss_unescape(sent[2:-1]) == payload
+
+
+def test_kiss_client_send_frame_with_command() -> None:
+    received_chunks: list[bytes] = []
+    server_ready = threading.Event()
+
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.bind(("127.0.0.1", 0))
+    server.listen(1)
+    port = server.getsockname()[1]
+
+    def _run_server() -> None:
+        server_ready.set()
+        conn, _ = server.accept()
+        try:
+            data = conn.recv(1024)
+            if data:
+                received_chunks.append(data)
+        finally:
+            conn.close()
+            server.close()
+
+    thread = threading.Thread(target=_run_server, daemon=True)
+    thread.start()
+    server_ready.wait(timeout=1)
+
+    payload = b"cmd"
+    client = KISSClient(KISSClientConfig(host="127.0.0.1", port=port, timeout=1.0))
+
+    with client:
+        client.send_frame(payload, port=1, command=KISSCommand.TX_DELAY)
+
+    thread.join(timeout=1)
+    assert received_chunks
+    sent = received_chunks[0]
+    assert sent[0] == FEND
+    assert sent[-1] == FEND
+    # command nibble 0x1 (TX_DELAY) combined with port 1 -> 0x11
+    assert sent[1] == 0x11
     assert _kiss_unescape(sent[2:-1]) == payload
 
 

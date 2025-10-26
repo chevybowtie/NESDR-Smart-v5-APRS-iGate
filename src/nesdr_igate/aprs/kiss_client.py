@@ -5,12 +5,26 @@ from __future__ import annotations
 import socket
 from collections.abc import ByteString
 from dataclasses import dataclass
+from enum import IntEnum
 from typing import Optional
 
 FEND = 0xC0
 FESC = 0xDB
 TFEND = 0xDC
 TFESC = 0xDD
+
+
+class KISSCommand(IntEnum):
+    """Well-known KISS command codes carried in the frame header."""
+
+    DATA = 0x00
+    TX_DELAY = 0x01
+    PERSISTENCE = 0x02
+    SLOT_TIME = 0x03
+    TX_TAIL = 0x04
+    FULL_DUPLEX = 0x05
+    SET_HARDWARE = 0x06
+    RETURN = 0x0F
 
 
 class KISSClientError(RuntimeError):
@@ -31,7 +45,7 @@ class KISSFrame:
     """Represents a decoded KISS frame."""
 
     port: int
-    command: int
+    command: KISSCommand
     payload: bytes
 
 
@@ -88,13 +102,21 @@ class KISSClient:
 
             self._buffer.extend(chunk)
 
-    def send_frame(self, payload: ByteString, port: int = 0, command: int = 0x00) -> None:
+    def send_frame(
+        self,
+        payload: ByteString,
+        *,
+        port: int = 0,
+        command: KISSCommand | int = KISSCommand.DATA,
+    ) -> None:
         """Encode and send a frame payload to the remote KISS endpoint."""
+
         sock = self._require_socket()
         payload_bytes = bytes(payload)
+        command_value = int(KISSCommand(command))
         frame = bytearray()
         frame.append(FEND)
-        frame.append(((command & 0x0F) << 4) | (port & 0x0F))
+        frame.append(((command_value & 0x0F) << 4) | (port & 0x0F))
         frame.extend(_kiss_escape(payload_bytes))
         frame.append(FEND)
         try:
@@ -138,7 +160,8 @@ class KISSClient:
             return None
         header = frame_bytes[0]
         port = header & 0x0F
-        command = (header & 0xF0) >> 4
+        command_value = (header & 0xF0) >> 4
+        command = KISSCommand(command_value)
         payload = _kiss_unescape(frame_bytes[1:])
         return KISSFrame(port=port, command=command, payload=payload)
 
