@@ -23,8 +23,7 @@
 ### Findings
 Extensive user interactivity logic makes unit testing difficult; consider isolating prompt I/O behind interfaces.
 ### Recommendations
-* Factor prompt utilities into separate module with injectable input/output streams for tests.
-* Use pathlib.Path.unlink(missing_ok=True) (Python 3.11+) instead of exists + unlink.
+* Continue expanding automated coverage for additional prompt flows as new requirements emerge.
 
 
 

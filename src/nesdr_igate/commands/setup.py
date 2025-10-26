@@ -11,7 +11,17 @@ from argparse import Namespace
 from collections import deque
 from getpass import getpass
 from pathlib import Path
-from typing import Callable
+
+from importlib import import_module
+from typing import TYPE_CHECKING, Any, Callable, Type
+
+if TYPE_CHECKING:  # pragma: no cover - type checking only
+    PromptSession: Type[Any]
+    prompt_yes_no: Callable[..., bool]
+else:
+    _setup_io = import_module("nesdr_igate.commands.setup_io")
+    PromptSession = _setup_io.PromptSession
+    prompt_yes_no = _setup_io.prompt_yes_no
 
 from nesdr_igate import config as config_module
 from nesdr_igate.config import StationConfig
@@ -24,15 +34,19 @@ def run_setup(args: Namespace) -> int:
     """Run the onboarding workflow."""
     config_path = config_module.resolve_config_path(args.config)
 
-    if args.reset and config_path.exists():
+    if args.reset:
         try:
             existing_config = config_module.load_config(config_path)
+        except FileNotFoundError:
+            existing_config = None
         except Exception:  # pragma: no cover - best effort cleanup
             existing_config = None
         if existing_config and existing_config.passcode_in_keyring:
             config_module.delete_passcode_from_keyring(existing_config.callsign)
-        config_path.unlink()
-        print(f"Removed existing configuration at {config_path}")
+        removed = config_path.exists()
+        config_path.unlink(missing_ok=True)
+        if removed:
+            print(f"Removed existing configuration at {config_path}")
 
     if args.non_interactive:
         return _run_non_interactive(config_path)
@@ -97,7 +111,8 @@ def _load_existing(config_path: Path) -> tuple[StationConfig | None, str | None]
 def _interactive_prompt(existing: StationConfig | None) -> StationConfig:
     """Collect station details from stdin, seeding defaults from an existing config."""
 
-    prompt = _Prompt(existing)
+    session = PromptSession(existing, secret_func=getpass)
+    prompt = session.prompt
 
     callsign = prompt.string(
         "APRS callsign-SSID", default=_default(existing, "callsign"), transform=str.upper, validator=_validate_callsign
@@ -108,7 +123,7 @@ def _interactive_prompt(existing: StationConfig | None) -> StationConfig:
     )
     use_keyring = bool(getattr(existing, "passcode_in_keyring", False))
     if config_module.keyring_supported():
-        store_choice = _prompt_yes_no(
+        store_choice = session.ask_yes_no(
             "Store APRS-IS passcode in system keyring?",
             default=use_keyring,
         )
@@ -193,139 +208,6 @@ def _validate_callsign(value: str) -> None:
         raise ValueError("Enter callsign-SSID like N0CALL-10")
 
 
-class _Prompt:
-    """Utility helpers for prompting user input with validation."""
-
-    def __init__(self, existing: StationConfig | None) -> None:
-        self._existing = existing
-
-    def string(
-        self,
-        label: str,
-        default: object | None = None,
-        *,
-        transform: Callable[[str], str] | None = None,
-        validator: Callable[[str], None] | None = None,
-    ) -> str:
-        """Prompt user for a required string, applying optional transforms and validation."""
-
-        while True:
-            prompt = _format_prompt(label, default)
-            raw = input(prompt).strip()
-            if not raw and default is not None:
-                value = str(default)
-            else:
-                value = raw
-            if not value:
-                print("Value required")
-                continue
-            if transform is not None:
-                value = transform(value)
-            if validator is not None:
-                try:
-                    validator(value)
-                except ValueError as exc:
-                    print(exc)
-                    continue
-            return value
-
-    def optional_string(self, label: str, default: object | None = None) -> str | None:
-        """Prompt for a string that may be left blank to keep or remove existing values."""
-
-        prompt = _format_prompt(label, default)
-        raw = input(prompt).strip()
-        if not raw:
-            return None if default is None else str(default)
-        return raw
-
-    def integer(
-        self,
-        label: str,
-        default: object | None = None,
-        *,
-        minimum: int | None = None,
-        maximum: int | None = None,
-    ) -> int:
-        """Prompt for an integer within optional bounds, re-asking on invalid input."""
-
-        while True:
-            prompt = _format_prompt(label, default)
-            raw = input(prompt).strip()
-            if not raw and default is not None:
-                value = _parse_int(default)
-            else:
-                value = _parse_int(raw)
-            if value is None:
-                print("Enter a valid integer")
-                continue
-            if minimum is not None and value < minimum:
-                print(f"Value must be >= {minimum}")
-                continue
-            if maximum is not None and value > maximum:
-                print(f"Value must be <= {maximum}")
-                continue
-            return value
-
-    def optional_float(self, label: str, default: object | None = None) -> float | None:
-        """Prompt for an optional float, treating blanks as None or existing default."""
-
-        while True:
-            prompt = _format_prompt(label, default)
-            raw = input(prompt).strip()
-            if not raw:
-                return None if default is None else _parse_float(default)
-            parsed = _parse_float(raw)
-            if parsed is None:
-                print("Enter a numeric value or leave blank")
-                continue
-            return parsed
-
-    def secret(self, label: str, default: object | None = None) -> str:
-        """Prompt for a secret string with confirmation, defaulting when allowed."""
-
-        while True:
-            if default is not None:
-                prompt = f"{label} [leave blank to keep existing]: "
-            else:
-                prompt = f"{label}: "
-            value = getpass(prompt)
-            if not value and default is not None:
-                return str(default)
-            if not value:
-                print("Value required")
-                continue
-            confirm = getpass("Confirm passcode: ")
-            if value != confirm:
-                print("Passcodes do not match; try again")
-                continue
-            return value
-
-
-def _format_prompt(label: str, default: object | None) -> str:
-    """Format a prompt label with optional default value hint."""
-
-    suffix = f" [{default}]" if default not in (None, "") else ""
-    return f"{label}{suffix}: "
-
-
-def _parse_int(raw: object) -> int | None:
-    """Attempt to parse an integer, returning None on failure."""
-
-    try:
-        return int(raw)  # type: ignore[arg-type]
-    except (TypeError, ValueError):
-        return None
-
-
-def _parse_float(raw: object) -> float | None:
-    """Attempt to parse a float, returning None on failure."""
-
-    try:
-        return float(raw)  # type: ignore[arg-type]
-    except (TypeError, ValueError):
-        return None
-
-
 def _maybe_render_direwolf_config(config: StationConfig, target_dir: Path) -> None:
     """Render a direwolf.conf file based on the template and station config."""
 
@@ -404,18 +286,9 @@ def _escape_comment(comment: str) -> str:
 
 
 def _prompt_yes_no(message: str, *, default: bool) -> bool:
-    """Solicit a yes/no answer, defaulting when the user presses enter."""
+    """Backward-compatible wrapper around shared yes/no prompt helper."""
 
-    suffix = " [Y/n]" if default else " [y/N]"
-    while True:
-        response = input(f"{message}{suffix}: ").strip().lower()
-        if not response:
-            return default
-        if response in {"y", "yes"}:
-            return True
-        if response in {"n", "no"}:
-            return False
-        print("Please answer 'y' or 'n'")
+    return prompt_yes_no(message, default=default)
 
 
 def _offer_hardware_validation(config: StationConfig, config_dir: Path | None = None) -> None:
