@@ -46,7 +46,35 @@ if [ "${RUN_MYPY:-0}" = "1" ]; then
 fi
 
 echo "Installing build helper and building wheel"
+# clean previous build outputs to avoid stale artifacts
+rm -rf "$WD/dist" "$WD/build" "$WD"/*.egg-info || true
+
 "$VENV_DIR/bin/python" -m pip install --upgrade build
 "$VENV_DIR/bin/python" -m build
+
+echo "Running twine check on built artifacts (metadata/sanity)"
+"$VENV_DIR/bin/python" -m pip install --upgrade twine >/dev/null 2>&1 || true
+"$VENV_DIR/bin/python" -m twine check dist/* || true
+
+echo "Verifying artifact installability in a fresh venv"
+# create a temporary venv for artifact verification
+VERIFY_TMP_DIR="$(mktemp -d -t verify-venv-XXXXXXXX)"
+VERIFY_VENV="$VERIFY_TMP_DIR/venv"
+python3 -m venv "$VERIFY_VENV"
+"$VERIFY_VENV/bin/python" -m pip install --upgrade pip
+
+# prefer wheel if present, otherwise fall back to sdist
+if ls "$WD/dist"/*.whl >/dev/null 2>&1; then
+  "$VERIFY_VENV/bin/python" -m pip install "$WD/dist"/*.whl
+else
+  "$VERIFY_VENV/bin/python" -m pip install "$WD/dist"/*.tar.gz
+fi
+
+echo "Running quick smoke test from installed artifact"
+# adjust the import below to a small, fast check for this package
+"$VERIFY_VENV/bin/python" -c "import nesdr_igate; print('artifact-import-ok', getattr(nesdr_igate, '__version__', 'no-version'))"
+
+# cleanup temporary verification venv
+rm -rf "$VERIFY_TMP_DIR"
 
 echo "Verification completed successfully. Clean up by removing $VENV_DIR when done."
