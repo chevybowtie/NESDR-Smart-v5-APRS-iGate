@@ -156,30 +156,81 @@ def _check_sdr() -> Section:
         )
 
     rtl_sdr_cls = cast(Any, RtlSdr)
+    # The pyrtlsdr package historically exposed class helpers like
+    # RtlSdr.get_device_count() and RtlSdr.get_device_serial_addresses().
+    # Some versions (or alternative builds) may not expose these helpers
+    # and instead require instantiation to probe device presence. Try the
+    # class helpers first, and fall back to attempting to open device 0.
+    details: dict[str, Any] = {}
 
-    try:
-        device_count = rtl_sdr_cls.get_device_count()
-        details: dict[str, Any] = {"device_count": device_count}
+    # Primary path: class-level helpers
+    if hasattr(rtl_sdr_cls, "get_device_count") and callable(
+        getattr(rtl_sdr_cls, "get_device_count")
+    ):
         try:
-            serials = rtl_sdr_cls.get_device_serial_addresses()
-        except Exception:  # pragma: no cover - best effort only
-            serials = []
-        if serials:
-            details["serials"] = [
-                s.decode() if isinstance(s, bytes) else str(s) for s in serials
-            ]
-    except Exception as exc:  # pragma: no cover - hardware specific failures
+            device_count = rtl_sdr_cls.get_device_count()
+            details["device_count"] = device_count
+            try:
+                serials = rtl_sdr_cls.get_device_serial_addresses()
+            except Exception:  # pragma: no cover - best effort only
+                serials = []
+            if serials:
+                details["serials"] = [
+                    s.decode() if isinstance(s, bytes) else str(s) for s in serials
+                ]
+        except Exception as exc:  # pragma: no cover - hardware specific failures
+            return Section(
+                "SDR",
+                "error",
+                f"Failed to query RTL-SDR devices: {exc}",
+                {"error": str(exc)},
+            )
+
+        if device_count == 0:
+            return Section("SDR", "warning", "No RTL-SDR devices detected", details)
+
+        return Section("SDR", "ok", f"Detected {device_count} RTL-SDR device(s)", details)
+
+    # Fallback: try instantiating a device handle (best-effort).
+    # If instantiation succeeds, assume at least one device is present.
+    try:
+        # Some RtlSdr implementations accept device_index as a kwarg,
+        # others accept it positionally. Try both styles.
+        try:
+            sdr_inst = rtl_sdr_cls(device_index=0)  # type: ignore[call-arg]
+        except TypeError:
+            sdr_inst = rtl_sdr_cls(0)  # type: ignore[call-arg]
+    except Exception as exc:  # pragma: no cover - best effort to probe
+        # If we can't instantiate, treat it as a warning rather than a
+        # hard error — the environment may still be fine for rtl_fm usage.
         return Section(
             "SDR",
-            "error",
-            f"Failed to query RTL-SDR devices: {exc}",
+            "warning",
+            "Unable to probe RTL-SDR devices via pyrtlsdr; device open failed",
             {"error": str(exc)},
         )
 
-    if device_count == 0:
-        return Section("SDR", "warning", "No RTL-SDR devices detected", details)
+    # We managed to open a device handle — collect some basic metadata and
+    # then close it. Prefer attributes on the instance for serial information.
+    try:
+        serial = getattr(sdr_inst, "serial_number", None)
+    except Exception:
+        serial = None
 
-    return Section("SDR", "ok", f"Detected {device_count} RTL-SDR device(s)", details)
+    try:
+        # Close handle if it has a close method
+        close_fn = getattr(sdr_inst, "close", None)
+        if callable(close_fn):
+            close_fn()
+    except Exception:
+        # ignore close failures for diagnostics
+        pass
+
+    details["device_count"] = 1
+    if serial is not None:
+        details["serials"] = [serial.decode() if isinstance(serial, bytes) else str(serial)]
+
+    return Section("SDR", "ok", "Detected at least 1 RTL-SDR device", details)
 
 
 def _check_direwolf(config: StationConfig | None) -> Section:

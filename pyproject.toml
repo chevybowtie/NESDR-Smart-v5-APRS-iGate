@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nesdr-igate"
-version = "0.1.1"
+version = "0.1.2.a"
 description = "NESDR Smart v5 APRS iGate CLI (MVP in development)"
 authors = [{ name = "Paul Sturm" }]
 readme = "README.md"

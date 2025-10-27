@@ -197,6 +197,33 @@ def test_check_sdr_device_query_failure(monkeypatch) -> None:
     assert "Failed to query" in section.message
 
 
+def test_check_sdr_instantiation_fallback(monkeypatch) -> None:
+    """If RtlSdr doesn't expose get_device_count, fall back to instantiation."""
+    module = types.ModuleType("rtlsdr")
+
+    class DummyRtl:
+        def __init__(self, *args, **kwargs):
+            # accept positional or keyword device_index
+            self._idx = kwargs.get("device_index", args[0] if args else 0)
+
+        # expose a bytes serial like some implementations
+        @property
+        def serial_number(self) -> bytes:
+            return b"fallback-serial"
+
+        def close(self) -> None:
+            return None
+
+    setattr(module, "RtlSdr", DummyRtl)
+    monkeypatch.setitem(sys.modules, "rtlsdr", module)
+
+    section = diagnostics._check_sdr()
+
+    assert section.status == "ok"
+    assert section.details["device_count"] == 1
+    assert section.details.get("serials") == ["fallback-serial"]
+
+
 def test_check_direwolf_success(monkeypatch) -> None:
     config = StationConfig(callsign="N0CALL-10", passcode="12345")
 
