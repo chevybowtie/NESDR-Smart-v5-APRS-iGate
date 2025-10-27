@@ -152,6 +152,7 @@ def _interactive_prompt(existing: StationConfig | None) -> StationConfig:
         default=_default(existing, "beacon_comment"),
     )
 
+
     kiss_host = prompt.string(
         "Direwolf KISS host",
         default=_default(existing, "kiss_host", fallback="127.0.0.1"),
@@ -171,7 +172,7 @@ def _interactive_prompt(existing: StationConfig | None) -> StationConfig:
         aprs_port=aprs_port,
         latitude=latitude,
         longitude=longitude,
-        beacon_comment=beacon_comment,
+    beacon_comment=beacon_comment,
         kiss_host=kiss_host,
         kiss_port=kiss_port,
     )

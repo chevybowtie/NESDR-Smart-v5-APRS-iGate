@@ -72,6 +72,7 @@ class StationConfig:
     longitude: float | None = None
     altitude_m: float | None = None
     beacon_comment: str | None = None
+    software_tocall: str | None = None
     kiss_host: str = "127.0.0.1"
     kiss_port: int = 8001
     center_frequency_hz: float = 144_390_000.0
@@ -93,6 +94,7 @@ class StationConfig:
                     "longitude": self.longitude,
                     "altitude_m": self.altitude_m,
                     "beacon_comment": self.beacon_comment,
+                    "software_tocall": self.software_tocall,
                 }
             ),
             "aprs": _drop_none(
@@ -149,6 +151,7 @@ class StationConfig:
             longitude=_optional_float(station.get("longitude")),
             altitude_m=_optional_float(station.get("altitude_m")),
             beacon_comment=station.get("beacon_comment"),
+            software_tocall=station.get("software_tocall"),
             kiss_host=str(direwolf.get("kiss_host", "127.0.0.1")),
             kiss_port=int(direwolf.get("kiss_port", 8001)),
             center_frequency_hz=float(radio.get("center_frequency_hz", 144_390_000.0)),
