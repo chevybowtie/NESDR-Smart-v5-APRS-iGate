@@ -227,11 +227,9 @@ def test_check_sdr_instantiation_fallback(monkeypatch) -> None:
 def test_check_direwolf_success(monkeypatch) -> None:
     config = StationConfig(callsign="N0CALL-10", passcode="12345")
 
-    monkeypatch.setattr(
-        diagnostics,
-        "probe_tcp_endpoint",
-        lambda *_args, **_kwargs: _ProbeResult(True, latency_ms=12.3),
-    )
+    # Simulate direwolf binary present and endpoint reachable
+    monkeypatch.setattr(diagnostics, "probe_tcp_endpoint", lambda *_args, **_kwargs: _ProbeResult(True, latency_ms=12.3))
+    monkeypatch.setattr(diagnostics.shutil, "which", lambda *_: "/usr/bin/direwolf")
 
     section = diagnostics._check_direwolf(config)
 
@@ -242,11 +240,9 @@ def test_check_direwolf_success(monkeypatch) -> None:
 def test_check_direwolf_failure(monkeypatch) -> None:
     config = StationConfig(callsign="N0CALL-10", passcode="12345")
 
-    monkeypatch.setattr(
-        diagnostics,
-        "probe_tcp_endpoint",
-        lambda *_args, **_kwargs: _ProbeResult(False, error="timeout"),
-    )
+    # Simulate direwolf binary present but endpoint not reachable
+    monkeypatch.setattr(diagnostics, "probe_tcp_endpoint", lambda *_args, **_kwargs: _ProbeResult(False, error="timeout"))
+    monkeypatch.setattr(diagnostics.shutil, "which", lambda *_: "/usr/bin/direwolf")
 
     section = diagnostics._check_direwolf(config)
 
@@ -259,6 +255,19 @@ def test_check_direwolf_no_config() -> None:
 
     assert section.status == "warning"
     assert "Configuration unavailable" in section.message
+
+
+def test_check_direwolf_not_installed(monkeypatch) -> None:
+    config = StationConfig(callsign="N0CALL-10", passcode="12345")
+
+    # Simulate direwolf binary not present
+    monkeypatch.setattr(diagnostics.shutil, "which", lambda *_: None)
+
+    section = diagnostics._check_direwolf(config)
+
+    assert section.status == "warning"
+    assert "not installed" in section.message
+    assert section.details.get("installed") is False
 
 
 def test_check_aprs_is_success(monkeypatch) -> None:

@@ -14,6 +14,7 @@ from typing import Any, Iterable, cast
 from nesdr_igate import config as config_module
 from nesdr_igate.config import StationConfig
 from nesdr_igate.diagnostics_helpers import probe_tcp_endpoint
+import shutil
 
 try:  # Python 3.10+ exposes metadata here
     from importlib import metadata as importlib_metadata
@@ -243,19 +244,41 @@ def _check_direwolf(config: StationConfig | None) -> Section:
         )
 
     host, port = config.kiss_host, config.kiss_port
+    # If the direwolf binary isn't present, avoid attempting network checks
+    # and give a clearer message that Direwolf must be installed/started by
+    # the `listen` command.
+    if shutil.which("direwolf") is None:
+        return Section(
+            "Direwolf",
+            "warning",
+            "Direwolf not installed; KISS connectivity checks skipped",
+            {"installed": False},
+        )
+
     result = probe_tcp_endpoint(host, port, timeout=1.0)
     if result.success:
         return Section(
             "Direwolf",
             "ok",
             f"KISS endpoint reachable at {host}:{port}",
-            {"latency_ms": result.latency_ms},
+            {"latency_ms": result.latency_ms, "installed": True},
         )
+
+    # Connection refused is expected when Direwolf is installed but not
+    # currently running (e.g., before `nesdr-igate listen` starts it).
+    err = (result.error or "").lower()
+    if "connection" in err and "refused" in err or "errno 111" in err:
+        message = (
+            f"Direwolf installed but not running locally; KISS endpoint unreachable at {host}:{port}"
+        )
+    else:
+        message = f"Unable to reach Direwolf KISS at {host}:{port}"
+
     return Section(
         "Direwolf",
         "warning",
-        f"Unable to reach Direwolf KISS at {host}:{port}",
-        {"error": result.error},
+        message,
+        {"error": result.error, "installed": True},
     )
 
 
