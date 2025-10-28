@@ -76,6 +76,18 @@ def build_parser() -> argparse.ArgumentParser:
         help="Set log verbosity (DEBUG, INFO, WARNING, ERROR, CRITICAL or numeric)",
     )
     parser.add_argument(
+        "--color",
+        dest="color",
+        action="store_true",
+        help="Force-enable colorized output (overrides auto-detection)",
+    )
+    parser.add_argument(
+        "--no-color",
+        dest="no_color",
+        action="store_true",
+        help="Disable colorized output",
+    )
+    parser.add_argument(
         "--version",
         action="store_true",
         help="Show package version and exit",

@@ -402,12 +402,12 @@ def test_run_listen_receive_only_once(monkeypatch, tmp_path, caplog) -> None:
 
     class ForbiddenAPRSClient:
         def __init__(self, *_: object, **__: object) -> None:
-            raise AssertionError("APRS client should not be instantiated in receive-only mode")
+            raise AssertionError(
+                "APRS client should not be instantiated in receive-only mode"
+            )
 
     monkeypatch.setattr(listen, "RtlFmAudioCapture", DummyCapture)
-    monkeypatch.setattr(
-        listen.subprocess, "Popen", lambda *a, **k: DummyProcess()
-    )
+    monkeypatch.setattr(listen.subprocess, "Popen", lambda *a, **k: DummyProcess())
     monkeypatch.setattr(listen, "KISSClient", DummyKISSClient)
     monkeypatch.setattr(listen, "APRSISClient", ForbiddenAPRSClient)
     monkeypatch.setattr(
@@ -520,9 +520,13 @@ def test_apply_software_tocall_before_send(monkeypatch, tmp_path, caplog) -> Non
     monkeypatch.setattr(listen.subprocess, "Popen", lambda *a, **k: DummyProcess())
     monkeypatch.setattr(listen, "KISSClient", DummyKISSClient)
     monkeypatch.setattr(listen, "APRSISClient", CapturingAPRSClient)
-    monkeypatch.setattr(listen, "kiss_payload_to_tnc2", lambda *_: "N0CALL-10>APRS:TEST")
+    monkeypatch.setattr(
+        listen, "kiss_payload_to_tnc2", lambda *_: "N0CALL-10>APRS:TEST"
+    )
 
-    exit_code = listen.run_listen(Namespace(config=str(config_path), no_aprsis=False, once=True))
+    exit_code = listen.run_listen(
+        Namespace(config=str(config_path), no_aprsis=False, once=True)
+    )
 
     assert exit_code == 0
     # ensure we replaced the destination with configured software TOCALL

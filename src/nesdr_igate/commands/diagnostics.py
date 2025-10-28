@@ -18,9 +18,12 @@ import shutil
 
 try:  # Python 3.10+ exposes metadata here
     from importlib import metadata as importlib_metadata
-    # from nesdr_igate import __version__
+
+    # lightweight import of terminal helpers
+    from nesdr_igate import term as term_module
 except ImportError:  # pragma: no cover - fallback for older runtimes
     import importlib_metadata  # type: ignore[no-redef]
+    from nesdr_igate import term as term_module
 
 SectionStatus = str
 
@@ -75,13 +78,27 @@ def run_diagnostics(args: Namespace) -> int:
         report["meta"] = {
             "tool": "nesdr-igate",
             "version": _package_version(),
-            "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(generated_at)),
+            "generated_at": time.strftime(
+                "%Y-%m-%dT%H:%M:%SZ", time.gmtime(generated_at)
+            ),
         }
         report["summary"] = summary
         indent = 2 if getattr(args, "verbose", False) else None
         print(json.dumps(report, indent=indent, default=_json_default))
     else:
-        _print_text_report(sections, verbose=getattr(args, "verbose", False))
+        # Determine color preference: CLI flags override auto-detection.
+        if getattr(args, "color", False):
+            color_enabled = True
+        elif getattr(args, "no_color", False):
+            color_enabled = False
+        else:
+            color_enabled = term_module.supports_color()
+
+        _print_text_report(
+            sections,
+            verbose=getattr(args, "verbose", False),
+            color_enabled=color_enabled,
+        )
 
     if not getattr(args, "json", False):
         _log_summary(summary)
@@ -199,7 +216,9 @@ def _check_sdr() -> Section:
         if device_count == 0:
             return Section("SDR", "warning", "No RTL-SDR devices detected", details)
 
-        return Section("SDR", "ok", f"Detected {device_count} RTL-SDR device(s)", details)
+        return Section(
+            "SDR", "ok", f"Detected {device_count} RTL-SDR device(s)", details
+        )
 
     # Fallback: try instantiating a device handle (best-effort).
     # If instantiation succeeds, assume at least one device is present.
@@ -238,7 +257,9 @@ def _check_sdr() -> Section:
 
     details["device_count"] = 1
     if serial is not None:
-        details["serials"] = [serial.decode() if isinstance(serial, bytes) else str(serial)]
+        details["serials"] = [
+            serial.decode() if isinstance(serial, bytes) else str(serial)
+        ]
 
     return Section("SDR", "ok", "Detected at least 1 RTL-SDR device", details)
 
@@ -277,9 +298,7 @@ def _check_direwolf(config: StationConfig | None) -> Section:
     # currently running (e.g., before `nesdr-igate listen` starts it).
     err = (result.error or "").lower()
     if ("connection" in err and "refused" in err) or ("errno 111" in err):
-        message = (
-            f"Direwolf installed but not running locally; KISS endpoint unreachable at {host}:{port}"
-        )
+        message = f"Direwolf installed but not running locally; KISS endpoint unreachable at {host}:{port}"
     else:
         message = f"Unable to reach Direwolf KISS at {host}:{port}"
 
@@ -360,14 +379,14 @@ def _log_summary(summary: dict[str, Any]) -> None:
     )
 
 
-def _print_text_report(sections: Iterable[Section], *, verbose: bool) -> None:
+def _print_text_report(
+    sections: Iterable[Section], *, verbose: bool, color_enabled: bool = False
+) -> None:
     for section in sections:
-        logger.info(
-            "[%s] %s: %s",
-            section.status.upper().ljust(7),
-            section.name,
-            section.message,
-        )
+        # Use a colorized status label when requested; fall back to plain
+        # text when colors are disabled or unsupported.
+        label = term_module.status_label(section.status, enabled=color_enabled)
+        logger.info("%s %s: %s", label, section.name, section.message)
         if verbose and section.details:
             for key, value in section.details.items():
                 formatted_value = _format_detail_value(value)

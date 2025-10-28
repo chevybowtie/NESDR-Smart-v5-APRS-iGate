@@ -29,6 +29,7 @@ class APRSISConfig:
     filter_string: str | None = None
     timeout: float = 5.0
 
+
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
@@ -42,7 +43,7 @@ class RetryBackoff:
         base_delay: float = 2.0,
         max_delay: float = 120.0,
         multiplier: float = 2.0,
-    clock: Optional[Callable[[], float]] = None,
+        clock: Optional[Callable[[], float]] = None,
     ) -> None:
         if base_delay <= 0:
             raise ValueError("base_delay must be positive")

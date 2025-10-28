@@ -280,7 +280,9 @@ def test_retry_backoff_progression() -> None:
     def fake_clock() -> float:
         return current
 
-    backoff = RetryBackoff(base_delay=1.0, max_delay=8.0, multiplier=2.0, clock=fake_clock)
+    backoff = RetryBackoff(
+        base_delay=1.0, max_delay=8.0, multiplier=2.0, clock=fake_clock
+    )
 
     assert backoff.ready() is True
     assert backoff.current_delay == 1.0
@@ -306,7 +308,9 @@ def test_retry_backoff_progression() -> None:
 
 
 def test_retry_backoff_reset_and_limits() -> None:
-    backoff = RetryBackoff(base_delay=2.0, max_delay=5.0, multiplier=3.0, clock=lambda: 0.0)
+    backoff = RetryBackoff(
+        base_delay=2.0, max_delay=5.0, multiplier=3.0, clock=lambda: 0.0
+    )
 
     assert backoff.record_failure() == 2.0
     assert backoff.current_delay == 5.0

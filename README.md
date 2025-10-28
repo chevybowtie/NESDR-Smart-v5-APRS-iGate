@@ -60,6 +60,37 @@ nesdr-igate diagnostics --verbose
 ```
 Add `--json` for machine-readable output.
 
+Colorized output
+----------------
+
+The textual diagnostics output can optionally be colorized for interactive
+terminals so status tokens (OK / WARNING / ERROR) are easier to scan:
+
+- `--color` forces colorized output (even when stdout is not a TTY)
+- `--no-color` disables colorized output
+- The runtime also respects the `NO_COLOR` environment variable as a
+	conventional opt-out.
+
+Examples:
+
+```bash
+# Force colorized output
+nesdr-igate diagnostics --verbose --color
+
+# Disable colors explicitly
+nesdr-igate diagnostics --verbose --no-color
+
+# Disable colors via environment variable
+NO_COLOR=1 nesdr-igate diagnostics --verbose
+```
+
+Notes:
+- JSON output produced with `--json` is always plain and machine-readable
+	(no ANSI color codes are injected).
+- When colors are enabled the status labels in the human-readable report are
+	marked with ANSI color sequences; these may be visible when capturing
+	logs to files, so prefer `--json` for automated tooling or CI.
+
 ## 5. Start listening
 ```bash
 nesdr-igate listen
