@@ -9,7 +9,6 @@ import sys
 from argparse import Namespace
 from typing import Callable, Dict
 
-from importlib import metadata
 from nesdr_igate import __version__
 
 from nesdr_igate.commands import (  # type: ignore[import]

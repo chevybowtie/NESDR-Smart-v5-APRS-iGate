@@ -18,7 +18,7 @@ import shutil
 
 try:  # Python 3.10+ exposes metadata here
     from importlib import metadata as importlib_metadata
-    from nesdr_igate import __version__
+    # from nesdr_igate import __version__
 except ImportError:  # pragma: no cover - fallback for older runtimes
     import importlib_metadata  # type: ignore[no-redef]
 
