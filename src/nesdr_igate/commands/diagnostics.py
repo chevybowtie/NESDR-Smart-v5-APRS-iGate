@@ -276,7 +276,7 @@ def _check_direwolf(config: StationConfig | None) -> Section:
     # Connection refused is expected when Direwolf is installed but not
     # currently running (e.g., before `nesdr-igate listen` starts it).
     err = (result.error or "").lower()
-    if "connection" in err and "refused" in err or "errno 111" in err:
+    if ("connection" in err and "refused" in err) or ("errno 111" in err):
         message = (
             f"Direwolf installed but not running locally; KISS endpoint unreachable at {host}:{port}"
         )
