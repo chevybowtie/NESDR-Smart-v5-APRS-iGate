@@ -23,21 +23,14 @@ from nesdr_igate.aprs.aprsis_client import (  # type: ignore[import]
 from nesdr_igate.aprs.kiss_client import KISSClient, KISSClientConfig, KISSClientError  # type: ignore[import]
 from nesdr_igate.radio.capture import AudioCaptureError, RtlFmAudioCapture, RtlFmConfig  # type: ignore[import]
 
-try:
-    from importlib import metadata as importlib_metadata
-except ImportError:  # pragma: no cover
-    import importlib_metadata  # type: ignore[no-redef]
+from nesdr_igate import __version__ as _SOFTWARE_VERSION
+
 
 AUDIO_SAMPLE_RATE = 22_050
 _AUDIO_CHUNK_BYTES = 4096
 _SOFTWARE_NAME = "nesdr-igate"
 
-try:
-    _SOFTWARE_VERSION = importlib_metadata.version("nesdr-igate")
-except (
-    importlib_metadata.PackageNotFoundError
-):  # pragma: no cover - dev install fallback
-    _SOFTWARE_VERSION = "0.0.0"
+# _SOFTWARE_VERSION is provided by the package-level __version__ value.
 
 
 logger = logging.getLogger(__name__)

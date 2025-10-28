@@ -18,6 +18,7 @@ import shutil
 
 try:  # Python 3.10+ exposes metadata here
     from importlib import metadata as importlib_metadata
+    from nesdr_igate import __version__
 except ImportError:  # pragma: no cover - fallback for older runtimes
     import importlib_metadata  # type: ignore[no-redef]
 
@@ -29,10 +30,18 @@ logger.addHandler(logging.NullHandler())
 
 
 def _package_version() -> str:
+    # Attempt to read the package-level canonical version. Importing the
+    # package at function time avoids import-order problems during static
+    # analysis while still returning the centralized value at runtime.
     try:
-        return importlib_metadata.version("nesdr-igate")
-    except importlib_metadata.PackageNotFoundError:
-        return "0.0.0"
+        from nesdr_igate import __version__ as ver
+
+        return ver
+    except Exception:
+        try:
+            return importlib_metadata.version("nesdr-igate")
+        except importlib_metadata.PackageNotFoundError:
+            return "0.0.0"
 
 
 @dataclass(slots=True)

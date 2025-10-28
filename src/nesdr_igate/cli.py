@@ -10,6 +10,7 @@ from argparse import Namespace
 from typing import Callable, Dict
 
 from importlib import metadata
+from nesdr_igate import __version__
 
 from nesdr_igate.commands import (  # type: ignore[import]
     run_diagnostics,
@@ -29,10 +30,10 @@ _LOG_LEVEL_ALIASES: dict[str, int] = {
 
 
 def _package_version() -> str:
-    try:
-        return metadata.version("nesdr-igate")
-    except metadata.PackageNotFoundError:
-        return "0.0.0"
+    # Use the package-level canonical version value. This avoids
+    # repeated importlib.metadata lookups and keeps a single source of
+    # truth for runtime reporting (see ``nesdr_igate.__version__``).
+    return __version__
 
 
 def _resolve_log_level(candidate: str | None) -> int:
