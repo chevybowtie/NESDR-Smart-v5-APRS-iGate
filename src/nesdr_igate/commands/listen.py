@@ -23,21 +23,14 @@ from nesdr_igate.aprs.aprsis_client import (  # type: ignore[import]
 from nesdr_igate.aprs.kiss_client import KISSClient, KISSClientConfig, KISSClientError  # type: ignore[import]
 from nesdr_igate.radio.capture import AudioCaptureError, RtlFmAudioCapture, RtlFmConfig  # type: ignore[import]
 
-try:
-    from importlib import metadata as importlib_metadata
-except ImportError:  # pragma: no cover
-    import importlib_metadata  # type: ignore[no-redef]
+from nesdr_igate import __version__ as _SOFTWARE_VERSION
+
 
 AUDIO_SAMPLE_RATE = 22_050
 _AUDIO_CHUNK_BYTES = 4096
 _SOFTWARE_NAME = "nesdr-igate"
 
-try:
-    _SOFTWARE_VERSION = importlib_metadata.version("nesdr-igate")
-except (
-    importlib_metadata.PackageNotFoundError
-):  # pragma: no cover - dev install fallback
-    _SOFTWARE_VERSION = "0.0.0"
+# _SOFTWARE_VERSION is provided by the package-level __version__ value.
 
 
 logger = logging.getLogger(__name__)
@@ -269,7 +262,22 @@ def run_listen(args: Namespace) -> int:
 
             if aprs_client is not None:
                 try:
-                    aprs_client.send_packet(tnc2_packet)
+                    # Apply configured software TOCALL for packets that were
+                    # clearly originated by this station (safe default: only
+                    # when SRC matches our configured callsign). This avoids
+                    # rewriting DST for RF-forwarded traffic.
+                    if (
+                        getattr(station_config, "software_tocall", None)
+                        and tnc2_packet.split(":", 1)[0].split(">", 1)[0]
+                        == station_config.callsign
+                    ):
+                        tnc2_to_send = _apply_software_tocall(
+                            tnc2_packet, station_config.software_tocall
+                        )
+                    else:
+                        tnc2_to_send = tnc2_packet
+
+                    aprs_client.send_packet(tnc2_to_send)
                     aprs_forwarded += 1
                 except APRSISClientError as exc:
                     aprs_failed += 1
@@ -315,6 +323,30 @@ def run_listen(args: Namespace) -> int:
     else:
         logger.info("Frames processed: %s", frame_count)
     return 0
+
+
+def _apply_software_tocall(tnc2_line: str, tocall: str) -> str:
+    """Return a modified TNC2 line where the DEST is replaced with tocall.
+
+    Only operates on the textual TNC2 form: "SRC>DST[,PATH]:INFO". The
+    function preserves any existing path suffix (",...") and the info field.
+    """
+    if not tocall:
+        return tnc2_line
+    if ":" not in tnc2_line or ">" not in tnc2_line:
+        return tnc2_line
+    header, info = tnc2_line.split(":", 1)
+    try:
+        src, rest = header.split(">", 1)
+    except ValueError:
+        return tnc2_line
+    # rest may contain dest[,path]
+    if "," in rest:
+        _, path = rest.split(",", 1)
+        new_rest = f"{tocall},{path}"
+    else:
+        new_rest = tocall
+    return f"{src}>{new_rest}:{info}"
 
 
 def _resolve_direwolf_config(config_dir: Path) -> Optional[Path]:

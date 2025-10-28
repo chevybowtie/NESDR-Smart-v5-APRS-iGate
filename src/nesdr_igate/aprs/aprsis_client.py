@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from typing import Callable, Optional
 
 import logging
+from nesdr_igate import __version__
 
 
 class APRSISClientError(RuntimeError):
@@ -24,7 +25,7 @@ class APRSISConfig:
     callsign: str
     passcode: str
     software_name: str = "nesdr-igate"
-    software_version: str = "0.0.0"
+    software_version: str = __version__
     filter_string: str | None = None
     timeout: float = 5.0
 

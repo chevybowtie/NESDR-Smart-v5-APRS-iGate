@@ -421,3 +421,109 @@ def test_run_listen_receive_only_once(monkeypatch, tmp_path, caplog) -> None:
     assert exit_code == 0
     assert "APRS-IS uplink disabled" in caplog.text
     assert "Frames processed: 1" in caplog.text
+
+
+def test_apply_software_tocall_before_send(monkeypatch, tmp_path, caplog) -> None:
+    caplog.set_level(logging.INFO, logger="nesdr_igate.commands.listen")
+    caplog.clear()
+    _patch_signal(monkeypatch)
+
+    config_path = tmp_path / "config.toml"
+    config_dir = config_path.parent
+    config_dir.mkdir(parents=True, exist_ok=True)
+    (config_dir / "direwolf.conf").write_text("test", encoding="utf-8")
+
+    cfg = StationConfig(
+        callsign="N0CALL-10",
+        passcode="12345",
+        aprs_server="test.aprs.net",
+        aprs_port=14580,
+        kiss_host="127.0.0.1",
+        kiss_port=9001,
+        center_frequency_hz=144_390_000.0,
+        software_tocall="APNEO1",
+    )
+
+    monkeypatch.setattr(
+        listen.config_module, "resolve_config_path", lambda *_: config_path
+    )
+    monkeypatch.setattr(listen.config_module, "load_config", lambda *_: cfg)
+
+    class DummyCapture:
+        def __init__(self, *_: object, **__: object) -> None:
+            self.started = False
+            self.stopped = False
+
+        def start(self) -> None:
+            self.started = True
+
+        def read(self, num_bytes: int) -> bytes:
+            return b"\x00" * num_bytes
+
+        def stop(self) -> None:
+            self.stopped = True
+
+    class DummyProcess:
+        def __init__(self, *_: object, **__: object) -> None:
+            self.pid = 4321
+            import io
+
+            self.stdin = io.BytesIO()
+            self.stdout = io.BytesIO()
+            self.stderr = io.BytesIO()
+            self.terminated = False
+
+        def terminate(self) -> None:
+            self.terminated = True
+
+        def wait(self, timeout: float | None = None) -> int:
+            return 0
+
+        def kill(self) -> None:
+            self.terminated = True
+
+    from nesdr_igate.aprs.kiss_client import KISSFrame, KISSCommand
+
+    class DummyKISSClient:
+        def __init__(self, *_: object, **__: object) -> None:
+            self.closed = False
+            self._frames = [b"TEST"]
+
+        def connect(self) -> None:
+            return None
+
+        def read_frame(self, timeout: float | None = None) -> KISSFrame:
+            if self._frames:
+                payload = self._frames.pop(0)
+                return KISSFrame(port=0, command=KISSCommand.DATA, payload=payload)
+            raise TimeoutError
+
+        def close(self) -> None:
+            self.closed = True
+
+    sent_packets: list[str] = []
+
+    class CapturingAPRSClient:
+        def __init__(self, *_: object, **__: object) -> None:
+            pass
+
+        def connect(self) -> None:
+            return None
+
+        def send_packet(self, packet: str) -> None:
+            sent_packets.append(packet)
+
+        def close(self) -> None:
+            return None
+
+    monkeypatch.setattr(listen, "RtlFmAudioCapture", DummyCapture)
+    monkeypatch.setattr(listen.subprocess, "Popen", lambda *a, **k: DummyProcess())
+    monkeypatch.setattr(listen, "KISSClient", DummyKISSClient)
+    monkeypatch.setattr(listen, "APRSISClient", CapturingAPRSClient)
+    monkeypatch.setattr(listen, "kiss_payload_to_tnc2", lambda *_: "N0CALL-10>APRS:TEST")
+
+    exit_code = listen.run_listen(Namespace(config=str(config_path), no_aprsis=False, once=True))
+
+    assert exit_code == 0
+    # ensure we replaced the destination with configured software TOCALL
+    assert sent_packets == ["N0CALL-10>APNEO1:TEST"]

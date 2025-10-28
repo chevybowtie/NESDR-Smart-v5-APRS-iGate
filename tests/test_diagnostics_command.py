@@ -197,14 +197,39 @@ def test_check_sdr_device_query_failure(monkeypatch) -> None:
     assert "Failed to query" in section.message
 
 
+def test_check_sdr_instantiation_fallback(monkeypatch) -> None:
+    """If RtlSdr doesn't expose get_device_count, fall back to instantiation."""
+    module = types.ModuleType("rtlsdr")
+
+    class DummyRtl:
+        def __init__(self, *args, **kwargs):
+            # accept positional or keyword device_index
+            self._idx = kwargs.get("device_index", args[0] if args else 0)
+
+        # expose a bytes serial like some implementations
+        @property
+        def serial_number(self) -> bytes:
+            return b"fallback-serial"
+
+        def close(self) -> None:
+            return None
+
+    setattr(module, "RtlSdr", DummyRtl)
+    monkeypatch.setitem(sys.modules, "rtlsdr", module)
+
+    section = diagnostics._check_sdr()
+
+    assert section.status == "ok"
+    assert section.details["device_count"] == 1
+    assert section.details.get("serials") == ["fallback-serial"]
+
+
 def test_check_direwolf_success(monkeypatch) -> None:
     config = StationConfig(callsign="N0CALL-10", passcode="12345")
 
-    monkeypatch.setattr(
-        diagnostics,
-        "probe_tcp_endpoint",
-        lambda *_args, **_kwargs: _ProbeResult(True, latency_ms=12.3),
-    )
+    # Simulate direwolf binary present and endpoint reachable
+    monkeypatch.setattr(diagnostics, "probe_tcp_endpoint", lambda *_args, **_kwargs: _ProbeResult(True, latency_ms=12.3))
+    monkeypatch.setattr(diagnostics.shutil, "which", lambda *_: "/usr/bin/direwolf")
 
     section = diagnostics._check_direwolf(config)
 
@@ -215,11 +240,9 @@ def test_check_direwolf_success(monkeypatch) -> None:
 def test_check_direwolf_failure(monkeypatch) -> None:
     config = StationConfig(callsign="N0CALL-10", passcode="12345")
 
-    monkeypatch.setattr(
-        diagnostics,
-        "probe_tcp_endpoint",
-        lambda *_args, **_kwargs: _ProbeResult(False, error="timeout"),
-    )
+    # Simulate direwolf binary present but endpoint not reachable
+    monkeypatch.setattr(diagnostics, "probe_tcp_endpoint", lambda *_args, **_kwargs: _ProbeResult(False, error="timeout"))
+    monkeypatch.setattr(diagnostics.shutil, "which", lambda *_: "/usr/bin/direwolf")
 
     section = diagnostics._check_direwolf(config)
 
@@ -232,6 +255,19 @@ def test_check_direwolf_no_config() -> None:
 
     assert section.status == "warning"
     assert "Configuration unavailable" in section.message
+
+
+def test_check_direwolf_not_installed(monkeypatch) -> None:
+    config = StationConfig(callsign="N0CALL-10", passcode="12345")
+
+    # Simulate direwolf binary not present
+    monkeypatch.setattr(diagnostics.shutil, "which", lambda *_: None)
+
+    section = diagnostics._check_direwolf(config)
+
+    assert section.status == "warning"
+    assert "not installed" in section.message
+    assert section.details.get("installed") is False
 
 
 def test_check_aprs_is_success(monkeypatch) -> None:
