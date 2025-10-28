@@ -23,10 +23,10 @@ except ImportError:  # pragma: no cover - keyring not installed
     KeyringError = Exception
 
 CONFIG_VERSION = 1
-CONFIG_ENV_VAR = "NESDR_IGATE_CONFIG_PATH"
-CONFIG_DIR_NAME = "nesdr-igate"
+CONFIG_ENV_VAR = "NEO_IGATE_CONFIG_PATH"
+CONFIG_DIR_NAME = "neo-igate"
 CONFIG_FILENAME = "config.toml"
-KEYRING_SERVICE = "nesdr-igate"
+KEYRING_SERVICE = "neo-igate"
 KEYRING_SENTINEL = "__KEYRING__"
 
 

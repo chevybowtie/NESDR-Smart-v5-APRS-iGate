@@ -19,7 +19,7 @@ def test_cli_version_flag(monkeypatch, capsys) -> None:
     captured = capsys.readouterr()
 
     assert exit_code == 0
-    assert captured.out.strip() == "nesdr-igate 9.9.9"
+    assert captured.out.strip() == "neo-igate 9.9.9"
     assert captured.err == ""
 
 
@@ -64,7 +64,7 @@ def test_setup_non_interactive(tmp_path, monkeypatch, capsys) -> None:
         callsign="N0CALL-10", passcode="12345", latitude=12.34, longitude=-56.78
     )
     save_config(cfg, path=config_path)
-    monkeypatch.setenv("NESDR_IGATE_CONFIG_PATH", str(config_path))
+    monkeypatch.setenv(CONFIG_ENV_VAR, str(config_path))
 
     exit_code = main(["setup", "--non-interactive"])
     captured = capsys.readouterr()
@@ -76,7 +76,7 @@ def test_setup_non_interactive(tmp_path, monkeypatch, capsys) -> None:
 
 def test_setup_dry_run_interactive(tmp_path, monkeypatch, capsys) -> None:
     config_path = tmp_path / "config.toml"
-    monkeypatch.setenv("NESDR_IGATE_CONFIG_PATH", str(config_path))
+    monkeypatch.setenv(CONFIG_ENV_VAR, str(config_path))
     monkeypatch.setattr(
         "nesdr_igate.commands.setup.config_module.keyring_supported", lambda: False
     )
@@ -111,7 +111,7 @@ def test_setup_dry_run_interactive(tmp_path, monkeypatch, capsys) -> None:
 
 def test_setup_writes_direwolf_config(tmp_path, monkeypatch) -> None:
     config_path = tmp_path / "config.toml"
-    monkeypatch.setenv("NESDR_IGATE_CONFIG_PATH", str(config_path))
+    monkeypatch.setenv(CONFIG_ENV_VAR, str(config_path))
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "xdg_data"))
     monkeypatch.setattr(
@@ -148,7 +148,7 @@ def test_setup_writes_direwolf_config(tmp_path, monkeypatch) -> None:
     assert direwolf_path.exists()
 
     text = direwolf_path.read_text(encoding="utf-8")
-    expected_log_dir = tmp_path / "xdg_data" / "nesdr-igate" / "logs"
+    expected_log_dir = tmp_path / "xdg_data" / "neo-igate" / "logs"
 
     assert "MYCALL KJ5EVH-10" in text
     assert "IGLOGIN KJ5EVH-10 s3cret" in text

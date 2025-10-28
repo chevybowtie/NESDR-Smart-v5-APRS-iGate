@@ -507,7 +507,7 @@ def _report_direwolf_log_summary() -> None:
     log_file = log_dir / "direwolf.log"
     if not log_file.exists():
         logger.warning(
-            "[WARNING] Direwolf log not found at %s. Run `nesdr-igate listen` to generate logs.",
+            "[WARNING] Direwolf log not found at %s. Run `neo-igate listen` to generate logs.",
             log_file,
         )
         return

@@ -28,7 +28,7 @@ from nesdr_igate import __version__ as _SOFTWARE_VERSION
 
 AUDIO_SAMPLE_RATE = 22_050
 _AUDIO_CHUNK_BYTES = 4096
-_SOFTWARE_NAME = "nesdr-igate"
+_SOFTWARE_NAME = "neo-igate"
 
 # _SOFTWARE_VERSION is provided by the package-level __version__ value.
 
@@ -44,7 +44,7 @@ def run_listen(args: Namespace) -> int:
         station_config = config_module.load_config(config_path)
     except FileNotFoundError:
         logger.error(
-            "Config not found at %s; run `nesdr-igate setup` first.", config_path
+            "Config not found at %s; run `neo-igate setup` first.", config_path
         )
         return 1
     except ValueError as exc:

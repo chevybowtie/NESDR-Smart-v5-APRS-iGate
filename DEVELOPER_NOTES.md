@@ -3,7 +3,7 @@
 ## Project Environment
 - Primary target is Python 3.11+; CI smoke tests run against 3.11 and 3.13 locally.
 - Create a local venv (`python3 -m venv .venv`) and install with `pip install -e '.[direwolf]'` plus `.[dev]` for tooling.
-- `NESDR_IGATE_CONFIG_PATH` can override the default config directory for quick iterations.
+- `NEO_IGATE_CONFIG_PATH` can override the default config directory for quick iterations.
 
 ## Tooling Standards
 - Formatting: `ruff format` (PEP 8 style) with 4-space indentation, trailing commas enabled.
@@ -13,17 +13,17 @@
 
 ## Logging and Observability
 - All commands use `logging` with module-level loggers; avoid bare `print` outside CLI argument parsing.
-- Default log level is `INFO`; honor `--log-level` CLI flag and `NESDR_IGATE_LOG_LEVEL` env override.
-- Structured diagnostics live under `~/.local/share/nesdr-igate/logs/`; keep file writes atomic to avoid partial logs.
+- Default log level is `INFO`; honor `--log-level` CLI flag and `NEO_IGATE_LOG_LEVEL` env override.
+ - Structured diagnostics live under `~/.local/share/neo-igate/logs/`; keep file writes atomic to avoid partial logs.
 
 ## CLI and UX Conventions
-- CLI entry point is `nesdr-igate`; no arguments defaults to `listen` for quick starts.
+- CLI entry point is `neo-igate`; no arguments defaults to `listen` for quick starts.
 - Commander modules follow `Command.run()` taking `ParsedArgs` and returning an exit code (0 success, otherwise failure).
 - Comment complex argument parsing with inline notes; use `argparse` subparsers and stick to kebab-case flags (`--log-level`).
 - Non-interactive flows must accept `--config PATH` to support testing and automation.
 
 ## Configuration Artifacts
-- Primary settings live in `config.toml` beneath `~/.config/nesdr-igate/` unless overridden.
+- Primary settings live in `config.toml` beneath `~/.config/neo-igate/` unless overridden.
 - Setup wizard renders `direwolf.conf`; keep templates in sync with Direwolf upstream defaults.
 - Secrets such as APRS-IS passcodes are stored via `keyring` when possible; fall back to plaintext only with explicit user opt-in.
 
