@@ -84,8 +84,8 @@ This document defines the interactive `neo-igate setup` command used to prepare 
 ## Artifacts
 - `~/.config/neo-igate/config.toml`: primary config file.
 - `~/.config/neo-igate/direwolf.conf`: rendered Direwolf configuration (optional, managed flow).
--- Keyring entry (`neo-igate/callsign`): secure passcode storage when available.
--- `~/.local/share/neo-igate/logs/setup.log`: onboarding transcript for diagnostics.
+- Keyring entry (`neo-igate/callsign`): secure passcode storage when available.
+- `~/.local/share/neo-igate/logs/setup.log`: onboarding transcript for diagnostics.
 
 ## Open Questions
 - Should onboarding auto-generate a Direwolf config file tailored to device, or simply validate user-provided config?
