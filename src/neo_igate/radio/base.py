@@ -56,3 +56,4 @@ class RadioBackend(ABC):
     @abstractmethod
     def close(self) -> None:
         """Release hardware resources."""
+

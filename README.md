@@ -1,6 +1,6 @@
-# NESDR APRS iGate
+# Neo - iGate
 
-Command-line utility for turning a NESDR Smart v5 RTL-SDR into a receive-only APRS iGate with optional APRS-IS uplink.
+Command-line utility for turning an SDR (for example a NESDR Smart v5 RTL-SDR) into a receive-only APRS iGate with optional APRS-IS uplink.
 
 ## Prerequisites
 - Linux host with Python 3.11 or newer
@@ -37,7 +37,7 @@ Note about APRS library: the project pins a relaxed constraint for `aprslib` in 
 ## 3. Run the interactive setup
 Launch the onboarding wizard to capture station details and render the initial configuration:
 ```bash
-nesdr-igate setup
+neo-igate setup
 ```
 During setup you will be asked for:
 - Callsign-SSID and APRS-IS passcode (optionally stored in the system keyring)
@@ -45,18 +45,18 @@ During setup you will be asked for:
 - Station latitude/longitude (optional but recommended)
 - Direwolf KISS host/port
 
-The wizard writes `config.toml` to `~/.config/nesdr-igate/` (override via `NESDR_IGATE_CONFIG_PATH`) and can render `direwolf.conf` plus run a quick hardware validation. Re-run with `--reset` to overwrite an existing config.
+The wizard writes `config.toml` to `~/.config/neo-igate/` (override via `NEO_IGATE_CONFIG_PATH`) and can render `direwolf.conf` plus run a quick hardware validation. Re-run with `--reset` to overwrite an existing config.
 
 To validate an existing configuration without prompts, use the non-interactive mode and point at the file you want to check:
 ```bash
-nesdr-igate setup --non-interactive --config path/to/config.toml
+neo-igate setup --non-interactive --config path/to/config.toml
 ```
-If `--config` is omitted, the command looks for the file at `NESDR_IGATE_CONFIG_PATH` (when set) or in the default config directory.
+If `--config` is omitted, the command looks for the file at `NEO_IGATE_CONFIG_PATH` (when set) or in the default config directory.
 
 ## 4. Verify the environment (optional)
 Use diagnostics to confirm software, SDR, and network reachability:
 ```bash
-nesdr-igate diagnostics --verbose
+neo-igate diagnostics --verbose
 ```
 Add `--json` for machine-readable output.
 
@@ -75,13 +75,13 @@ Examples:
 
 ```bash
 # Force colorized output
-nesdr-igate diagnostics --verbose --color
+neo-igate diagnostics --verbose --color
 
 # Disable colors explicitly
-nesdr-igate diagnostics --verbose --no-color
+neo-igate diagnostics --verbose --no-color
 
 # Disable colors via environment variable
-NO_COLOR=1 nesdr-igate diagnostics --verbose
+NO_COLOR=1 neo-igate diagnostics --verbose
 ```
 
 Notes:
@@ -93,7 +93,7 @@ Notes:
 
 ## 5. Start listening
 ```bash
-nesdr-igate listen
+neo-igate listen
 ```
 
 The listener will:
@@ -107,16 +107,16 @@ Useful flags:
 - `--once` to process a single frame batch (helpful for smoke tests)
 - `--config PATH` to point at an alternate configuration file
 
-Logs and temporary probe outputs are stored beneath `~/.local/share/nesdr-igate/logs/` by default.
+Logs and temporary probe outputs are stored beneath `~/.local/share/neo-igate/logs/` by default.
 
 ## Troubleshooting
-- `nesdr-igate diagnostics` surfaces missing dependencies, SDR availability, and network reachability issues.
+- `neo-igate diagnostics` surfaces missing dependencies, SDR availability, and network reachability issues.
 - Ensure `rtl_fm`, `rtl_test`, `direwolf`, and `sox` (optional) are installed and executable.
-- Review Direwolf and listener logs under `~/.local/share/nesdr-igate/` for detailed errors.
-- Re-run `nesdr-igate setup --reset` if you need to regenerate configuration files or Direwolf templates.
+- Review Direwolf and listener logs under `~/.local/share/neo-igate/` for detailed errors.
+- Re-run `neo-igate setup --reset` if you need to regenerate configuration files or Direwolf templates.
 
 ## Onboarding and setup details
 
-For a full specification of the interactive onboarding flow (what `nesdr-igate setup` does, preconditions, prompts, validation rules, and implementation notes), see the detailed onboarding specification in the docs:
+For a full specification of the interactive onboarding flow (what `neo-igate setup` does, preconditions, prompts, validation rules, and implementation notes), see the detailed onboarding specification in the docs:
 
 - docs/onboarding-spec.md

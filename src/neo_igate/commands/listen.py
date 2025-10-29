@@ -12,23 +12,23 @@ from pathlib import Path
 from queue import Empty, Queue
 from typing import Optional
 
-from nesdr_igate import config as config_module
-from nesdr_igate.aprs.ax25 import AX25DecodeError, kiss_payload_to_tnc2  # type: ignore[import]
-from nesdr_igate.aprs.aprsis_client import (  # type: ignore[import]
+from neo_igate import config as config_module
+from neo_igate.aprs.ax25 import AX25DecodeError, kiss_payload_to_tnc2  # type: ignore[import]
+from neo_igate.aprs.aprsis_client import (  # type: ignore[import]
     APRSISClient,
     APRSISClientError,
     APRSISConfig,
     RetryBackoff,
 )
-from nesdr_igate.aprs.kiss_client import KISSClient, KISSClientConfig, KISSClientError  # type: ignore[import]
-from nesdr_igate.radio.capture import AudioCaptureError, RtlFmAudioCapture, RtlFmConfig  # type: ignore[import]
+from neo_igate.aprs.kiss_client import KISSClient, KISSClientConfig, KISSClientError  # type: ignore[import]
+from neo_igate.radio.capture import AudioCaptureError, RtlFmAudioCapture, RtlFmConfig  # type: ignore[import]
 
-from nesdr_igate import __version__ as _SOFTWARE_VERSION
+from neo_igate import __version__ as _SOFTWARE_VERSION
 
 
 AUDIO_SAMPLE_RATE = 22_050
 _AUDIO_CHUNK_BYTES = 4096
-_SOFTWARE_NAME = "nesdr-igate"
+_SOFTWARE_NAME = "neo-igate"
 
 # _SOFTWARE_VERSION is provided by the package-level __version__ value.
 
@@ -44,7 +44,7 @@ def run_listen(args: Namespace) -> int:
         station_config = config_module.load_config(config_path)
     except FileNotFoundError:
         logger.error(
-            "Config not found at %s; run `nesdr-igate setup` first.", config_path
+            "Config not found at %s; run `neo-igate setup` first.", config_path
         )
         return 1
     except ValueError as exc:
@@ -380,3 +380,4 @@ def _report_audio_error(queue: "Queue[Exception]") -> None:
     except Empty:
         return
     logger.error("Audio pipeline error: %s", exc)
+

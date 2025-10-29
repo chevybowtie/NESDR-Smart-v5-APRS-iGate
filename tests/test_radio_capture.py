@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 
-from nesdr_igate.radio.capture import (  # type: ignore[import]
+from neo_igate.radio.capture import (  # type: ignore[import]
     AudioCaptureError,
     RtlFmAudioCapture,
     RtlFmConfig,
@@ -52,8 +52,8 @@ def test_rtl_fm_capture_builds_command(monkeypatch) -> None:
         launch_args.append(args)
         return _FakeProcess(args, data=b"abcdEFGH")
 
-    monkeypatch.setattr("nesdr_igate.radio.capture.shutil.which", fake_which)
-    monkeypatch.setattr("nesdr_igate.radio.capture.subprocess.Popen", fake_popen)
+    monkeypatch.setattr("neo_igate.radio.capture.shutil.which", fake_which)
+    monkeypatch.setattr("neo_igate.radio.capture.subprocess.Popen", fake_popen)
 
     config = RtlFmConfig(
         frequency_hz=144_390_000,
@@ -98,7 +98,7 @@ def test_rtl_fm_capture_builds_command(monkeypatch) -> None:
 
 
 def test_rtl_fm_missing_command(monkeypatch) -> None:
-    monkeypatch.setattr("nesdr_igate.radio.capture.shutil.which", lambda _: None)
+    monkeypatch.setattr("neo_igate.radio.capture.shutil.which", lambda _: None)
     capture = RtlFmAudioCapture(RtlFmConfig(frequency_hz=144_390_000))
 
     with pytest.raises(AudioCaptureError):
@@ -119,8 +119,8 @@ def test_rtl_fm_unexpected_exit(monkeypatch) -> None:
     def fake_popen(args: list[str], **_: Any) -> _FakeProcess:
         return _EmptyProcess(args)
 
-    monkeypatch.setattr("nesdr_igate.radio.capture.shutil.which", fake_which)
-    monkeypatch.setattr("nesdr_igate.radio.capture.subprocess.Popen", fake_popen)
+    monkeypatch.setattr("neo_igate.radio.capture.shutil.which", fake_which)
+    monkeypatch.setattr("neo_igate.radio.capture.subprocess.Popen", fake_popen)
 
     capture = RtlFmAudioCapture(RtlFmConfig(frequency_hz=144_390_000))
     capture.start()

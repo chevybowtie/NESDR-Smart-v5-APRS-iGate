@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from typing import Callable, Optional
 
 import logging
-from nesdr_igate import __version__
+from neo_igate import __version__
 
 
 class APRSISClientError(RuntimeError):
@@ -24,7 +24,7 @@ class APRSISConfig:
     port: int
     callsign: str
     passcode: str
-    software_name: str = "nesdr-igate"
+    software_name: str = "neo-igate"
     software_version: str = __version__
     filter_string: str | None = None
     timeout: float = 5.0
@@ -248,3 +248,4 @@ class APRSISClient:
         if self._writer is None:
             raise APRSISClientError("APRS-IS connection not established")
         return self._writer
+

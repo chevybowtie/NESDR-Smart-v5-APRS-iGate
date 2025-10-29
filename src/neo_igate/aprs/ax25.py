@@ -32,7 +32,8 @@ class AX25Address:
 
 
 def kiss_payload_to_tnc2(payload: bytes) -> str:
-    """Convert a raw AX.25 frame (from a KISS payload) to TNC2 textual form."""
+    """Convert a raw AX.25 frame (from a KISS payload) to TNC2 textual form.
+    """
     if len(payload) < 16:
         raise AX25DecodeError("AX.25 frame too short")
 
@@ -101,3 +102,4 @@ def _decode_callsign(raw: bytes) -> str:
         elif value != 0:
             chars.append(chr(value))
     return "".join(chars).strip().upper()
+

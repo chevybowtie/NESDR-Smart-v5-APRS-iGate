@@ -9,23 +9,30 @@ import time
 from argparse import Namespace
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterable, cast
+from typing import Any, Iterable, cast, TYPE_CHECKING, Literal
 
-from nesdr_igate import config as config_module
-from nesdr_igate.config import StationConfig
-from nesdr_igate.diagnostics_helpers import probe_tcp_endpoint
+from neo_igate import config as config_module
+from neo_igate.config import StationConfig
+from neo_igate.diagnostics_helpers import probe_tcp_endpoint
 import shutil
 
 try:  # Python 3.10+ exposes metadata here
     from importlib import metadata as importlib_metadata
 
-    # lightweight import of terminal helpers
-    from nesdr_igate import term as term_module
+    # Import terminal helpers directly (functions) so static analyzers
+    # and IDEs can resolve `supports_color` and `status_label`.
+    from ..term import supports_color, status_label
 except ImportError:  # pragma: no cover - fallback for older runtimes
     import importlib_metadata  # type: ignore[no-redef]
-    from nesdr_igate import term as term_module
 
-SectionStatus = str
+    from ..term import supports_color, status_label
+
+    if TYPE_CHECKING:
+        # Give static analyzers an absolute import path for the terminal helpers.
+        # This helps editors/linters (pyright, mypy) recognize the functions.
+        from neo_igate.term import supports_color, status_label  # type: ignore
+
+SectionStatus = Literal["ok", "warning", "error", "info"]
 
 
 logger = logging.getLogger(__name__)
@@ -37,12 +44,12 @@ def _package_version() -> str:
     # package at function time avoids import-order problems during static
     # analysis while still returning the centralized value at runtime.
     try:
-        from nesdr_igate import __version__ as ver
+        from neo_igate import __version__ as ver
 
         return ver
     except Exception:
         try:
-            return importlib_metadata.version("nesdr-igate")
+            return importlib_metadata.version("neo-igate")
         except importlib_metadata.PackageNotFoundError:
             return "0.0.0"
 
@@ -76,7 +83,7 @@ def run_diagnostics(args: Namespace) -> int:
     if getattr(args, "json", False):
         report = _sections_to_mapping(sections)
         report["meta"] = {
-            "tool": "nesdr-igate",
+            "tool": "neo-igate",
             "version": _package_version(),
             "generated_at": time.strftime(
                 "%Y-%m-%dT%H:%M:%SZ", time.gmtime(generated_at)
@@ -92,7 +99,7 @@ def run_diagnostics(args: Namespace) -> int:
         elif getattr(args, "no_color", False):
             color_enabled = False
         else:
-            color_enabled = term_module.supports_color()
+            color_enabled = supports_color()
 
         _print_text_report(
             sections,
@@ -295,7 +302,7 @@ def _check_direwolf(config: StationConfig | None) -> Section:
         )
 
     # Connection refused is expected when Direwolf is installed but not
-    # currently running (e.g., before `nesdr-igate listen` starts it).
+    # currently running (e.g., before `neo-igate listen` starts it).
     err = (result.error or "").lower()
     if ("connection" in err and "refused" in err) or ("errno 111" in err):
         message = f"Direwolf installed but not running locally; KISS endpoint unreachable at {host}:{port}"
@@ -385,7 +392,7 @@ def _print_text_report(
     for section in sections:
         # Use a colorized status label when requested; fall back to plain
         # text when colors are disabled or unsupported.
-        label = term_module.status_label(section.status, enabled=color_enabled)
+        label = status_label(section.status, enabled=color_enabled)
         logger.info("%s %s: %s", label, section.name, section.message)
         if verbose and section.details:
             for key, value in section.details.items():
@@ -405,3 +412,4 @@ def _json_default(value: Any) -> Any:  # pragma: no cover - exercised only when 
     if isinstance(value, Path):
         return str(value)
     return str(value)
+

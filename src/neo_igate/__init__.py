@@ -1,4 +1,4 @@
-"""NESDR APRS iGate package.
+"""Neo - iGate package.
 
 Expose a single runtime version value (``__version__``) so modules
 within the package can consistently report the package version at
@@ -15,12 +15,13 @@ except Exception:  # pragma: no cover - defensive for very old runtimes
     import importlib_metadata as _importlib_metadata  # type: ignore
 
 try:
-    __version__ = _importlib_metadata.version("nesdr-igate")
+    __version__ = _importlib_metadata.version("neo-igate")
 except Exception:
     # When running from source (not installed) metadata may be absent;
     # fall back to a sensible dev placeholder.
     __version__ = "0.0.0"
 
-from . import cli, config, diagnostics_helpers
+from . import cli, config, diagnostics_helpers, term
 
-__all__ = ["cli", "config", "diagnostics_helpers", "__version__"]
+__all__ = ["cli", "config", "diagnostics_helpers", "term", "__version__"]
+

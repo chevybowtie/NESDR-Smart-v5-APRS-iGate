@@ -72,7 +72,7 @@ fi
 
 echo "Running quick smoke test from installed artifact"
 # adjust the import below to a small, fast check for this package
-"$VERIFY_VENV/bin/python" -c "import nesdr_igate; print('artifact-import-ok', getattr(nesdr_igate, '__version__', 'no-version'))"
+"$VERIFY_VENV/bin/python" -c "import neo_igate; print('artifact-import-ok', getattr(neo_igate, '__version__', 'no-version'))"
 
 # cleanup temporary verification venv
 rm -rf "$VERIFY_TMP_DIR"

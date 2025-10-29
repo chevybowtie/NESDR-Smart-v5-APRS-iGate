@@ -7,8 +7,8 @@ import logging
 import subprocess
 from pathlib import Path
 
-from nesdr_igate.commands import setup
-from nesdr_igate.config import StationConfig
+from neo_igate.commands import setup
+from neo_igate.config import StationConfig
 
 
 def test_extract_ppm_from_output_detects_value() -> None:
@@ -35,7 +35,7 @@ def test_tail_file_returns_last_lines(tmp_path: Path) -> None:
 
 
 def _configure_caplog(caplog, level=logging.INFO) -> None:
-    caplog.set_level(level, logger="nesdr_igate.commands.setup")
+    caplog.set_level(level, logger="neo_igate.commands.setup")
     caplog.clear()
 
 
@@ -44,7 +44,7 @@ def test_report_direwolf_log_summary_missing(
 ) -> None:
     _configure_caplog(caplog, level=logging.WARNING)
     monkeypatch.setattr(
-        "nesdr_igate.commands.setup.config_module.get_data_dir", lambda: tmp_path
+        "neo_igate.commands.setup.config_module.get_data_dir", lambda: tmp_path
     )
 
     setup._report_direwolf_log_summary()
@@ -61,7 +61,7 @@ def test_report_direwolf_log_summary_includes_recent_lines(
     log_file.write_text("\n".join(f"line {i}" for i in range(8)), encoding="utf-8")
 
     monkeypatch.setattr(
-        "nesdr_igate.commands.setup.config_module.get_data_dir", lambda: tmp_path
+        "neo_igate.commands.setup.config_module.get_data_dir", lambda: tmp_path
     )
 
     setup._report_direwolf_log_summary()
@@ -73,7 +73,7 @@ def test_report_direwolf_log_summary_includes_recent_lines(
 
 def test_can_launch_direwolf_true(monkeypatch) -> None:
     monkeypatch.setattr(
-        "nesdr_igate.commands.setup.shutil.which", lambda cmd: f"/usr/bin/{cmd}"
+        "neo_igate.commands.setup.shutil.which", lambda cmd: f"/usr/bin/{cmd}"
     )
 
     assert setup._can_launch_direwolf() is True
@@ -81,7 +81,7 @@ def test_can_launch_direwolf_true(monkeypatch) -> None:
 
 def test_can_launch_direwolf_false(monkeypatch) -> None:
     monkeypatch.setattr(
-        "nesdr_igate.commands.setup.shutil.which",
+        "neo_igate.commands.setup.shutil.which",
         lambda cmd: None if cmd == "direwolf" else f"/usr/bin/{cmd}",
     )
 
@@ -93,10 +93,10 @@ def test_launch_direwolf_probe_missing_config(
 ) -> None:
     _configure_caplog(caplog, level=logging.WARNING)
     monkeypatch.setattr(
-        "nesdr_igate.commands.setup.config_module.get_data_dir", lambda: tmp_path
+        "neo_igate.commands.setup.config_module.get_data_dir", lambda: tmp_path
     )
     monkeypatch.setattr(
-        "nesdr_igate.commands.setup.config_module.get_config_dir", lambda: tmp_path
+        "neo_igate.commands.setup.config_module.get_config_dir", lambda: tmp_path
     )
 
     config = StationConfig(callsign="N0CALL-10", passcode="12345")
@@ -149,10 +149,10 @@ def test_launch_direwolf_probe_success(tmp_path: Path, monkeypatch, caplog) -> N
     (config_dir / "direwolf.conf").write_text("test", encoding="utf-8")
 
     monkeypatch.setattr(
-        "nesdr_igate.commands.setup.config_module.get_data_dir", lambda: data_dir
+        "neo_igate.commands.setup.config_module.get_data_dir", lambda: data_dir
     )
     monkeypatch.setattr(
-        "nesdr_igate.commands.setup.config_module.get_config_dir", lambda: config_dir
+        "neo_igate.commands.setup.config_module.get_config_dir", lambda: config_dir
     )
 
     rtl_process = _FakeRtlProcess()
@@ -170,7 +170,7 @@ def test_launch_direwolf_probe_success(tmp_path: Path, monkeypatch, caplog) -> N
             return direwolf_process
         raise AssertionError(f"Unexpected command {cmd}")
 
-    monkeypatch.setattr("nesdr_igate.commands.setup.subprocess.Popen", fake_popen)
+    monkeypatch.setattr("neo_igate.commands.setup.subprocess.Popen", fake_popen)
 
     config = StationConfig(
         callsign="N0CALL-10",
@@ -200,10 +200,10 @@ def test_launch_direwolf_probe_direwolf_timeout(
     (config_dir / "direwolf.conf").write_text("test", encoding="utf-8")
 
     monkeypatch.setattr(
-        "nesdr_igate.commands.setup.config_module.get_data_dir", lambda: data_dir
+        "neo_igate.commands.setup.config_module.get_data_dir", lambda: data_dir
     )
     monkeypatch.setattr(
-        "nesdr_igate.commands.setup.config_module.get_config_dir", lambda: config_dir
+        "neo_igate.commands.setup.config_module.get_config_dir", lambda: config_dir
     )
 
     rtl_process = _FakeRtlProcess()
@@ -227,7 +227,7 @@ def test_launch_direwolf_probe_direwolf_timeout(
             return direwolf_process
         raise AssertionError(f"Unexpected command {cmd}")
 
-    monkeypatch.setattr("nesdr_igate.commands.setup.subprocess.Popen", fake_popen)
+    monkeypatch.setattr("neo_igate.commands.setup.subprocess.Popen", fake_popen)
 
     config = StationConfig(callsign="N0CALL-10", passcode="12345")
 

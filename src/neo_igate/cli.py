@@ -1,4 +1,4 @@
-"""Command-line interface entry points for the NESDR APRS iGate."""
+"""Command-line interface entry points for the Neo - iGate."""
 
 from __future__ import annotations
 
@@ -9,9 +9,9 @@ import sys
 from argparse import Namespace
 from typing import Callable, Dict
 
-from nesdr_igate import __version__
+from neo_igate import __version__
 
-from nesdr_igate.commands import (  # type: ignore[import]
+from neo_igate.commands import (  # type: ignore[import]
     run_diagnostics,
     run_listen,
     run_setup,
@@ -31,12 +31,12 @@ _LOG_LEVEL_ALIASES: dict[str, int] = {
 def _package_version() -> str:
     # Use the package-level canonical version value. This avoids
     # repeated importlib.metadata lookups and keeps a single source of
-    # truth for runtime reporting (see ``nesdr_igate.__version__``).
+    # truth for runtime reporting (see ``neo_igate.__version__``).
     return __version__
 
 
 def _resolve_log_level(candidate: str | None) -> int:
-    for value in (candidate, os.getenv("NESDR_IGATE_LOG_LEVEL")):
+    for value in (candidate, os.getenv("NEO_IGATE_LOG_LEVEL")):
         if not value:
             continue
         stripped = value.strip()
@@ -62,13 +62,13 @@ def _configure_logging(level_name: str | None) -> None:
 def build_parser() -> argparse.ArgumentParser:
     """Construct the top-level argument parser."""
     parser = argparse.ArgumentParser(
-        prog="nesdr-igate",
-        description="NESDR Smart v5 APRS iGate utility.",
+        prog="neo-igate",
+        description="Neo - iGate utility.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "Environment overrides:\n"
-            "  NESDR_IGATE_LOG_LEVEL    Default logging level when --log-level is omitted.\n"
-            "  NESDR_IGATE_CONFIG_PATH  Path to config.toml used by setup/listen/diagnostics."
+            "  NEO_IGATE_LOG_LEVEL    Default logging level when --log-level is omitted.\n"
+            "  NEO_IGATE_CONFIG_PATH  Path to config.toml used by setup/listen/diagnostics."
         ),
     )
     parser.add_argument(
@@ -201,3 +201,4 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":  # pragma: no cover - direct CLI execution path
     raise SystemExit(main())
+

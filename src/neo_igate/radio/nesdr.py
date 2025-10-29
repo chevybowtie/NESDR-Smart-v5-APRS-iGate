@@ -111,3 +111,4 @@ class NESDRBackend(RadioBackend):
 
     def __exit__(self, exc_type, exc, tb) -> None:  # pragma: no cover - trivial wrapper
         self.close()
+

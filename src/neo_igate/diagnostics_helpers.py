@@ -27,3 +27,4 @@ def probe_tcp_endpoint(
         return ConnectivityResult(success=True, latency_ms=latency)
     except OSError as exc:
         return ConnectivityResult(success=False, error=str(exc))
+
