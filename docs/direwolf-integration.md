@@ -35,4 +35,3 @@ This document outlines how the `neo-igate` CLI will interact with Direwolf for A
 - `scripts/run_direwolf.sh` appends Direwolf output to `~/.local/share/neo-igate/logs/direwolf.log`.
 ## Open Questions
 - Should we standardize on ALSA loopback + managed Direwolf to simplify user setup?
-  - Recent packet counts from Direwolf log (if accessible).
