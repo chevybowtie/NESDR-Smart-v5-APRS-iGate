@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from nesdr_igate import diagnostics_helpers as helpers
+from neo_igate import diagnostics_helpers as helpers
 
 
 def test_probe_tcp_endpoint_success(monkeypatch) -> None:

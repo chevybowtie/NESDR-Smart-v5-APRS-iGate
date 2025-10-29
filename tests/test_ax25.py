@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from nesdr_igate.aprs.ax25 import AX25DecodeError, kiss_payload_to_tnc2  # type: ignore[import]
+from neo_igate.aprs.ax25 import AX25DecodeError, kiss_payload_to_tnc2  # type: ignore[import]
 
 
 def _encode_address(

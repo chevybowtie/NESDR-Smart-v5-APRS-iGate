@@ -8,13 +8,13 @@ from pathlib import Path
 
 import pytest
 
-from nesdr_igate import config as config_module
-from nesdr_igate.commands import setup
-from nesdr_igate.config import StationConfig, save_config
+from neo_igate import config as config_module
+from neo_igate.commands import setup
+from neo_igate.config import StationConfig, save_config
 
 
 def _setup_caplog(caplog, level=logging.INFO) -> None:
-    caplog.set_level(level, logger="nesdr_igate.commands.setup")
+    caplog.set_level(level, logger="neo_igate.commands.setup")
     caplog.clear()
 
 

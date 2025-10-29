@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from nesdr_igate import config as config_module
-from nesdr_igate.config import StationConfig
+from neo_igate import config as config_module
+from neo_igate.config import StationConfig
 
 
 def test_save_and_load_roundtrip(tmp_path) -> None:

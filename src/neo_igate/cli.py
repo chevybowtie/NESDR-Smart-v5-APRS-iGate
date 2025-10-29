@@ -1,4 +1,4 @@
-"""Command-line interface entry points for the NESDR APRS iGate."""
+"""Command-line interface entry points for the Neo - iGate."""
 
 from __future__ import annotations
 
@@ -9,9 +9,9 @@ import sys
 from argparse import Namespace
 from typing import Callable, Dict
 
-from nesdr_igate import __version__
+from neo_igate import __version__
 
-from nesdr_igate.commands import (  # type: ignore[import]
+from neo_igate.commands import (  # type: ignore[import]
     run_diagnostics,
     run_listen,
     run_setup,
@@ -31,7 +31,7 @@ _LOG_LEVEL_ALIASES: dict[str, int] = {
 def _package_version() -> str:
     # Use the package-level canonical version value. This avoids
     # repeated importlib.metadata lookups and keeps a single source of
-    # truth for runtime reporting (see ``nesdr_igate.__version__``).
+    # truth for runtime reporting (see ``neo_igate.__version__``).
     return __version__
 
 
@@ -201,3 +201,4 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":  # pragma: no cover - direct CLI execution path
     raise SystemExit(main())
+

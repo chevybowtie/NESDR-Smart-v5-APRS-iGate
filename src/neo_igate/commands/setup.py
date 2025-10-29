@@ -14,9 +14,9 @@ from getpass import getpass
 from pathlib import Path
 from typing import Callable
 
-from nesdr_igate import config as config_module
-from nesdr_igate.config import StationConfig
-from nesdr_igate.diagnostics_helpers import probe_tcp_endpoint
+from neo_igate import config as config_module
+from neo_igate.config import StationConfig
+from neo_igate.diagnostics_helpers import probe_tcp_endpoint
 
 CALLSIGN_PATTERN = re.compile(r"^[A-Z0-9]{1,6}-[0-9]{1,2}$")
 
@@ -340,7 +340,7 @@ def _maybe_render_direwolf_config(config: StationConfig, target_dir: Path) -> No
         "LATITUDE": _format_coordinate(config.latitude, fallback="REPLACE_LAT"),
         "LONGITUDE": _format_coordinate(config.longitude, fallback="REPLACE_LON"),
         "BEACON_COMMENT": _escape_comment(
-            config.beacon_comment or f"{config.callsign} NESDR iGate"
+            config.beacon_comment or f"{config.callsign} Neo iGate"
         ),
         "KISSPORT": str(config.kiss_port),
         "LOGDIR": str(log_dir),
@@ -362,7 +362,7 @@ def _maybe_render_direwolf_config(config: StationConfig, target_dir: Path) -> No
 def _load_direwolf_template() -> str | None:
     try:
         return (
-            resources.files("nesdr_igate.templates")
+            resources.files("neo_igate.templates")
             .joinpath("direwolf.conf")
             .read_text(encoding="utf-8")
         )
@@ -629,3 +629,4 @@ def _launch_direwolf_probe(config: StationConfig) -> None:
         logger.warning(
             "[WARNING] Direwolf probe did not produce output; check connections."
         )
+

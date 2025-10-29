@@ -11,9 +11,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable, cast, TYPE_CHECKING, Literal
 
-from nesdr_igate import config as config_module
-from nesdr_igate.config import StationConfig
-from nesdr_igate.diagnostics_helpers import probe_tcp_endpoint
+from neo_igate import config as config_module
+from neo_igate.config import StationConfig
+from neo_igate.diagnostics_helpers import probe_tcp_endpoint
 import shutil
 
 try:  # Python 3.10+ exposes metadata here
@@ -30,7 +30,7 @@ except ImportError:  # pragma: no cover - fallback for older runtimes
     if TYPE_CHECKING:
         # Give static analyzers an absolute import path for the terminal helpers.
         # This helps editors/linters (pyright, mypy) recognize the functions.
-        from nesdr_igate.term import supports_color, status_label  # type: ignore
+        from neo_igate.term import supports_color, status_label  # type: ignore
 
 SectionStatus = Literal["ok", "warning", "error", "info"]
 
@@ -44,7 +44,7 @@ def _package_version() -> str:
     # package at function time avoids import-order problems during static
     # analysis while still returning the centralized value at runtime.
     try:
-        from nesdr_igate import __version__ as ver
+        from neo_igate import __version__ as ver
 
         return ver
     except Exception:
@@ -412,3 +412,4 @@ def _json_default(value: Any) -> Any:  # pragma: no cover - exercised only when 
     if isinstance(value, Path):
         return str(value)
     return str(value)
+

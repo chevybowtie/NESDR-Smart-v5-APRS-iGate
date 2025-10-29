@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from typing import Callable, Optional
 
 import logging
-from nesdr_igate import __version__
+from neo_igate import __version__
 
 
 class APRSISClientError(RuntimeError):
@@ -248,3 +248,4 @@ class APRSISClient:
         if self._writer is None:
             raise APRSISClientError("APRS-IS connection not established")
         return self._writer
+

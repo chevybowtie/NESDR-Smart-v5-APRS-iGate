@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from getpass import getpass as default_getpass
 from typing import Any, Callable
 
-from nesdr_igate.config import StationConfig
+from neo_igate.config import StationConfig
 
 InputFunc = Callable[[str], str]
 SecretFunc = Callable[[str], str]
@@ -218,3 +218,4 @@ def _parse_float(raw: Any) -> float | None:
 
 
 __all__ = ["PromptSession", "prompt_yes_no"]
+
