@@ -1,4 +1,4 @@
-# Neo - iGate
+# Neo-iGate
 
 Command-line utility for turning an SDR (for example a NESDR Smart v5 RTL-SDR) into a receive-only APRS iGate with optional APRS-IS uplink.
 
