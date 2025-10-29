@@ -23,6 +23,8 @@ This document outlines how the `neo-igate` CLI will interact with Direwolf for A
 ## Audio Feed Strategy
 
 ## Health Checks
+
+The following health checks are performed:
   - TCP connect to `KISS_HOST:KISS_PORT` and send `0xC0 0xFF 0xC0` (FEND FESC FEND) to validate response.
   - Optional Direwolf `--version` or status command for logging.
   - If running managed Direwolf, tail last log lines to ensure no fatal errors.
