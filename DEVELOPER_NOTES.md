@@ -14,7 +14,7 @@
 ## Logging and Observability
 - All commands use `logging` with module-level loggers; avoid bare `print` outside CLI argument parsing.
 - Default log level is `INFO`; honor `--log-level` CLI flag and `NEO_IGATE_LOG_LEVEL` env override.
- - Structured diagnostics live under `~/.local/share/neo-igate/logs/`; keep file writes atomic to avoid partial logs.
+- Structured diagnostics live under `~/.local/share/neo-igate/logs/`; keep file writes atomic to avoid partial logs.
 
 ## CLI and UX Conventions
 - CLI entry point is `neo-igate`; no arguments defaults to `listen` for quick starts.
