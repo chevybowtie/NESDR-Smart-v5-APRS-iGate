@@ -1,4 +1,4 @@
-"""Neo - iGate package.
+"""Neo-iGate package.
 
 Expose a single runtime version value (``__version__``) so modules
 within the package can consistently report the package version at

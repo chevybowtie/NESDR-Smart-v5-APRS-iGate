@@ -1,4 +1,4 @@
-"""Command-line interface entry points for the Neo - iGate."""
+"""Command-line interface entry points for the Neo-iGate."""
 
 from __future__ import annotations
 
@@ -63,7 +63,7 @@ def build_parser() -> argparse.ArgumentParser:
     """Construct the top-level argument parser."""
     parser = argparse.ArgumentParser(
         prog="neo-igate",
-        description="Neo - iGate utility.",
+        description="Neo-iGate utility.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "Environment overrides:\n"
