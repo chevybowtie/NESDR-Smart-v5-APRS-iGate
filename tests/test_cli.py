@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from argparse import Namespace
 from collections.abc import Iterator
 
@@ -398,7 +399,14 @@ def test_listen_reconnect_and_stats(tmp_path, monkeypatch, capsys) -> None:
 
     assert exit_code == 0
     assert "APRS-IS transmission error" in captured.out
-    assert "[stats] frames=1 aprs_ok=0 aprs_fail=1" in captured.out
+    stats_line = next(
+        (line for line in captured.out.splitlines() if line.startswith("[stats ")), None
+    )
+    assert stats_line is not None
+    assert re.search(
+        r"\[stats \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z\] frames=1 aprs_ok=0 aprs_fail=1",
+        stats_line,
+    )
     assert "Frames processed: 2 (APRS-IS ok=1, failed=1)" in captured.out
     assert len(DummyAPRSClient.instances) >= 2
     assert DummyAPRSClient.instances[0].closed is True

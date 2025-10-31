@@ -7,6 +7,7 @@ import signal
 import subprocess
 import threading
 import time
+from datetime import datetime, timezone
 from argparse import Namespace
 from pathlib import Path
 from queue import Empty, Queue
@@ -299,8 +300,10 @@ def run_listen(args: Namespace) -> int:
                 not getattr(args, "once", False)
                 and time.monotonic() >= next_stats_report
             ):
+                timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
                 logger.info(
-                    "[stats] frames=%s aprs_ok=%s aprs_fail=%s",
+                    "[stats %s] frames=%s aprs_ok=%s aprs_fail=%s",
+                    timestamp,
                     frame_count,
                     aprs_forwarded,
                     aprs_failed,
