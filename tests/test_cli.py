@@ -268,6 +268,7 @@ def test_listen_command_once(tmp_path, monkeypatch, capsys) -> None:
     assert exit_code == 0
     assert "Frames processed: 1" in captured.out
     assert "Connected to APRS-IS" in captured.out
+    assert "Press `s`" in captured.out
     assert DummyAPRSClient.instances
     assert DummyAPRSClient.instances[0].sent_packets == ["N0CALL-10>APRS:TEST"]
     assert DummyAPRSClient.instances[0].closed is True

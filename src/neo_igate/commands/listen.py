@@ -5,9 +5,11 @@ from __future__ import annotations
 import logging
 import signal
 import subprocess
+import sys
 import threading
 import time
-from datetime import datetime, timezone
+from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from argparse import Namespace
 from pathlib import Path
 from queue import Empty, Queue
@@ -83,6 +85,9 @@ def run_listen(args: Namespace) -> int:
     next_stats_report = time.monotonic() + stats_interval
 
     stop_event = threading.Event()
+    command_queue: "Queue[str]" = Queue()
+    keyboard_thread = _start_keyboard_listener(stop_event, command_queue)
+    summary_log_path = config_module.get_data_dir() / "logs" / "neo-igate.log"
 
     def _pump_audio() -> None:
         try:
@@ -125,6 +130,8 @@ def run_listen(args: Namespace) -> int:
                 direwolf_proc.wait(timeout=2)
             except subprocess.TimeoutExpired:  # pragma: no cover - defensive
                 direwolf_proc.kill()
+        if keyboard_thread and keyboard_thread.is_alive():
+            keyboard_thread.join(timeout=1)
 
     previous_signals = {
         signal.SIGINT: signal.getsignal(signal.SIGINT),
@@ -230,6 +237,7 @@ def run_listen(args: Namespace) -> int:
                 aprs_config.host,
                 aprs_config.port,
             )
+            logger.info("Press `s` at any time for a 24h station summary overlay.")
         except APRSISClientError as exc:
             delay = aprs_backoff.record_failure()
             logger.warning(
@@ -247,6 +255,7 @@ def run_listen(args: Namespace) -> int:
                 frame = client.read_frame(timeout=1.0)
             except TimeoutError:
                 _report_audio_error(audio_errors)
+                _handle_keyboard_commands(command_queue, summary_log_path)
                 continue
             except KISSClientError as exc:
                 logger.error("KISS client error: %s", exc)
@@ -295,6 +304,7 @@ def run_listen(args: Namespace) -> int:
                 break
 
             _report_audio_error(audio_errors)
+            _handle_keyboard_commands(command_queue, summary_log_path)
 
             if (
                 not getattr(args, "once", False)
@@ -383,4 +393,159 @@ def _report_audio_error(queue: "Queue[Exception]") -> None:
     except Empty:
         return
     logger.error("Audio pipeline error: %s", exc)
+
+
+def _start_keyboard_listener(
+    stop_event: threading.Event, command_queue: "Queue[str]"
+) -> threading.Thread | None:
+    if not sys.stdin.isatty():
+        return None
+    try:
+        import select
+        import termios
+        import tty
+    except ImportError:
+        return None
+
+    try:
+        fd = sys.stdin.fileno()
+    except (OSError, ValueError):
+        return None
+
+    try:
+        old_settings = termios.tcgetattr(fd)
+    except termios.error:
+        return None
+
+    try:
+        tty.setcbreak(fd)
+    except termios.error:
+        return None
+
+    def worker() -> None:
+        try:
+            while not stop_event.is_set():
+                try:
+                    readable, _, _ = select.select([sys.stdin], [], [], 0.1)
+                except (OSError, ValueError):
+                    break
+                if sys.stdin in readable:
+                    try:
+                        chunk = sys.stdin.read(1)
+                    except (OSError, ValueError):
+                        break
+                    if chunk:
+                        command_queue.put(chunk)
+        finally:
+            try:
+                termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+            except termios.error:
+                pass
+
+    thread = threading.Thread(target=worker, name="neo-igate-keyboard", daemon=True)
+    thread.start()
+    return thread
+
+
+def _handle_keyboard_commands(
+    command_queue: "Queue[str]", log_path: Path
+) -> None:
+    while True:
+        try:
+            command = command_queue.get_nowait()
+        except Empty:
+            break
+        if command.lower() == "s":
+            summary = _summarize_recent_activity(log_path)
+            # Print summary directly to stdout to avoid duplicating it in the log file.
+            print("\n" + summary + "\n", flush=True)
+
+
+@dataclass
+class _StationActivity:
+    count: int = 0
+    last: datetime = datetime.min.replace(tzinfo=timezone.utc)
+
+
+def _summarize_recent_activity(
+    log_path: Path,
+    *,
+    window: timedelta = timedelta(hours=24),
+    now: datetime | None = None,
+) -> str:
+    reference_time = now or datetime.now(timezone.utc)
+    cutoff = reference_time - window
+
+    if not log_path.exists():
+        return "No listener log file available yet; try again after packets arrive."
+
+    stations: dict[str, _StationActivity] = {}
+    total_frames = 0
+
+    try:
+        with log_path.open("r", encoding="utf-8") as handle:
+            for raw_line in handle:
+                line = raw_line.strip()
+                if not line:
+                    continue
+                try:
+                    timestamp_text, message = line.split(" ", 1)
+                except ValueError:
+                    continue
+                try:
+                    observed = datetime.strptime(
+                        timestamp_text, "%Y-%m-%dT%H:%M:%SZ"
+                    ).replace(tzinfo=timezone.utc)
+                except ValueError:
+                    continue
+                if observed < cutoff:
+                    continue
+                if not message.startswith("[") or " port=" not in message:
+                    continue
+                station = _extract_station_from_message(message)
+                if station is None:
+                    continue
+                total_frames += 1
+                entry = stations.get(station)
+                if entry is None:
+                    stations[station] = _StationActivity(count=1, last=observed)
+                else:
+                    entry.count += 1
+                    if observed > entry.last:
+                        entry.last = observed
+    except OSError as exc:
+        return f"Unable to read listener log: {exc}"
+
+    if not stations:
+        return "No stations heard in the last 24 hours."
+
+    lines = [
+        "── Station activity (last 24h) ──",
+        f"Unique stations: {len(stations)} | Frames: {total_frames}",
+        "",
+    ]
+
+    sorted_items = sorted(
+        stations.items(),
+    key=lambda item: (-item[1].count, item[0]),
+    )
+
+    max_rows = 15
+    for station, data in sorted_items[:max_rows]:
+        last_text = data.last.strftime("%Y-%m-%d %H:%MZ")
+        lines.append(f"{station:<12} {data.count:>5} frames  last {last_text}")
+
+    remaining = len(sorted_items) - max_rows
+    if remaining > 0:
+        lines.append(f"… plus {remaining} more station(s)")
+
+    return "\n".join(lines)
+
+
+def _extract_station_from_message(message: str) -> str | None:
+    tokens = message.split()
+    for token in tokens:
+        if ">" in token:
+            return token.split(">", 1)[0]
+    return None
 

@@ -6,10 +6,12 @@ import argparse
 import logging
 import os
 import sys
+import time
 from argparse import Namespace
 from typing import Callable, Dict
 
 from neo_igate import __version__
+from neo_igate import config as config_module
 
 from neo_igate.commands import (  # type: ignore[import]
     run_diagnostics,
@@ -51,10 +53,28 @@ def _resolve_log_level(candidate: str | None) -> int:
 
 
 def _configure_logging(level_name: str | None) -> None:
+    stream_handler = logging.StreamHandler(sys.stdout)
+    stream_handler.setFormatter(logging.Formatter("%(message)s"))
+    handlers: list[logging.Handler] = [stream_handler]
+
+    try:
+        log_dir = config_module.get_data_dir() / "logs"
+        log_dir.mkdir(parents=True, exist_ok=True)
+        log_file = log_dir / "neo-igate.log"
+        file_handler = logging.FileHandler(log_file, encoding="utf-8")
+        file_formatter = logging.Formatter(
+            "%(asctime)sZ %(message)s", datefmt="%Y-%m-%dT%H:%M:%S"
+        )
+        file_formatter.converter = time.gmtime
+        file_handler.setFormatter(file_formatter)
+        handlers.append(file_handler)
+    except OSError:
+        # If we can't create the log directory or file, continue without file logging.
+        pass
+
     logging.basicConfig(
         level=_resolve_log_level(level_name),
-        format="%(message)s",
-        stream=sys.stdout,
+        handlers=handlers,
         force=True,
     )
 
