@@ -520,6 +520,10 @@ def _summarize_recent_activity(
         return "No stations heard in the last 24 hours."
 
     lines = [
+        f"Station activity summary for {reference_time.strftime('%Y-%m-%dT%H:%M:%SZ')}",
+        f"Window: last {window}",
+        f"Log file: {log_path}",
+        "", 
         "── Station activity (last 24h) ──",
         f"Unique stations: {len(stations)} | Frames: {total_frames}",
         "",
