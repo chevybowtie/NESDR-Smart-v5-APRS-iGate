@@ -253,4 +253,3 @@ def _retrieve_passcode_from_keyring(callsign: str) -> str:
     if not value:
         raise ValueError("No APRS-IS passcode stored in keyring; rerun setup")
     return value
-

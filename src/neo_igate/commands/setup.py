@@ -629,4 +629,3 @@ def _launch_direwolf_probe(config: StationConfig) -> None:
         logger.warning(
             "[WARNING] Direwolf probe did not produce output; check connections."
         )
-

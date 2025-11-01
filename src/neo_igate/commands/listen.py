@@ -123,8 +123,8 @@ def run_listen(args: Namespace) -> int:
             if direwolf_proc.stdin:
                 try:
                     direwolf_proc.stdin.close()
-                except OSError:
-                    pass
+                except OSError as exc:
+                    logger.debug("Unable to close Direwolf stdin: %s", exc)
             direwolf_proc.terminate()
             try:
                 direwolf_proc.wait(timeout=2)
@@ -447,9 +447,7 @@ def _start_keyboard_listener(
     return thread
 
 
-def _handle_keyboard_commands(
-    command_queue: "Queue[str]", log_path: Path
-) -> None:
+def _handle_keyboard_commands(command_queue: "Queue[str]", log_path: Path) -> None:
     while True:
         try:
             command = command_queue.get_nowait()
@@ -523,7 +521,7 @@ def _summarize_recent_activity(
         f"Station activity summary for {reference_time.strftime('%Y-%m-%dT%H:%M:%SZ')}",
         f"Window: last {window}",
         f"Log file: {log_path}",
-        "", 
+        "",
         "── Station activity (last 24h) ──",
         f"Unique stations: {len(stations)} | Frames: {total_frames}",
         "",
@@ -531,7 +529,7 @@ def _summarize_recent_activity(
 
     sorted_items = sorted(
         stations.items(),
-    key=lambda item: (-item[1].count, item[0]),
+        key=lambda item: (-item[1].count, item[0]),
     )
 
     max_rows = 15
@@ -552,4 +550,3 @@ def _extract_station_from_message(message: str) -> str | None:
         if ">" in token:
             return token.split(">", 1)[0]
     return None
-

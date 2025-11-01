@@ -218,4 +218,3 @@ def _parse_float(raw: Any) -> float | None:
 
 
 __all__ = ["PromptSession", "prompt_yes_no"]
-

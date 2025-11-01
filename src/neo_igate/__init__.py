@@ -24,4 +24,3 @@ except Exception:
 from . import cli, config, diagnostics_helpers, term
 
 __all__ = ["cli", "config", "diagnostics_helpers", "term", "__version__"]
-

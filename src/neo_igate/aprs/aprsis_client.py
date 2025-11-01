@@ -248,4 +248,3 @@ class APRSISClient:
         if self._writer is None:
             raise APRSISClientError("APRS-IS connection not established")
         return self._writer
-

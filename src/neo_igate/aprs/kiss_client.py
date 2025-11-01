@@ -1,4 +1,3 @@
-
 """Minimal KISS TCP client for connecting to Direwolf."""
 
 from __future__ import annotations
@@ -207,4 +206,3 @@ def _kiss_unescape(payload: bytes) -> bytes:
         else:
             decoded.append(value)
     return bytes(decoded)
-

@@ -130,5 +130,3 @@ class RtlFmAudioCapture:
     def __exit__(self, exc_type, exc, tb) -> None:
         """Ensure rtl_fm terminates on context manager exit."""
         self.stop()
-
-

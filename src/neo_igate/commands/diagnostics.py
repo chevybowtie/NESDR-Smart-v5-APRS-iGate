@@ -412,4 +412,3 @@ def _json_default(value: Any) -> Any:  # pragma: no cover - exercised only when 
     if isinstance(value, Path):
         return str(value)
     return str(value)
-

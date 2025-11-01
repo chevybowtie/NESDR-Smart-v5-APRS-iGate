@@ -61,4 +61,3 @@ def status_label(level: ColorLevel, *, enabled: bool = True) -> str:
 def color_text(text: str, *, color: str = "blue", enabled: bool = True) -> str:
     """Return ``text`` wrapped in the requested ANSI color when enabled."""
     return _color_wrap(text, color, enabled)
-
