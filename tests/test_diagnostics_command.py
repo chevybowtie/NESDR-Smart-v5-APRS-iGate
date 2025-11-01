@@ -10,8 +10,8 @@ import types
 from pathlib import Path
 from argparse import Namespace
 
-from nesdr_igate.commands import diagnostics
-from nesdr_igate.config import StationConfig, save_config
+from neo_igate.commands import diagnostics
+from neo_igate.config import StationConfig, save_config
 
 
 class _ProbeResult:
@@ -228,7 +228,11 @@ def test_check_direwolf_success(monkeypatch) -> None:
     config = StationConfig(callsign="N0CALL-10", passcode="12345")
 
     # Simulate direwolf binary present and endpoint reachable
-    monkeypatch.setattr(diagnostics, "probe_tcp_endpoint", lambda *_args, **_kwargs: _ProbeResult(True, latency_ms=12.3))
+    monkeypatch.setattr(
+        diagnostics,
+        "probe_tcp_endpoint",
+        lambda *_args, **_kwargs: _ProbeResult(True, latency_ms=12.3),
+    )
     monkeypatch.setattr(diagnostics.shutil, "which", lambda *_: "/usr/bin/direwolf")
 
     section = diagnostics._check_direwolf(config)
@@ -241,7 +245,11 @@ def test_check_direwolf_failure(monkeypatch) -> None:
     config = StationConfig(callsign="N0CALL-10", passcode="12345")
 
     # Simulate direwolf binary present but endpoint not reachable
-    monkeypatch.setattr(diagnostics, "probe_tcp_endpoint", lambda *_args, **_kwargs: _ProbeResult(False, error="timeout"))
+    monkeypatch.setattr(
+        diagnostics,
+        "probe_tcp_endpoint",
+        lambda *_args, **_kwargs: _ProbeResult(False, error="timeout"),
+    )
     monkeypatch.setattr(diagnostics.shutil, "which", lambda *_: "/usr/bin/direwolf")
 
     section = diagnostics._check_direwolf(config)
@@ -309,7 +317,7 @@ def test_sections_to_mapping() -> None:
 
 
 def test_print_text_report_verbose(caplog) -> None:
-    caplog.set_level(logging.INFO, logger="nesdr_igate.commands.diagnostics")
+    caplog.set_level(logging.INFO, logger="neo_igate.commands.diagnostics")
     caplog.clear()
     sections = [
         diagnostics.Section("Env", "ok", "ready", {"packages": {"numpy": "1.0"}})
@@ -321,7 +329,7 @@ def test_print_text_report_verbose(caplog) -> None:
 
 
 def test_print_text_report_non_verbose(caplog) -> None:
-    caplog.set_level(logging.INFO, logger="nesdr_igate.commands.diagnostics")
+    caplog.set_level(logging.INFO, logger="neo_igate.commands.diagnostics")
     caplog.clear()
     sections = [
         diagnostics.Section("Env", "ok", "ready", {"packages": {"numpy": "1.0"}})
@@ -335,7 +343,7 @@ def test_print_text_report_non_verbose(caplog) -> None:
 def test_run_diagnostics_json_includes_meta_and_summary(
     monkeypatch, tmp_path, capsys, caplog
 ) -> None:
-    caplog.set_level(logging.INFO, logger="nesdr_igate.commands.diagnostics")
+    caplog.set_level(logging.INFO, logger="neo_igate.commands.diagnostics")
     caplog.clear()
 
     env_section = diagnostics.Section("Environment", "ok", "env", {})
@@ -345,16 +353,10 @@ def test_run_diagnostics_json_includes_meta_and_summary(
     aprs_section = diagnostics.Section("APRS-IS", "ok", "aprs", {})
 
     monkeypatch.setattr(diagnostics, "_check_environment", lambda: env_section)
-    monkeypatch.setattr(
-        diagnostics, "_check_config", lambda *_: (config_section, None)
-    )
+    monkeypatch.setattr(diagnostics, "_check_config", lambda *_: (config_section, None))
     monkeypatch.setattr(diagnostics, "_check_sdr", lambda: sdr_section)
-    monkeypatch.setattr(
-        diagnostics, "_check_direwolf", lambda *_: direwolf_section
-    )
-    monkeypatch.setattr(
-        diagnostics, "_check_aprs_is", lambda *_: aprs_section
-    )
+    monkeypatch.setattr(diagnostics, "_check_direwolf", lambda *_: direwolf_section)
+    monkeypatch.setattr(diagnostics, "_check_aprs_is", lambda *_: aprs_section)
     monkeypatch.setattr(diagnostics, "_package_version", lambda: "9.9.9")
     monkeypatch.setattr(
         diagnostics.config_module,
@@ -380,7 +382,7 @@ def test_run_diagnostics_json_includes_meta_and_summary(
 
 
 def test_run_diagnostics_text_emits_summary(monkeypatch, tmp_path, caplog) -> None:
-    caplog.set_level(logging.INFO, logger="nesdr_igate.commands.diagnostics")
+    caplog.set_level(logging.INFO, logger="neo_igate.commands.diagnostics")
     caplog.clear()
 
     env_section = diagnostics.Section("Environment", "ok", "env", {})
@@ -390,16 +392,10 @@ def test_run_diagnostics_text_emits_summary(monkeypatch, tmp_path, caplog) -> No
     aprs_section = diagnostics.Section("APRS-IS", "ok", "aprs", {})
 
     monkeypatch.setattr(diagnostics, "_check_environment", lambda: env_section)
-    monkeypatch.setattr(
-        diagnostics, "_check_config", lambda *_: (config_section, None)
-    )
+    monkeypatch.setattr(diagnostics, "_check_config", lambda *_: (config_section, None))
     monkeypatch.setattr(diagnostics, "_check_sdr", lambda: sdr_section)
-    monkeypatch.setattr(
-        diagnostics, "_check_direwolf", lambda *_: direwolf_section
-    )
-    monkeypatch.setattr(
-        diagnostics, "_check_aprs_is", lambda *_: aprs_section
-    )
+    monkeypatch.setattr(diagnostics, "_check_direwolf", lambda *_: direwolf_section)
+    monkeypatch.setattr(diagnostics, "_check_aprs_is", lambda *_: aprs_section)
     monkeypatch.setattr(
         diagnostics.config_module,
         "resolve_config_path",

@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from typing import Callable, Optional
 
 import logging
-from nesdr_igate import __version__
+from neo_igate import __version__
 
 
 class APRSISClientError(RuntimeError):
@@ -24,10 +24,11 @@ class APRSISConfig:
     port: int
     callsign: str
     passcode: str
-    software_name: str = "nesdr-igate"
+    software_name: str = "neo-igate"
     software_version: str = __version__
     filter_string: str | None = None
     timeout: float = 5.0
+
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
@@ -42,7 +43,7 @@ class RetryBackoff:
         base_delay: float = 2.0,
         max_delay: float = 120.0,
         multiplier: float = 2.0,
-    clock: Optional[Callable[[], float]] = None,
+        clock: Optional[Callable[[], float]] = None,
     ) -> None:
         if base_delay <= 0:
             raise ValueError("base_delay must be positive")

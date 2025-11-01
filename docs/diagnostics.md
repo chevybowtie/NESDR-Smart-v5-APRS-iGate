@@ -1,9 +1,9 @@
 # Diagnostics Command Outline
 
-Defines the behavior of `nesdr-igate diagnostics`, providing status snapshots for the SDR, Direwolf, and APRS-IS uplink.
+Defines the behavior of `neo-igate diagnostics`, providing status snapshots for the SDR, Direwolf, and APRS-IS uplink.
 
 ## Command Summary
-- Usage: `nesdr-igate diagnostics [--json] [--verbose]`
+- Usage: `neo-igate diagnostics [--json] [--verbose]`
 - Default output: human-readable status table.
 - `--json`: emit structured JSON suitable for scripting.
 - `--verbose`: include extended details (logs, environment info).
@@ -40,7 +40,7 @@ Defines the behavior of `nesdr-igate diagnostics`, providing status snapshots fo
 ### 5. Configuration & Paths
 - Display config file path, timestamp, and permission bits.
 - Keyring status for passcode storage (keyring backend name or fallback warning).
-- Location of logs (`~/.local/share/nesdr-igate/logs`).
+- Location of logs (`~/.local/share/neo-igate/logs`).
 
 ## Output Schema
 ```
@@ -67,7 +67,7 @@ APRS_IS:
 
 Config:
   status: ok|warning|error
-  path: "/home/user/.config/nesdr-igate/config.toml"
+  path: "/home/user/.config/neo-igate/config.toml"
   updated: "2025-10-25T17:25:00Z"
   permissions: "rw-------"
 ```

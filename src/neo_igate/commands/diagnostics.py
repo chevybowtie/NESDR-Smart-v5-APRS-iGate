@@ -9,20 +9,30 @@ import time
 from argparse import Namespace
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterable, cast
+from typing import Any, Iterable, cast, TYPE_CHECKING, Literal
 
-from nesdr_igate import config as config_module
-from nesdr_igate.config import StationConfig
-from nesdr_igate.diagnostics_helpers import probe_tcp_endpoint
+from neo_igate import config as config_module
+from neo_igate.config import StationConfig
+from neo_igate.diagnostics_helpers import probe_tcp_endpoint
 import shutil
 
 try:  # Python 3.10+ exposes metadata here
     from importlib import metadata as importlib_metadata
-    # from nesdr_igate import __version__
+
+    # Import terminal helpers directly (functions) so static analyzers
+    # and IDEs can resolve `supports_color` and `status_label`.
+    from ..term import supports_color, status_label
 except ImportError:  # pragma: no cover - fallback for older runtimes
     import importlib_metadata  # type: ignore[no-redef]
 
-SectionStatus = str
+    from ..term import supports_color, status_label
+
+    if TYPE_CHECKING:
+        # Give static analyzers an absolute import path for the terminal helpers.
+        # This helps editors/linters (pyright, mypy) recognize the functions.
+        from neo_igate.term import supports_color, status_label  # type: ignore
+
+SectionStatus = Literal["ok", "warning", "error", "info"]
 
 
 logger = logging.getLogger(__name__)
@@ -34,12 +44,12 @@ def _package_version() -> str:
     # package at function time avoids import-order problems during static
     # analysis while still returning the centralized value at runtime.
     try:
-        from nesdr_igate import __version__ as ver
+        from neo_igate import __version__ as ver
 
         return ver
     except Exception:
         try:
-            return importlib_metadata.version("nesdr-igate")
+            return importlib_metadata.version("neo-igate")
         except importlib_metadata.PackageNotFoundError:
             return "0.0.0"
 
@@ -73,15 +83,29 @@ def run_diagnostics(args: Namespace) -> int:
     if getattr(args, "json", False):
         report = _sections_to_mapping(sections)
         report["meta"] = {
-            "tool": "nesdr-igate",
+            "tool": "neo-igate",
             "version": _package_version(),
-            "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(generated_at)),
+            "generated_at": time.strftime(
+                "%Y-%m-%dT%H:%M:%SZ", time.gmtime(generated_at)
+            ),
         }
         report["summary"] = summary
         indent = 2 if getattr(args, "verbose", False) else None
         print(json.dumps(report, indent=indent, default=_json_default))
     else:
-        _print_text_report(sections, verbose=getattr(args, "verbose", False))
+        # Determine color preference: CLI flags override auto-detection.
+        if getattr(args, "color", False):
+            color_enabled = True
+        elif getattr(args, "no_color", False):
+            color_enabled = False
+        else:
+            color_enabled = supports_color()
+
+        _print_text_report(
+            sections,
+            verbose=getattr(args, "verbose", False),
+            color_enabled=color_enabled,
+        )
 
     if not getattr(args, "json", False):
         _log_summary(summary)
@@ -199,7 +223,9 @@ def _check_sdr() -> Section:
         if device_count == 0:
             return Section("SDR", "warning", "No RTL-SDR devices detected", details)
 
-        return Section("SDR", "ok", f"Detected {device_count} RTL-SDR device(s)", details)
+        return Section(
+            "SDR", "ok", f"Detected {device_count} RTL-SDR device(s)", details
+        )
 
     # Fallback: try instantiating a device handle (best-effort).
     # If instantiation succeeds, assume at least one device is present.
@@ -238,7 +264,9 @@ def _check_sdr() -> Section:
 
     details["device_count"] = 1
     if serial is not None:
-        details["serials"] = [serial.decode() if isinstance(serial, bytes) else str(serial)]
+        details["serials"] = [
+            serial.decode() if isinstance(serial, bytes) else str(serial)
+        ]
 
     return Section("SDR", "ok", "Detected at least 1 RTL-SDR device", details)
 
@@ -274,12 +302,10 @@ def _check_direwolf(config: StationConfig | None) -> Section:
         )
 
     # Connection refused is expected when Direwolf is installed but not
-    # currently running (e.g., before `nesdr-igate listen` starts it).
+    # currently running (e.g., before `neo-igate listen` starts it).
     err = (result.error or "").lower()
     if ("connection" in err and "refused" in err) or ("errno 111" in err):
-        message = (
-            f"Direwolf installed but not running locally; KISS endpoint unreachable at {host}:{port}"
-        )
+        message = f"Direwolf installed but not running locally; KISS endpoint unreachable at {host}:{port}"
     else:
         message = f"Unable to reach Direwolf KISS at {host}:{port}"
 
@@ -360,14 +386,14 @@ def _log_summary(summary: dict[str, Any]) -> None:
     )
 
 
-def _print_text_report(sections: Iterable[Section], *, verbose: bool) -> None:
+def _print_text_report(
+    sections: Iterable[Section], *, verbose: bool, color_enabled: bool = False
+) -> None:
     for section in sections:
-        logger.info(
-            "[%s] %s: %s",
-            section.status.upper().ljust(7),
-            section.name,
-            section.message,
-        )
+        # Use a colorized status label when requested; fall back to plain
+        # text when colors are disabled or unsupported.
+        label = status_label(section.status, enabled=color_enabled)
+        logger.info("%s %s: %s", label, section.name, section.message)
         if verbose and section.details:
             for key, value in section.details.items():
                 formatted_value = _format_detail_value(value)

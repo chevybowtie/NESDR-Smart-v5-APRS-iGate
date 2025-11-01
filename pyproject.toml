@@ -3,9 +3,9 @@ requires = ["setuptools>=69", "build>=1.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "nesdr-igate"
-version = "0.1.2"
-description = "NESDR Smart v5 APRS iGate CLI (MVP in development)"
+name = "neo-igate"
+version = "0.2.0"
+description = "Neo-iGate APRS iGate CLI"
 authors = [{ name = "Paul Sturm" }]
 readme = "README.md"
 requires-python = ">=3.11"
@@ -27,10 +27,10 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/paulsturm/nesdr-aprs-igate"
+Homepage = "https://github.com/chevybowtie/NESDR-Smart-v5-APRS-iGate"
 
 [project.scripts]
-nesdr-igate = "nesdr_igate.cli:main"
+neo-igate = "neo_igate.cli:main"
 
 [project.optional-dependencies]
 dev = [
@@ -52,7 +52,7 @@ direwolf = [
 package-dir = {"" = "src"}
 
 [tool.setuptools.package-data]
-nesdr_igate = ["templates/direwolf.conf"]
+neo_igate = ["templates/direwolf.conf"]
 
 [tool.pytest.ini_options]
 addopts = "-ra"

@@ -14,9 +14,9 @@ from getpass import getpass
 from pathlib import Path
 from typing import Callable
 
-from nesdr_igate import config as config_module
-from nesdr_igate.config import StationConfig
-from nesdr_igate.diagnostics_helpers import probe_tcp_endpoint
+from neo_igate import config as config_module
+from neo_igate.config import StationConfig
+from neo_igate.diagnostics_helpers import probe_tcp_endpoint
 
 CALLSIGN_PATTERN = re.compile(r"^[A-Z0-9]{1,6}-[0-9]{1,2}$")
 
@@ -152,7 +152,6 @@ def _interactive_prompt(existing: StationConfig | None) -> StationConfig:
         default=_default(existing, "beacon_comment"),
     )
 
-
     kiss_host = prompt.string(
         "Direwolf KISS host",
         default=_default(existing, "kiss_host", fallback="127.0.0.1"),
@@ -172,7 +171,7 @@ def _interactive_prompt(existing: StationConfig | None) -> StationConfig:
         aprs_port=aprs_port,
         latitude=latitude,
         longitude=longitude,
-    beacon_comment=beacon_comment,
+        beacon_comment=beacon_comment,
         kiss_host=kiss_host,
         kiss_port=kiss_port,
     )
@@ -341,7 +340,7 @@ def _maybe_render_direwolf_config(config: StationConfig, target_dir: Path) -> No
         "LATITUDE": _format_coordinate(config.latitude, fallback="REPLACE_LAT"),
         "LONGITUDE": _format_coordinate(config.longitude, fallback="REPLACE_LON"),
         "BEACON_COMMENT": _escape_comment(
-            config.beacon_comment or f"{config.callsign} NESDR iGate"
+            config.beacon_comment or f"{config.callsign} Neo iGate"
         ),
         "KISSPORT": str(config.kiss_port),
         "LOGDIR": str(log_dir),
@@ -363,7 +362,7 @@ def _maybe_render_direwolf_config(config: StationConfig, target_dir: Path) -> No
 def _load_direwolf_template() -> str | None:
     try:
         return (
-            resources.files("nesdr_igate.templates")
+            resources.files("neo_igate.templates")
             .joinpath("direwolf.conf")
             .read_text(encoding="utf-8")
         )
@@ -508,7 +507,7 @@ def _report_direwolf_log_summary() -> None:
     log_file = log_dir / "direwolf.log"
     if not log_file.exists():
         logger.warning(
-            "[WARNING] Direwolf log not found at %s. Run `nesdr-igate listen` to generate logs.",
+            "[WARNING] Direwolf log not found at %s. Run `neo-igate listen` to generate logs.",
             log_file,
         )
         return

@@ -10,7 +10,7 @@ import time
 
 import pytest
 
-from nesdr_igate.aprs.aprsis_client import (  # type: ignore[import]
+from neo_igate.aprs.aprsis_client import (  # type: ignore[import]
     APRSISClient,
     APRSISClientError,
     APRSISConfig,
@@ -99,7 +99,7 @@ def test_aprsis_client_connect_failure(monkeypatch) -> None:
         raise OSError("boom")
 
     monkeypatch.setattr(
-        "nesdr_igate.aprs.aprsis_client.socket.create_connection",
+        "neo_igate.aprs.aprsis_client.socket.create_connection",
         fake_create_connection,
     )
 
@@ -256,7 +256,7 @@ def test_aprsis_client_logs_lifecycle(caplog) -> None:
 
     port, thread = _start_server(responder)
 
-    caplog.set_level(logging.DEBUG, logger="nesdr_igate.aprs.aprsis_client")
+    caplog.set_level(logging.DEBUG, logger="neo_igate.aprs.aprsis_client")
 
     client = APRSISClient(
         APRSISConfig(host="127.0.0.1", port=port, callsign="TEST", passcode="12345")
@@ -280,7 +280,9 @@ def test_retry_backoff_progression() -> None:
     def fake_clock() -> float:
         return current
 
-    backoff = RetryBackoff(base_delay=1.0, max_delay=8.0, multiplier=2.0, clock=fake_clock)
+    backoff = RetryBackoff(
+        base_delay=1.0, max_delay=8.0, multiplier=2.0, clock=fake_clock
+    )
 
     assert backoff.ready() is True
     assert backoff.current_delay == 1.0
@@ -306,7 +308,9 @@ def test_retry_backoff_progression() -> None:
 
 
 def test_retry_backoff_reset_and_limits() -> None:
-    backoff = RetryBackoff(base_delay=2.0, max_delay=5.0, multiplier=3.0, clock=lambda: 0.0)
+    backoff = RetryBackoff(
+        base_delay=2.0, max_delay=5.0, multiplier=3.0, clock=lambda: 0.0
+    )
 
     assert backoff.record_failure() == 2.0
     assert backoff.current_delay == 5.0
