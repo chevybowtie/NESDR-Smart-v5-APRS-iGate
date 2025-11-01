@@ -11,7 +11,7 @@ Command-line utility for turning an SDR (for example a NESDR Smart v5 RTL-SDR) i
 
 On Debian- or Ubuntu-based systems you can install the radio tools and Direwolf with:
 ```bash
-sudo apt install rtl-sdr direwolf
+sudo apt install rtl-sdr direwolf python3-venv
 ```
 Add `sox` if you want the optional audio helpers:
 ```bash
