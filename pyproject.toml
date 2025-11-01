@@ -30,7 +30,7 @@ dependencies = [
 Homepage = "https://github.com/paulsturm/nesdr-aprs-igate"
 
 [project.scripts]
-neo-igate = "nesdr_igate.cli:main"
+neo-igate = "neo_igate.cli:main"
 
 [project.optional-dependencies]
 dev = [
@@ -52,7 +52,7 @@ direwolf = [
 package-dir = {"" = "src"}
 
 [tool.setuptools.package-data]
-nesdr_igate = ["templates/direwolf.conf"]
+neo_igate = ["templates/direwolf.conf"]
 
 [tool.pytest.ini_options]
 addopts = "-ra"
