@@ -27,7 +27,7 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/paulsturm/nesdr-aprs-igate"
+Homepage = "https://github.com/chevybowtie/NESDR-Smart-v5-APRS-iGate"
 
 [project.scripts]
 neo-igate = "neo_igate.cli:main"
