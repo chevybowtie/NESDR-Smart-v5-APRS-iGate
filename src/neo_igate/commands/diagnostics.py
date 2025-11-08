@@ -101,6 +101,7 @@ def run_diagnostics(args: Namespace) -> int:
         else:
             color_enabled = supports_color()
 
+        logger.info("neo-igate diagnostics v%s", _package_version())
         _print_text_report(
             sections,
             verbose=getattr(args, "verbose", False),

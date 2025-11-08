@@ -266,6 +266,7 @@ def test_listen_command_once(tmp_path, monkeypatch, capsys) -> None:
     captured = capsys.readouterr()
 
     assert exit_code == 0
+    assert "neo-igate v" in captured.out
     assert "Frames processed: 1" in captured.out
     assert "Connected to APRS-IS" in captured.out
     assert "Press `s`" in captured.out
@@ -399,6 +400,7 @@ def test_listen_reconnect_and_stats(tmp_path, monkeypatch, capsys) -> None:
     captured = capsys.readouterr()
 
     assert exit_code == 0
+    assert "neo-igate v" in captured.out
     assert "APRS-IS transmission error" in captured.out
     stats_line = next(
         (line for line in captured.out.splitlines() if line.startswith("[stats ")), None

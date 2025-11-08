@@ -54,6 +54,14 @@ def run_listen(args: Namespace) -> int:
         logger.error("Config invalid: %s", exc)
         return 1
 
+    logger.info(
+        "neo-igate v%s — starting listener (callsign=%s, aprs_server=%s:%s)",
+        _SOFTWARE_VERSION,
+        station_config.callsign,
+        station_config.aprs_server,
+        station_config.aprs_port,
+    )
+
     direwolf_conf = _resolve_direwolf_config(config_path.parent)
     if direwolf_conf is None:
         logger.error(

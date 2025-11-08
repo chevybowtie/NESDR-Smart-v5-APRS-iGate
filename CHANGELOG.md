@@ -6,6 +6,16 @@ All notable changes to this project will be documented in this file.
 
 - No unreleased changes yet.
 
+## [0.2.1] - 2025-11-08
+
+### Changed
+- The `listen` command now logs a startup banner that includes the packaged version, callsign, and APRS-IS endpoint, making it easy to confirm the running build from captured logs.
+- Text-mode `diagnostics` runs emit a matching `neo-igate diagnostics v…` banner so operators and support logs clearly identify the tool version without switching to JSON output.
+
+### Testing & Tooling
+- Extended CLI and diagnostics tests to assert the new version banners so future regressions are caught automatically.
+- Bumped the project version to 0.2.1 in `pyproject.toml` to publish the logging enhancements.
+
 ## [0.2.0] - 2025-11-01
 
 ### Breaking
