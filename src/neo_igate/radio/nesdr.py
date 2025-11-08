@@ -2,7 +2,24 @@
 
 from __future__ import annotations
 
+import importlib
 from typing import Iterable
+
+
+def _prepare_rtlsdr() -> None:
+    """Ensure rtlsdr imports without triggering deprecation warnings."""
+
+    try:
+        compat_pkg = importlib.import_module("neo_igate._compat")
+    except ModuleNotFoundError:  # pragma: no cover - shim missing only in broken envs
+        return
+
+    prepare_func = getattr(compat_pkg, "prepare_rtlsdr", None)
+    if callable(prepare_func):
+        prepare_func()
+
+
+_prepare_rtlsdr()
 
 try:
     from rtlsdr import RtlSdr  # type: ignore[import]

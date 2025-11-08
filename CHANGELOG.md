@@ -4,7 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-- No unreleased changes yet.
+### Fixed
+- Patched the third-party `rtlsdr` loader so importing `neo-igate` no longer emits the Setuptools `pkg_resources` deprecation warning.
+
+### Testing & Tooling
+- Ran the full pytest suite to confirm the compatibility shim leaves existing behaviour unchanged.
 
 ## [0.2.1] - 2025-11-08
 

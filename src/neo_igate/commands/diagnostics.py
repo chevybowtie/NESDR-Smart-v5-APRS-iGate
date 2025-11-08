@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import importlib
 import json
 import logging
+import shutil
 import sys
 import time
 from argparse import Namespace
@@ -14,7 +16,6 @@ from typing import Any, Iterable, cast, TYPE_CHECKING, Literal
 from neo_igate import config as config_module
 from neo_igate.config import StationConfig
 from neo_igate.diagnostics_helpers import probe_tcp_endpoint
-import shutil
 
 try:  # Python 3.10+ exposes metadata here
     from importlib import metadata as importlib_metadata
@@ -37,6 +38,17 @@ SectionStatus = Literal["ok", "warning", "error", "info"]
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
+
+
+def _prepare_rtlsdr() -> None:
+    try:
+        compat_pkg = importlib.import_module("neo_igate._compat")
+    except ModuleNotFoundError:  # pragma: no cover - shim missing only in broken envs
+        return
+
+    prepare_func = getattr(compat_pkg, "prepare_rtlsdr", None)
+    if callable(prepare_func):
+        prepare_func()
 
 
 def _package_version() -> str:
@@ -180,6 +192,7 @@ def _check_config(config_path: Path) -> tuple[Section, StationConfig | None]:
 
 
 def _check_sdr() -> Section:
+    _prepare_rtlsdr()
     try:
         from rtlsdr import RtlSdr  # type: ignore[import]
     except ImportError as exc:
