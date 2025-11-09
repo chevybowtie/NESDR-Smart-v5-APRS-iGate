@@ -54,7 +54,9 @@ def ensure_patched_rtlsdr() -> None:
     if spec is None or spec.loader is None or spec.origin is None:
         return
 
-    get_source: Callable[[str], str | None] | None = getattr(spec.loader, "get_source", None)
+    get_source: Callable[[str], str | None] | None = getattr(
+        spec.loader, "get_source", None
+    )
     if get_source is None:
         return
 

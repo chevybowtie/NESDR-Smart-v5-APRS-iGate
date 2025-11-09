@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib
 
+
 def prepare_rtlsdr() -> None:
     """Ensure the ``rtlsdr`` module loads without deprecated APIs."""
 
