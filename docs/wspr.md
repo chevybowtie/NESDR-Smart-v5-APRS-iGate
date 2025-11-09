@@ -54,6 +54,69 @@ heuristics:
   - Measure ppm from strong time/frequency station and compute correction.
   - Use `wsprd` reported drift to derive ppm and apply correction.
 
+### Calibration & Backup Behavior
+
+- Computation: the tool computes parts-per-million (ppm) correction by
+  comparing the median observed frequency of decoded spots against an
+  expected centre frequency for the configured band. The helper
+  function `estimate_offset_from_spots(spots, expected_freq_hz)` returns
+  the median observed frequency, the offset in Hz, the derived ppm,
+  median SNR and observation count.
+- Apply vs persist: `--calibrate --apply` will run the local calibration
+  flow and call a stub that can apply the correction to the radio driver.
+  To persist the computed correction into the persistent `config.toml`,
+  use `--write-config` alongside `--apply` (this performs a safe save).
+- Safe saves & backups: before writing a new `ppm_correction` value the
+  tool creates a timestamped backup of the existing config file. Backups
+  are stored under the configuration directory in a `backups/` folder
+  alongside the config file. Backup filenames are of the form:
+
+  `config.toml.bak-YYYYMMDDTHHMMSSZ`
+
+  where the timestamp is UTC (timezone-aware). This prevents accidental
+  data loss and makes it straightforward to restore previous settings.
+- CLI feedback: when a change is persisted the CLI prints the path to
+  the saved configuration so operators can confirm where the write
+  occurred (and which backup was created if needed).
+
+Implementation notes:
+- The code exposes `persist_ppm_to_config(ppm, config_path=None)` to
+  perform the safe save and `apply_ppm_to_radio(ppm)` as a radio-driver
+  integration point (currently a logging stub).
+- Backups are automatically created; retention/rotation is left as an
+  enhancement (could prune old backups after N days or keep only the
+  last N backups).
+
+Example usage:
+
+```bash
+# Run calibration using saved spots (no apply):
+neo-igate wspr --calibrate
+
+# Run calibration and apply correction to the radio (stub only):
+neo-igate wspr --calibrate --apply
+
+# Run calibration, apply correction, and persist to the config (safe-save)
+neo-igate wspr --calibrate --apply --write-config
+
+# Specify a custom config file or spots file when needed:
+neo-igate wspr --calibrate --apply --write-config --config /path/to/config.toml \
+    --spots-file /path/to/wspr_spots.jsonl --expected-freq 14080000
+```
+
+  Restore from backup:
+
+  ```bash
+  # To inspect available backups:
+  ls "$(dirname $(neo-igate wspr --config 2>/dev/null || echo ~/.config/neo-igate))/backups/"
+
+  # To restore the most recent backup for the active config:
+  cp /path/to/config/backups/config.toml.bak-YYYYMMDDTHHMMSSZ /path/to/config/config.toml
+
+  # Or move it into place (atomic replace):
+  mv /path/to/config/backups/config.toml.bak-YYYYMMDDTHHMMSSZ /path/to/config/config.toml
+  ```
+
 ## Decoder Approach
 
 - Start with a subprocess wrapper for `wsprd` (fast to prototype).

@@ -172,11 +172,87 @@ def run_wspr(args: Namespace) -> int:
         return 0
 
     if getattr(args, "diagnostics", False):
-        LOG.info("Requested WSPR diagnostics (stub)")
+        LOG.info("Requested WSPR diagnostics")
+        from pathlib import Path
+        from neo_igate.wspr import diagnostics as wspr_diag
+
+        # attempt to load recent spots from data dir (best-effort)
+        data_dir = config_module.get_data_dir() if cfg is not None else Path("./data")
+        spots_file = data_dir / "wspr_spots.jsonl"
+        spots = []
+        try:
+            from neo_igate.wspr.calibrate import load_spots_from_jsonl
+
+            spots = load_spots_from_jsonl(spots_file)
+        except Exception:
+            LOG.exception("Failed to load spots for diagnostics")
+
+        hint = wspr_diag.detect_upconverter_hint(spots)
+        LOG.info("Upconverter diagnostic: %s", hint)
+        return 0
         return 0
 
     if getattr(args, "calibrate", False):
-        LOG.info("Requested WSPR calibration (stub)")
+        LOG.info("Requested WSPR calibration")
+        from pathlib import Path
+        from neo_igate.wspr.calibrate import load_spots_from_jsonl, estimate_offset_from_spots, apply_ppm_to_radio
+
+        # Determine spots file: CLI override -> config data dir -> local data dir
+        spots_path = None
+        if getattr(args, "spots_file", None):
+            spots_path = Path(getattr(args, "spots_file"))
+        elif cfg is not None:
+            spots_path = config_module.get_data_dir() / "wspr_spots.jsonl"
+        else:
+            spots_path = Path("./data/wspr_spots.jsonl")
+
+        spots = load_spots_from_jsonl(spots_path)
+        if not spots:
+            LOG.warning("No spots found in %s; cannot calibrate", spots_path)
+            return 1
+
+        # expected frequency: CLI override > config first band (if present)
+        expected_freq = getattr(args, "expected_freq", None)
+        if expected_freq is None and cfg is not None and cfg.wspr_bands_hz:
+            expected_freq = cfg.wspr_bands_hz[0]
+
+        try:
+            result = estimate_offset_from_spots(spots, expected_freq)
+        except Exception:
+            LOG.exception("Failed to estimate offset from spots")
+            return 1
+
+        LOG.info("Calibration result: median_obs=%.0f Hz offset=%.1f Hz ppm=%.3f count=%d",
+                 result.get("median_observed_freq_hz", 0.0),
+                 result.get("offset_hz", 0.0),
+                 result.get("ppm", 0.0),
+                 result.get("count", 0),
+                 )
+
+        if getattr(args, "apply", False):
+            ppm = result.get("ppm", 0.0)
+            try:
+                # apply to radio (stub)
+                apply_ppm_to_radio(ppm)
+                LOG.info("Applied ppm=%.3f to radio (stub)", ppm)
+
+                # optionally persist into config
+                if bool(getattr(args, "write_config", False)):
+                    from neo_igate.wspr.calibrate import persist_ppm_to_config
+
+                    cfg_path = getattr(args, "config", None)
+                    persist_ppm_to_config(ppm, config_path=cfg_path)
+                    # Also print a CLI-facing message with the saved config path
+                    try:
+                        saved_path = cfg_path or config_module.resolve_config_path()
+                    except Exception:
+                        saved_path = cfg_path or "<default>"
+                    print(f"Saved ppm correction to: {saved_path}")
+                    LOG.info("Persisted ppm=%.3f to config %s", ppm, saved_path)
+            except Exception:
+                LOG.exception("Failed applying ppm to radio or persisting")
+                return 1
+
         return 0
 
     if getattr(args, "upload", False):

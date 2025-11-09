@@ -207,6 +207,25 @@ def build_parser() -> argparse.ArgumentParser:
         help="Run WSPR calibration flow (stub)",
     )
     wspr_parser.add_argument(
+        "--expected-freq",
+        type=float,
+        help="Expected centre frequency for calibration (Hz). If omitted, config band will be used when available.",
+    )
+    wspr_parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="Apply computed ppm correction to the radio (use with care).",
+    )
+    wspr_parser.add_argument(
+        "--write-config",
+        action="store_true",
+        help="Persist computed ppm into the persistent configuration (safe-save).",
+    )
+    wspr_parser.add_argument(
+        "--spots-file",
+        help="Path to JSON-lines spots file (overrides default data dir)",
+    )
+    wspr_parser.add_argument(
         "--upload",
         action="store_true",
         help="Upload queued spots to WSPRNet (stub)",
