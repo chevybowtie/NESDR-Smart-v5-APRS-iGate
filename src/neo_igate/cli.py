@@ -192,6 +192,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Run a quick band-scan and report activity (stub)",
     )
     wspr_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit machine-readable JSON output for scan/report actions",
+    )
+    wspr_parser.add_argument(
         "--diagnostics",
         action="store_true",
         help="Run WSPR-specific diagnostics (upconverter heuristics) (stub)",
