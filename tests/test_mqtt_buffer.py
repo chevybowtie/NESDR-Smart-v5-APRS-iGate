@@ -58,13 +58,10 @@ def test_buffer_message_when_not_connected(monkeypatch, tmp_path):
     # Publish should buffer the message
     pub.publish("neo_igate/wspr/spots", {"call": "K1ABC"})
     
-    buffer_file = tmp_path / "mqtt_buffer.jsonl"
-    assert buffer_file.exists()
-    
-    lines = buffer_file.read_text().splitlines()
-    assert len(lines) == 1
-    
-    record = json.loads(lines[0])
+    queue_dir = tmp_path / "queue"
+    files = list(queue_dir.glob("*.json"))
+    assert len(files) == 1
+    record = json.loads(files[0].read_text())
     assert record["topic"] == "neo_igate/wspr/spots"
     assert "K1ABC" in record["body"]
 
@@ -73,12 +70,11 @@ def test_drain_buffer_on_connect(monkeypatch, tmp_path):
     """When connection is established, buffered messages should be sent."""
     monkeypatch.setattr(mp.time, "sleep", lambda x: None)
     
-    # Create a buffer with one message
-    buffer_file = tmp_path / "mqtt_buffer.jsonl"
-    buffer_file.write_text(
-        json.dumps({"topic": "neo_igate/wspr/spots", "body": '{"call":"K1ABC"}', "ts": 1234567890})
-        + "\n"
-    )
+    # Create a queue with one message
+    queue_dir = tmp_path / "queue"
+    queue_dir.mkdir(parents=True, exist_ok=True)
+    msg_file = queue_dir / "0001-test.json"
+    msg_file.write_text(json.dumps({"topic": "neo_igate/wspr/spots", "body": '{"call":"K1ABC"}', "ts": 1234567890}))
     
     mock = MockClient()
     monkeypatch.setattr(mp, "mqtt", types.SimpleNamespace(Client=lambda: mock))
@@ -86,8 +82,9 @@ def test_drain_buffer_on_connect(monkeypatch, tmp_path):
     pub = mp.MqttPublisher(host="fake", port=1883, buffer_dir=tmp_path)
     pub.connect()
     
-    # Buffer should be drained and file should be removed
-    assert not buffer_file.exists()
+    # Queue should be drained and file should be removed
+    files = list(queue_dir.glob("*.json"))
+    assert not files
     assert len(mock._publish_calls) == 1
     assert mock._publish_calls[0][0] == "neo_igate/wspr/spots"
 
@@ -108,15 +105,15 @@ def test_buffer_rotation_at_capacity(monkeypatch, tmp_path):
     for i in range(5):
         pub.publish("neo_igate/test", {"msg": i})
     
-    buffer_file = tmp_path / "mqtt_buffer.jsonl"
-    lines = buffer_file.read_text().splitlines()
-    
+    queue_dir = tmp_path / "queue"
+    files = sorted(queue_dir.glob("*.json"))
+
     # Should only have 3 messages (last 3)
-    assert len(lines) == 3
-    
+    assert len(files) == 3
+
     # Verify we kept the newest messages
-    records = [json.loads(line) for line in lines]
-    msgs = [json.loads(r["body"])["msg"] for r in records]
+    records = [json.loads(p.read_text()) for p in files]
+    msgs = [json.loads(r["body"])['msg'] for r in records]
     assert msgs == [2, 3, 4]
 
 
@@ -124,13 +121,12 @@ def test_partial_drain_on_publish_failure(monkeypatch, tmp_path):
     """If some buffered messages fail to publish, they should remain in buffer."""
     monkeypatch.setattr(mp.time, "sleep", lambda x: None)
     
-    # Create buffer with 3 messages
-    buffer_file = tmp_path / "mqtt_buffer.jsonl"
-    messages = [
-        json.dumps({"topic": f"neo_igate/test/{i}", "body": f'{{"msg":{i}}}', "ts": 1234567890 + i})
-        for i in range(3)
-    ]
-    buffer_file.write_text("\n".join(messages) + "\n")
+    # Create queue with 3 messages
+    queue_dir = tmp_path / "queue"
+    queue_dir.mkdir(parents=True, exist_ok=True)
+    for i in range(3):
+        f = queue_dir / f"msg-{i:03d}.json"
+        f.write_text(json.dumps({"topic": f"neo_igate/test/{i}", "body": f'{{"msg":{i}}}', "ts": 1234567890 + i}))
     
     # Mock client that fails on 2nd and 3rd publish
     behavior = {"publish_fail_times": 2}
@@ -140,11 +136,10 @@ def test_partial_drain_on_publish_failure(monkeypatch, tmp_path):
     pub = mp.MqttPublisher(host="fake", port=1883, buffer_dir=tmp_path)
     pub.connect()
     
-    # Buffer should still exist with failed messages
-    assert buffer_file.exists()
-    remaining = buffer_file.read_text().splitlines()
+    # Queue should still contain the failed messages
+    files = sorted((tmp_path / "queue").glob("*.json"))
     # First message succeeded, 2nd and 3rd failed, so we should have 2 remaining
-    assert len(remaining) == 2
+    assert len(files) == 2
 
 
 def test_buffer_dir_creation(monkeypatch, tmp_path):

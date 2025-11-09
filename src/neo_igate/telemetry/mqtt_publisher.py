@@ -17,6 +17,7 @@ import random
 import time
 
 from .publisher import Publisher
+from .ondisk_queue import OnDiskQueue
 
 try:
     import paho.mqtt.client as mqtt  # type: ignore[import]
@@ -49,10 +50,12 @@ class MqttPublisher:
         self._initial_backoff = 0.5  # seconds
         self._max_backoff = 30.0  # seconds
 
-        # on-disk buffering
+        # on-disk FIFO queue (durable)
         self._buffer_dir = buffer_dir or self._default_buffer_dir()
+        self._queue_dir = self._buffer_dir / "queue"
         self._max_buffer_size = max_buffer_size
-        self._buffer_file = self._buffer_dir / "mqtt_buffer.jsonl"
+        self._queue = OnDiskQueue(self._queue_dir)
+        # ensure on-disk queue directory exists
         self._ensure_buffer_dir()
 
     def connect(self) -> None:
@@ -69,8 +72,8 @@ class MqttPublisher:
         LOG.debug("Publishing to %s: %s", topic, body)
         # ensure we are connected (attempt reconnect with backoff if needed)
         if not self._connected:
-            LOG.warning("MQTT client not connected; buffering message")
-            self._buffer_message(topic, body)
+            LOG.warning("MQTT client not connected; enqueueing message to on-disk queue")
+            self._enqueue_message(topic, body)
             return
 
         try:
@@ -82,7 +85,8 @@ class MqttPublisher:
                 self._client.publish(topic, body)
             except Exception:
                 LOG.exception("Publish retry failed; buffering message")
-                self._buffer_message(topic, body)
+                # enqueue to durable queue on failure
+                self._enqueue_message(topic, body)
 
     def close(self) -> None:
         try:
@@ -148,70 +152,52 @@ class MqttPublisher:
         """Ensure buffer directory exists."""
         try:
             self._buffer_dir.mkdir(parents=True, exist_ok=True)
+            self._queue_dir.mkdir(parents=True, exist_ok=True)
         except Exception:
             LOG.exception("Failed to create buffer directory %s", self._buffer_dir)
 
-    def _buffer_message(self, topic: str, body: str) -> None:
-        """Write a failed message to the buffer file."""
+    def _enqueue_message(self, topic: str, body: str) -> None:
         try:
-            # check buffer size limit
-            if self._buffer_file.exists():
-                line_count = sum(1 for _ in self._buffer_file.open("r"))
-                if line_count >= self._max_buffer_size:
-                    LOG.warning(
-                        "MQTT buffer at capacity (%d messages); dropping oldest",
-                        self._max_buffer_size,
-                    )
-                    # rotate: keep last (max-1) lines
-                    self._rotate_buffer()
-
-            with self._buffer_file.open("a") as f:
-                record = {"topic": topic, "body": body, "ts": time.time()}
-                f.write(json.dumps(record) + "\n")
-            LOG.debug("Buffered message to %s", self._buffer_file)
+            if self._queue.size() >= self._max_buffer_size:
+                LOG.warning("MQTT queue at capacity (%d messages); dropping oldest", self._max_buffer_size)
+                # remove oldest file to make room
+                files = self._queue.list()
+                if files:
+                    try:
+                        self._queue.remove(files[0])
+                    except Exception:
+                        LOG.exception("Failed to drop oldest queued message")
+            record = {"topic": topic, "body": body, "ts": time.time()}
+            self._queue.enqueue(record)
         except Exception:
-            LOG.exception("Failed to buffer message to disk")
-
-    def _rotate_buffer(self) -> None:
-        """Remove oldest message from buffer to stay within size limit."""
-        try:
-            lines = self._buffer_file.read_text().splitlines()
-            # keep last (max-1) lines
-            keep = lines[-(self._max_buffer_size - 1) :]
-            self._buffer_file.write_text("\n".join(keep) + "\n" if keep else "")
-        except Exception:
-            LOG.exception("Failed to rotate buffer file")
+            LOG.exception("Failed to enqueue message to on-disk queue")
 
     def _drain_buffer(self) -> None:
         """Attempt to send all buffered messages."""
-        if not self._buffer_file.exists():
+        files = self._queue.list()
+        if not files:
             return
         try:
-            lines = self._buffer_file.read_text().splitlines()
-            if not lines:
-                return
-            LOG.info("Draining %d buffered MQTT messages", len(lines))
+            LOG.info("Draining %d queued MQTT messages", len(files))
             failed = []
-            for line in lines:
+            for p in files:
                 try:
-                    record = json.loads(line)
-                    topic = record["topic"]
-                    body = record["body"]
+                    text = p.read_text(encoding="utf-8")
+                    record = json.loads(text)
+                    topic = record.get("topic")
+                    body = record.get("body")
                     self._client.publish(topic, body)
+                    # remove on success
+                    self._queue.remove(p)
                 except Exception:
-                    LOG.exception("Failed to publish buffered message; re-buffering")
-                    failed.append(line)
-            # rewrite buffer with failed messages only
-            LOG.debug("Drain complete: %d succeeded, %d failed", len(lines) - len(failed), len(failed))
+                    LOG.exception("Failed to publish queued message %s; leaving in queue", p)
+                    failed.append(p)
             if failed:
-                self._buffer_file.write_text("\n".join(failed) + "\n")
-                LOG.info("Re-buffered %d failed messages", len(failed))
+                LOG.info("Left %d messages in queue after drain", len(failed))
             else:
-                # clear buffer
-                self._buffer_file.unlink()
-                LOG.info("Buffer drained successfully")
+                LOG.info("Queue drained successfully")
         except Exception:
-            LOG.exception("Failed to drain buffer")
+            LOG.exception("Failed to drain on-disk queue")
 
 
 __all__ = ["MqttPublisher"]
