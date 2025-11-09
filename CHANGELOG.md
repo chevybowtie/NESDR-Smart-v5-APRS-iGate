@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 
 ### Testing & Tooling
 - Ran the full pytest suite to confirm the compatibility shim leaves existing behaviour unchanged.
+- Added unit tests for the CLI log-level handling, listener helper utilities, and setup I/O prompts to raise coverage on critical paths.
 
 ## [0.2.1] - 2025-11-08
 

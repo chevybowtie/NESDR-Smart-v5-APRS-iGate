@@ -3,14 +3,18 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from argparse import Namespace
 from collections.abc import Iterator
+
+import pytest
 
 from neo_igate.aprs.aprsis_client import APRSISClientError
 from neo_igate.cli import main
 from neo_igate.aprs.kiss_client import KISSCommand
 from neo_igate.config import CONFIG_ENV_VAR, StationConfig, save_config
+import neo_igate.cli as cli
 
 
 def test_cli_version_flag(monkeypatch, capsys) -> None:
@@ -22,6 +26,54 @@ def test_cli_version_flag(monkeypatch, capsys) -> None:
     assert exit_code == 0
     assert captured.out.strip() == "neo-igate 9.9.9"
     assert captured.err == ""
+
+
+def test_resolve_log_level_prefers_argument(monkeypatch) -> None:
+    monkeypatch.delenv("NEO_IGATE_LOG_LEVEL", raising=False)
+    assert cli._resolve_log_level(" 42 ") == 42
+
+
+def test_resolve_log_level_falls_back_to_env(monkeypatch) -> None:
+    monkeypatch.setenv("NEO_IGATE_LOG_LEVEL", "debug")
+    assert cli._resolve_log_level(None) == logging.DEBUG
+
+
+def test_configure_logging_handles_oserror(monkeypatch) -> None:
+    monkeypatch.delenv("NEO_IGATE_LOG_LEVEL", raising=False)
+
+    class BrokenPath:
+        def __truediv__(self, _name: str):  # pragma: no cover - simple helper
+            return self
+
+        def mkdir(self, *_, **__):
+            raise OSError("boom")
+
+    broken = BrokenPath()
+    monkeypatch.setattr(cli.config_module, "get_data_dir", lambda: broken)
+
+    calls: dict[str, object] = {}
+
+    def fake_basic_config(**kwargs):
+        calls.update(kwargs)
+
+    monkeypatch.setattr(cli.logging, "basicConfig", fake_basic_config)
+
+    cli._configure_logging(None)
+
+    handlers = calls.get("handlers")
+    assert isinstance(handlers, list)
+    assert len(handlers) == 1
+
+
+def test_main_errors_on_unknown_args(monkeypatch, capsys) -> None:
+    monkeypatch.setattr("neo_igate.cli.run_listen", lambda _: 0)
+
+    with pytest.raises(SystemExit) as excinfo:
+        main(["listen", "--bogus"])
+
+    assert excinfo.value.code == 2
+    captured = capsys.readouterr()
+    assert "Unknown arguments" in captured.err
 
 
 def test_main_defaults_to_listen_when_no_command(monkeypatch) -> None:
