@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 from typing import Iterable
+from typing import Iterator, List
 
 LOG = logging.getLogger(__name__)
 
@@ -83,3 +84,47 @@ class WsprDecoder:
                 parsed = self._parse_line(raw_line)
                 if parsed is not None:
                     yield parsed
+
+    def run_wsprd_subprocess(self, cmd: List[str] | None = None) -> Iterator[dict]:
+        """Run `wsprd` (or provided command) as a subprocess and yield parsed spots.
+
+        This function is defensive: if the command is not found or the
+        subprocess cannot be started, it logs and returns without raising so
+        callers (including tests) are not required to have `wsprd` installed.
+
+        The default `cmd` is `['wsprd']` which may need additional arguments in
+        a real deployment. For now the method focuses on streaming stdout and
+        parsing lines using the existing parser.
+        """
+        import subprocess
+
+        if cmd is None:
+            cmd = ["wsprd"]
+
+        try:
+            proc = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                bufsize=1,
+                universal_newlines=True,
+            )
+        except FileNotFoundError:
+            LOG.warning("wsprd binary not found: %s", cmd[0])
+            return
+        except Exception:
+            LOG.exception("Failed to start wsprd subprocess: %s", cmd)
+            return
+
+        assert proc.stdout is not None
+        try:
+            for line in proc.stdout:
+                parsed = self._parse_line(line)
+                if parsed is not None:
+                    yield parsed
+        finally:
+            try:
+                proc.terminate()
+            except Exception:
+                pass

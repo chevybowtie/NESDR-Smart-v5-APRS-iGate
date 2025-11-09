@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ master ]
+    branches: [ master, develop, 'feature/**' ]
   pull_request:
-    branches: [ master ]
+    branches: [ master, develop, 'feature/**' ]
 
 jobs:
   test:
@@ -29,10 +29,28 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
 
-      - name: Install deps
+      - name: Detect changed paths
+        uses: dorny/paths-filter@v2
+        id: changes
+        with:
+          filters: |
+            wspr:
+              - 'src/neo_igate/wspr/**'
+              - 'docs/wspr.md'
+              - 'tests/**/wspr*'
+            pyproject:
+              - 'pyproject.toml'
+
+      - name: Install base deps
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e '.[direwolf,dev]'
+
+      - name: Install wspr extras (when relevant)
+        if: ${{ steps.changes.outputs.wspr == 'true' || steps.changes.outputs.pyproject == 'true' }}
+        run: |
+          python -m pip install -U pip
+          python -m pip install -e '.[wspr]'
 
       - name: Lint (ruff)
         run: |
