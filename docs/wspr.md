@@ -63,6 +63,9 @@ heuristics:
 
 - Local JSON-lines log of spots.
 - MQTT publisher (topic `neo_igate/wspr/spots`) for dashboards.
+- **On-disk buffering**: Messages are persisted to disk when the broker is
+  unavailable and automatically sent when connection is restored.
+- Buffer management with configurable size limits and automatic rotation.
 - Optional auto-upload to WSPRnet with queue/retry and manual credential input.
 
 ## Testing
@@ -72,11 +75,11 @@ heuristics:
 
 ## Milestones
 
-M1: RFC + config schema + telemetry publisher abstraction + docs (1–2 days)
+M1: RFC + config schema + telemetry publisher abstraction + docs (1–2 days) ✓
 
-M2: Subprocess decoder wrapper + parsing tests (2 days)
+M2: Subprocess decoder wrapper + parsing tests (2 days) ✓
 
-M3: Capture pipeline + band-scan + logging + MQTT publisher (3–4 days)
+M3: Capture pipeline + band-scan + logging + MQTT publisher + on-disk buffering (3–4 days) ✓
 
 M4: Diagnostics + calibration tools (2–3 days)
 
