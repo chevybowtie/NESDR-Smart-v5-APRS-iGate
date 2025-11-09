@@ -17,6 +17,7 @@ from neo_igate.commands import (  # type: ignore[import]
     run_diagnostics,
     run_listen,
     run_setup,
+    run_wspr,
 )
 
 CommandHandler = Callable[[Namespace], int]
@@ -175,6 +176,38 @@ def build_parser() -> argparse.ArgumentParser:
     )
     subparser_map["diagnostics"] = diagnostics_parser
 
+    wspr_parser = subparsers.add_parser("wspr", help="WSPR utilities and worker")
+    wspr_parser.add_argument(
+        "--config",
+        help="Path to configuration file (overrides default location)",
+    )
+    wspr_parser.add_argument(
+        "--start",
+        action="store_true",
+        help="Start WSPR capture/worker (stub)",
+    )
+    wspr_parser.add_argument(
+        "--scan",
+        action="store_true",
+        help="Run a quick band-scan and report activity (stub)",
+    )
+    wspr_parser.add_argument(
+        "--diagnostics",
+        action="store_true",
+        help="Run WSPR-specific diagnostics (upconverter heuristics) (stub)",
+    )
+    wspr_parser.add_argument(
+        "--calibrate",
+        action="store_true",
+        help="Run WSPR calibration flow (stub)",
+    )
+    wspr_parser.add_argument(
+        "--upload",
+        action="store_true",
+        help="Upload queued spots to WSPRNet (stub)",
+    )
+    subparser_map["wspr"] = wspr_parser
+
     setattr(parser, "_nesdr_subparser_map", subparser_map)
 
     return parser
@@ -198,6 +231,7 @@ def main(argv: list[str] | None = None) -> int:
         "listen": run_listen,
         "setup": run_setup,
         "diagnostics": run_diagnostics,
+        "wspr": run_wspr,
     }
 
     if args.command is None:

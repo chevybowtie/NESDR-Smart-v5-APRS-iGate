@@ -7,6 +7,7 @@ import stat
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from typing import List
 
 import tomli_w  # type: ignore[import]
 
@@ -79,6 +80,17 @@ class StationConfig:
     sample_rate_sps: float = 250_000.0
     gain: float | str | None = None
     ppm_correction: int | None = None
+    # WSPR and extension-specific configuration
+    wspr_enabled: bool = False
+    wspr_auto_upload: bool = False
+    wspr_bands_hz: list[int] | None = None
+    wspr_capture_duration_s: int = 120
+    upconverter_enabled: bool = False
+    upconverter_lo_offset_hz: int | None = None
+    mqtt_enabled: bool = False
+    mqtt_host: str | None = None
+    mqtt_port: int | None = None
+    mqtt_topic: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Convert the configuration to a TOML-serialisable dictionary."""
@@ -111,6 +123,28 @@ class StationConfig:
                     "ppm_correction": self.ppm_correction,
                 }
             ),
+            "wspr": _drop_none(
+                {
+                    "enabled": self.wspr_enabled,
+                    "auto_upload": self.wspr_auto_upload,
+                    "bands_hz": self.wspr_bands_hz,
+                    "capture_duration_s": self.wspr_capture_duration_s,
+                }
+            ),
+            "upconverter": _drop_none(
+                {
+                    "enabled": self.upconverter_enabled,
+                    "lo_offset_hz": self.upconverter_lo_offset_hz,
+                }
+            ),
+            "mqtt": _drop_none(
+                {
+                    "enabled": self.mqtt_enabled,
+                    "host": self.mqtt_host,
+                    "port": self.mqtt_port,
+                    "topic": self.mqtt_topic,
+                }
+            ),
             "direwolf": _drop_none(
                 {
                     "kiss_host": self.kiss_host,
@@ -130,6 +164,9 @@ class StationConfig:
         aprs = data.get("aprs", {})
         radio = data.get("radio", {})
         direwolf = data.get("direwolf", {})
+        wspr = data.get("wspr", {})
+        upconverter = data.get("upconverter", {})
+        mqtt = data.get("mqtt", {})
 
         callsign = station.get("callsign")
         passcode = station.get("passcode")
@@ -158,6 +195,16 @@ class StationConfig:
             sample_rate_sps=float(radio.get("sample_rate_sps", 250_000.0)),
             gain=radio.get("gain"),
             ppm_correction=_optional_int(radio.get("ppm_correction")),
+            wspr_enabled=bool(wspr.get("enabled", False)),
+            wspr_auto_upload=bool(wspr.get("auto_upload", False)),
+            wspr_bands_hz=wspr.get("bands_hz"),
+            wspr_capture_duration_s=int(wspr.get("capture_duration_s", 120)),
+            upconverter_enabled=bool(upconverter.get("enabled", False)),
+            upconverter_lo_offset_hz=_optional_int(upconverter.get("lo_offset_hz")),
+            mqtt_enabled=bool(mqtt.get("enabled", False)),
+            mqtt_host=mqtt.get("host"),
+            mqtt_port=_optional_int(mqtt.get("port")),
+            mqtt_topic=mqtt.get("topic"),
         )
 
 

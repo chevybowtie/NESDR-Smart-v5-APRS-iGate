@@ -47,6 +47,13 @@ dev = [
 direwolf = [
 	"sox>=1.5",
 ]
+wspr = [
+	"paho-mqtt>=1.6",
+	"requests>=2.0",
+]
+mqtt = [
+	"paho-mqtt>=1.6",
+]
 
 [tool.setuptools]
 package-dir = {"" = "src"}
