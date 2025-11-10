@@ -144,7 +144,7 @@ M2: Subprocess decoder wrapper + parsing tests (2 days) ✓
 
 M3: Capture pipeline + band-scan + logging + MQTT publisher + on-disk buffering (3–4 days) ✓
 
-M4: Diagnostics + calibration tools (2–3 days)
+M4: Diagnostics + calibration tools (2–3 days) ✓
 
 M5: WSPRnet uploader + retries (2 days)
 
@@ -154,6 +154,14 @@ Total: ~10–14 working days.
 
 ## Next actions
 
-1. Implement telemetry publisher abstraction and MQTT publisher.
-2. Extend configuration schema to include `wspr`, `upconverter`, and `mqtt`.
-3. Scaffold `src/neo_igate/wspr/` and tests.
+Status: Milestones M1–M4 completed and validated by tests (decoder parsing, capture cycle persistence, band scanning metrics, MQTT buffering/reconnect durability, diagnostics heuristic, calibration + safe config backup).
+
+Upcoming focus (M5–M6):
+1. Implement WSPRnet uploader (`uploader.py`): queue, retry, credential handling.
+2. Add uploader-specific tests (queue persistence, retry backoff, error paths).
+3. Integrate uploader into CLI (`--upload` path) with optional auto-upload config flag.
+4. Expand diagnostics (spectral / SNR comparative heuristics) for richer upconverter confidence metrics.
+5. Add JSON output tests for `--scan --json` and diagnostics.
+6. CI enhancements: add matrix for Python versions, coverage thresholds, lint hooks.
+7. Optional Docker Compose example (RTL-SDR + Mosquitto + dashboard).
+8. Documentation refresh: usage examples, uploader credentials flow, troubleshooting.

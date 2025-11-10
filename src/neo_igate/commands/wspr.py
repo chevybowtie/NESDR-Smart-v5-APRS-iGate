@@ -272,8 +272,27 @@ def run_wspr(args: Namespace) -> int:
         return 0
 
     if getattr(args, "upload", False):
-        LOG.info("Requested WSPR upload (stub)")
-        return 0
+        LOG.info("Requested WSPR upload")
+        from neo_igate.wspr.uploader import WsprUploader
+
+        try:
+            uploader = WsprUploader()
+            result = uploader.drain()
+            LOG.info(
+                "Upload drain complete: attempted=%d succeeded=%d failed=%d",
+                result.get("attempted", 0),
+                result.get("succeeded", 0),
+                result.get("failed", 0),
+            )
+            # Emit machine-readable JSON if requested
+            if getattr(args, "json", False):
+                import json
+
+                print(json.dumps(result, indent=2))
+            return 0
+        except Exception:
+            LOG.exception("Upload operation failed")
+            return 1
 
     LOG.info("No action specified for wspr; nothing to do")
     return 0
