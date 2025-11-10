@@ -241,6 +241,8 @@ These functions have CLI wiring and test infrastructure but require external dep
 2. **`upload_spot(spot)` in `uploader.py`**
    - Currently: Logs the spot; returns success
    - Required: WSPRnet HTTP client + API authentication + endpoint
+     - we should look at https://github.com/garymcm/wsprnet_api/blob/master/README.md for the API
+     - not sure this is useful, be we should examine real-time data access via the wspr.live service which provides a ClickHouse-based database with a public API for querying WSPR spots 
    - Status: Queue management fully functional; HTTP submission is stubbed
    - Blocking: ⚠️ **Production deployment requires real implementation**
 
@@ -266,3 +268,94 @@ These functions have CLI wiring and test infrastructure but require external dep
 4. **CI/CD:** Python 3.11+ matrix, coverage thresholds, pre-commit lint hooks.
 5. **Docker Compose:** RTL-SDR + Mosquitto + Grafana dashboard example.
 6. **Performance:** Batch MQTT publishes, streaming decoder optimization, worker pool for multi-band capture.
+
+
+
+
+### Remaining Stubs (Non-Production)
+
+These functions have CLI wiring and test infrastructure but require external dependencies or driver integration:
+
+1. **`apply_ppm_to_radio(ppm)` in `calibrate.py`**
+   - Currently: Logs the correction value
+   - Required: RTL-SDR driver integration (e.g., `pyrtlsdr` API or direct USB tuner control)
+   - Status: CLI `--calibrate --apply` works end-to-end; apply step is logged only
+
+2. **`upload_spot(spot)` in `uploader.py`**
+   - Currently: Logs the spot; returns success
+   - Required: WSPRnet HTTP client + API authentication + endpoint
+     - we should look at https://github.com/garymcm/wsprnet_api/blob/master/README.md for the API
+     - not sure this is useful, be we should examine real-time data access via the wspr.live service which provides a ClickHouse-based database with a public API for querying WSPR spots 
+   - Status: Queue management fully functional; HTTP submission is stubbed
+   - Blocking: ⚠️ **Production deployment requires real implementation**
+
+3. **`WsprCapture` real-time capture**
+   - Currently: Skeleton with testable sync interface (accepts mock `capture_fn`)
+   - Required: `pyrtlsdr` integration, threading/scheduler for multi-band cycles
+   - Status: Infrastructure present; RTL-SDR capture loop not implemented
+   - Note: `run_wsprd_subprocess()` decoder wrapper is complete; just needs capture source
+
+4. **External dependency: `wsprd` binary**
+   - Status: Decoder gracefully handles missing binary (logs warning, exits cleanly)
+   - Required: User must install `wsprd` separately for real WSPR decoding
+   - Testing: All tests use fixture data; no binary dependency in test suite
+
+#### Resolution Plan
+
+Based on the implementation status, here's a targeted plan to address the 4 remaining stubs for production deployment. Each includes steps, code changes, testing, and estimated effort. Total estimated time: 5–7 days, assuming access to RTL-SDR hardware and WSPRnet API docs.
+
+##### 1. **`apply_ppm_to_radio(ppm)` in `calibrate.py`** (RTL-SDR Driver Integration)
+   - **Current State**: Logs the PPM correction value; CLI `--calibrate --apply` works end-to-end but doesn't affect the radio.
+   - **Goal**: Apply PPM correction to the RTL-SDR tuner for accurate frequency calibration.
+   - **Steps**:
+     - Research `pyrtlsdr` API for PPM setting (likely via `RtlSdr.set_ppm()` or similar).
+     - Update `apply_ppm_to_radio(ppm)` to instantiate an RTL-SDR device, set the correction, and handle errors (e.g., device not found).
+     - Add device validation (e.g., check tuner type) and logging for success/failure.
+   - **Code Changes**: Modify `src/neo_igate/wspr/calibrate.py` to import `pyrtlsdr` and implement the apply logic.
+   - **Testing**: Add unit tests with mocked `pyrtlsdr` (e.g., verify PPM is set correctly). Integration test with real hardware if available.
+   - **Effort**: 1–2 days; low risk, as it's a direct driver call.
+
+##### 2. **`upload_spot(spot)` in `uploader.py`** (WSPRnet HTTP Submission)
+   - **Current State**: Logs spots and returns success; queue management is fully functional.
+   - **Goal**: Submit spots to WSPRnet via their API (requires authentication).
+   - **Steps**:
+     - Review WSPRnet API docs for submission endpoint, required fields (e.g., call, freq, SNR), and auth (likely API key).
+     - Implement HTTP POST in `upload_spot(spot)` using `requests` (add to dependencies).
+     - Handle auth securely (e.g., store key in config or keyring); add retry logic for network failures.
+     - Update CLI to prompt for credentials on first use (via `setup_io.py` helpers).
+   - **Code Changes**: Enhance `src/neo_igate/wspr/uploader.py` with HTTP client and auth handling. Update config schema for WSPRnet credentials.
+   - **Testing**: Mock HTTP responses for success/failure. Add tests for auth, retries, and malformed spots. Validate against WSPRnet sandbox if available.
+   - **Effort**: 2–3 days; moderate risk due to external API dependency—test thoroughly to avoid rate limits or bans.
+   - **Note**: ⚠️ **Critical for production**—do not deploy without real implementation.
+
+##### 3. **`WsprCapture` Real-Time Capture** (RTL-SDR Integration)
+   - **Current State**: Skeleton with sync interface; decoder wrapper is complete.
+   - **Goal**: Enable live IQ capture from RTL-SDR for multi-band WSPR decoding.
+   - **Steps**:
+     - Integrate `pyrtlsdr` in `WsprCapture` to open device, tune to bands, and capture IQ samples.
+     - Add threading/scheduler for band cycling (e.g., 2-minute cycles per band).
+     - Wire captured IQ to `run_wsprd_subprocess()` for decoding.
+     - Handle device errors (e.g., busy tuner) and cleanup on shutdown.
+   - **Code Changes**: Flesh out `src/neo_igate/wspr/capture.py` with `pyrtlsdr` calls and threading logic.
+   - **Testing**: Unit tests with mocked capture (already in place). Integration tests with real SDR for end-to-end decoding.
+   - **Effort**: 1–2 days; builds on existing skeleton—focus on threading stability.
+
+##### 4. **External Dependency: `wsprd` Binary** (User Installation Guidance)
+   - **Current State**: Decoder handles missing binary gracefully (logs warning, exits cleanly).
+   - **Goal**: Ensure users can install `wsprd` easily; no code changes needed, but improve docs/setup.
+   - **Steps**:
+     - Add installation instructions to `README.md` (e.g., `sudo apt install wspr` or build from source).
+     - Update prerequisites section and error messages to guide users.
+     - Optionally, add a `--check-deps` flag to CLI for pre-flight checks.
+   - **Code Changes**: Minimal—update docs and possibly `diagnostics.py` for dependency checks.
+   - **Testing**: Add tests for missing binary handling (already covered); verify error messages.
+   - **Effort**: 0.5–1 day; documentation-focused.
+
+##### Overall Notes
+- **Dependencies**: Ensure `pyrtlsdr` and `requests` are in `pyproject.toml` (add `requests>=2.25` for HTTP).
+- **Testing Strategy**: Expand integration tests for real hardware/API. Run full suite (`.venv/bin/python -m pytest`) after each stub.
+- **Risks**: API auth and hardware integration—test on staging/sandbox environments.
+- **Timeline**: Tackle 1 and 3 first (driver-focused), then 2 (API), and 4 last (docs). Aim for incremental commits with tests.
+- **Post-Resolution**: Update `CHANGELOG.md` and mark as production-ready once all stubs are implemented and tested.
+
+// ...existing code...
