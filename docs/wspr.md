@@ -233,10 +233,8 @@ M6: Tests, docs, CI updates, optional Docker Compose example (2 days) ✓
 
 These functions have CLI wiring and test infrastructure but require external dependencies or driver integration:
 
-1. **`apply_ppm_to_radio(ppm)` in `calibrate.py`**
-   - Currently: Logs the correction value
-   - Required: RTL-SDR driver integration (e.g., `pyrtlsdr` API or direct USB tuner control)
-   - Status: CLI `--calibrate --apply` works end-to-end; apply step is logged only
+1. **`apply_ppm_to_radio(ppm)` in `calibrate.py`** ✅ **RESOLVED**
+   - Status: Implemented with RTL-SDR integration, error handling, and unit tests. Applies PPM correction to tuner in real-time.
 
 2. **`upload_spot(spot)` in `uploader.py`**
    - Currently: Logs the spot; returns success
@@ -276,10 +274,8 @@ These functions have CLI wiring and test infrastructure but require external dep
 
 These functions have CLI wiring and test infrastructure but require external dependencies or driver integration:
 
-1. **`apply_ppm_to_radio(ppm)` in `calibrate.py`**
-   - Currently: Logs the correction value
-   - Required: RTL-SDR driver integration (e.g., `pyrtlsdr` API or direct USB tuner control)
-   - Status: CLI `--calibrate --apply` works end-to-end; apply step is logged only
+1. **`apply_ppm_to_radio(ppm)` in `calibrate.py`** ✅ **RESOLVED**
+   - Status: Implemented with RTL-SDR integration, error handling, and unit tests. Applies PPM correction to tuner in real-time.
 
 2. **`upload_spot(spot)` in `uploader.py`**
    - Currently: Logs the spot; returns success
@@ -304,16 +300,11 @@ These functions have CLI wiring and test infrastructure but require external dep
 
 Based on the implementation status, here's a targeted plan to address the 4 remaining stubs for production deployment. Each includes steps, code changes, testing, and estimated effort. Total estimated time: 5–7 days, assuming access to RTL-SDR hardware and WSPRnet API docs.
 
-##### 1. **`apply_ppm_to_radio(ppm)` in `calibrate.py`** (RTL-SDR Driver Integration)
-   - **Current State**: Logs the PPM correction value; CLI `--calibrate --apply` works end-to-end but doesn't affect the radio.
-   - **Goal**: Apply PPM correction to the RTL-SDR tuner for accurate frequency calibration.
-   - **Steps**:
-     - Research `pyrtlsdr` API for PPM setting (likely via `RtlSdr.set_ppm()` or similar).
-     - Update `apply_ppm_to_radio(ppm)` to instantiate an RTL-SDR device, set the correction, and handle errors (e.g., device not found).
-     - Add device validation (e.g., check tuner type) and logging for success/failure.
-   - **Code Changes**: Modify `src/neo_igate/wspr/calibrate.py` to import `pyrtlsdr` and implement the apply logic.
-   - **Testing**: Add unit tests with mocked `pyrtlsdr` (e.g., verify PPM is set correctly). Integration test with real hardware if available.
-   - **Effort**: 1–2 days; low risk, as it's a direct driver call.
+##### 1. **`apply_ppm_to_radio(ppm)` in `calibrate.py`** (RTL-SDR Driver Integration) ✅ **COMPLETED**
+   - **Status**: Implemented with RTL-SDR integration, error handling, and unit tests. Applies PPM correction to tuner in real-time.
+   - **Code Changes**: Modified `src/neo_igate/wspr/calibrate.py` to import `pyrtlsdr` and implement the apply logic.
+   - **Testing**: Added unit tests with mocked `pyrtlsdr` for success, no devices, import errors, and device failures.
+   - **Effort**: 1–2 days; completed with low risk.
 
 ##### 2. **`upload_spot(spot)` in `uploader.py`** (WSPRnet HTTP Submission)
    - **Current State**: Logs spots and returns success; queue management is fully functional.
@@ -355,7 +346,7 @@ Based on the implementation status, here's a targeted plan to address the 4 rema
 - **Dependencies**: Ensure `pyrtlsdr` and `requests` are in `pyproject.toml` (add `requests>=2.25` for HTTP).
 - **Testing Strategy**: Expand integration tests for real hardware/API. Run full suite (`.venv/bin/python -m pytest`) after each stub.
 - **Risks**: API auth and hardware integration—test on staging/sandbox environments.
-- **Timeline**: Tackle 1 and 3 first (driver-focused), then 2 (API), and 4 last (docs). Aim for incremental commits with tests.
+- **Timeline**: Item #1 completed; tackle 3 next (RTL-SDR capture), then 2 (WSPRnet API), and 4 last (docs). Aim for incremental commits with tests.
 - **Post-Resolution**: Update `CHANGELOG.md` and mark as production-ready once all stubs are implemented and tested.
 
 // ...existing code...
