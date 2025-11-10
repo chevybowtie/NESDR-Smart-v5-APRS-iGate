@@ -13,6 +13,8 @@ from neo_igate import config as config_module
 from neo_igate.wspr.capture import WsprCapture
 from neo_igate.wspr.decoder import WsprDecoder
 from neo_igate.wspr.publisher import make_publisher_from_config
+from neo_igate.wspr.uploader import WsprUploader
+from neo_igate.wspr import scan as wspr_scan
 
 LOG = logging.getLogger(__name__)
 
@@ -123,7 +125,6 @@ def run_wspr(args: Namespace) -> int:
 
     if getattr(args, "scan", False):
         LOG.info("Running WSPR band-scan")
-        from neo_igate.wspr import scan as wspr_scan
         import shutil
         import subprocess
         import time
@@ -273,8 +274,6 @@ def run_wspr(args: Namespace) -> int:
 
     if getattr(args, "upload", False):
         LOG.info("Requested WSPR upload")
-        from neo_igate.wspr.uploader import WsprUploader
-
         try:
             uploader = WsprUploader()
             result = uploader.drain()
