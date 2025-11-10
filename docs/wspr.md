@@ -19,7 +19,18 @@ calibration, structured logging, and MQTT publication of spots.
 - Host must provide accurate time (NTP/GPS/PPS).
 - Auto-reporting to WSPRnet is opt-in and requires manual credential entry.
 
-## Scope
+## Hardware Setup
+
+### NESDR Smart v5
+
+The NESDR Smart v5 is a USB SDR receiver with built-in upconverter and amplifier switches. For WSPR reception, configure the switches as follows:
+
+- **Upconverter Switch**: ON (enables the built-in upconverter for HF bands)
+- **Amp Switch**: OFF (amplifier not needed for WSPR; may introduce noise)
+
+These settings allow reception of WSPR bands (80m, 40m, 30m, 10m) by shifting HF frequencies into the RTL-SDR's tunable range.
+
+**Note**: Ensure the device is properly connected via USB and recognized by the system (check with `lsusb` or `rtl_test`). The upconverter is integrated and does not appear as a separate USB device.
 
 - Capture IQ from RTL-SDR, run decoder, parse spots.
 - Automatic heuristics for upconverter detection and LO offset recommendation.
@@ -348,5 +359,3 @@ Based on the implementation status, here's a targeted plan to address the 4 rema
 - **Risks**: API auth and hardware integration—test on staging/sandbox environments.
 - **Timeline**: Item #1 completed; tackle 3 next (RTL-SDR capture), then 2 (WSPRnet API), and 4 last (docs). Aim for incremental commits with tests.
 - **Post-Resolution**: Update `CHANGELOG.md` and mark as production-ready once all stubs are implemented and tested.
-
-// ...existing code...

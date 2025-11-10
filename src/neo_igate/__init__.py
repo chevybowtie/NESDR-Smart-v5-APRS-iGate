@@ -21,6 +21,10 @@ except Exception:
     # fall back to a sensible dev placeholder.
     __version__ = "0.0.0"
 
+# Suppress pkg_resources deprecation warning
+import warnings
+warnings.filterwarnings("ignore", message="pkg_resources is deprecated", category=UserWarning)
+
 from . import cli, config, diagnostics_helpers, term
 
 __all__ = ["cli", "config", "diagnostics_helpers", "term", "__version__"]

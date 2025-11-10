@@ -28,6 +28,11 @@ def compute_ppm_from_offset(freq_hz: float, offset_hz: float) -> float:
 
 def apply_ppm_to_radio(ppm: float) -> None:
     """Apply ppm correction to the radio driver (requires implementation)."""
+    from neo_igate._compat import prepare_rtlsdr
+
+    # Prepare RTL-SDR with compatibility patches
+    prepare_rtlsdr()
+
     try:
         from rtlsdr import RtlSdr
     except ImportError as exc:

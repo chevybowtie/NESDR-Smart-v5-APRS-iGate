@@ -59,8 +59,8 @@ class WsprDecoder:
             "freq_hz": freq_hz,
             "call": gd.get("call"),
             "grid": gd.get("grid"),
-            "snr_db": int(gd.get("snr")) if gd.get("snr") is not None else None,
-            "drift": float(gd.get("drift")) if gd.get("drift") else None,
+            "snr_db": int(gd["snr"]),
+            "drift": float(gd["drift"]) if gd.get("drift") else None,
         }
         return spot
 
@@ -85,30 +85,33 @@ class WsprDecoder:
                 if parsed is not None:
                     yield parsed
 
-    def run_wsprd_subprocess(self, cmd: List[str] | None = None) -> Iterator[dict]:
-        """Run `wsprd` (or provided command) as a subprocess and yield parsed spots.
+    def run_wsprd_subprocess(self, iq_data: bytes, band_hz: int, cmd: List[str] | None = None) -> Iterator[dict]:
+        """Run `wsprd` as a subprocess, feed IQ data to stdin, and yield parsed spots.
 
-        This function is defensive: if the command is not found or the
-        subprocess cannot be started, it logs and returns without raising so
-        callers (including tests) are not required to have `wsprd` installed.
+        This function feeds the provided IQ data (as bytes) to `wsprd`'s stdin,
+        runs the subprocess, and parses stdout for spots.
 
-        The default `cmd` is `['wsprd']` which may need additional arguments in
-        a real deployment. For now the method focuses on streaming stdout and
-        parsing lines using the existing parser.
+        If the command is not found or the subprocess cannot be started, it logs
+        and returns without raising.
+
+        Args:
+            iq_data: IQ samples as bytes (int16 little-endian).
+            band_hz: The band frequency in Hz.
+            cmd: Optional command list; defaults to ['wsprd', '-f', str(band_hz / 1e6)].
         """
         import subprocess
+        import io
 
         if cmd is None:
-            cmd = ["wsprd"]
+            cmd = ["wsprd", "-f", str(band_hz / 1e6)]
 
         try:
             proc = subprocess.Popen(
                 cmd,
+                stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                text=True,
-                bufsize=1,
-                universal_newlines=True,
+                bufsize=0,  # Unbuffered
             )
         except FileNotFoundError:
             LOG.warning("wsprd binary not found: %s", cmd[0])
@@ -117,9 +120,15 @@ class WsprDecoder:
             LOG.exception("Failed to start wsprd subprocess: %s", cmd)
             return
 
+        assert proc.stdin is not None
         assert proc.stdout is not None
         try:
-            for line in proc.stdout:
+            # Write IQ data to stdin
+            proc.stdin.write(iq_data)
+            proc.stdin.close()
+
+            # Read stdout as text
+            for line in io.TextIOWrapper(proc.stdout, encoding='utf-8', errors='replace'):
                 parsed = self._parse_line(line)
                 if parsed is not None:
                     yield parsed

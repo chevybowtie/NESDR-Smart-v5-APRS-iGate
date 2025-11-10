@@ -65,6 +65,9 @@ neo_igate = ["templates/direwolf.conf"]
 addopts = "-ra"
 testpaths = ["tests"]
 asyncio_mode = "auto"
+filterwarnings = [
+    "ignore:pkg_resources is deprecated:UserWarning",
+]
 
 [tool.ruff]
 line-length = 88

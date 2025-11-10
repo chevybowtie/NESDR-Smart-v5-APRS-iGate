@@ -48,10 +48,18 @@ class TestApplyPpmToRadio:
         with pytest.raises(RuntimeError, match="No RTL-SDR devices found"):
             apply_ppm_to_radio(10.0)
 
-    @patch("builtins.__import__", side_effect=ImportError("No module"))
-    def test_import_error(self, mock_import):
-        with pytest.raises(RuntimeError, match="RTL-SDR driver unavailable"):
-            apply_ppm_to_radio(10.0)
+    def test_import_error(self):
+        import builtins
+        original_import = builtins.__import__
+        
+        def mock_import(name, *args, **kwargs):
+            if name == "rtlsdr":
+                raise ImportError("No module")
+            return original_import(name, *args, **kwargs)
+        
+        with patch("builtins.__import__", side_effect=mock_import):
+            with pytest.raises(RuntimeError, match="RTL-SDR driver unavailable"):
+                apply_ppm_to_radio(10.0)
 
     @patch("rtlsdr.RtlSdr")
     def test_device_error(self, mock_rtlsdr_cls):
