@@ -121,37 +121,36 @@ class WsprDecoder:
             LOG.warning("wsprd binary not found")
             return
 
-        # Create temp file
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.c2') as temp_file:
-            temp_file.write(iq_data)
-            temp_file_path = temp_file.name
+        # Create temp directory for wsprd output files
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Create temp file for IQ data
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.c2', dir=temp_dir) as temp_file:
+                temp_file.write(iq_data)
+                temp_file_path = temp_file.name
 
-        try:
-            if cmd is None:
-                cmd = [self.wsprd_path, '-f', str(band_hz / 1e6), temp_file_path]
-
-            proc = subprocess.Popen(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                bufsize=0,  # Unbuffered
-            )
-
-            assert proc.stdout is not None
             try:
-                # Read stdout as text
-                for line in io.TextIOWrapper(proc.stdout, encoding='utf-8', errors='replace'):
-                    parsed = self._parse_line(line)
-                    if parsed is not None:
-                        yield parsed
-            finally:
+                if cmd is None:
+                    cmd = [self.wsprd_path, '-a', temp_dir, '-f', str(band_hz / 1e6), temp_file_path]
+
+                proc = subprocess.Popen(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    bufsize=0,  # Unbuffered
+                )
+
+                assert proc.stdout is not None
                 try:
-                    proc.terminate()
-                except Exception:
-                    pass
-        finally:
-            # Clean up temp file
-            try:
-                os.unlink(temp_file_path)
-            except Exception:
+                    # Read stdout as text
+                    for line in io.TextIOWrapper(proc.stdout, encoding='utf-8', errors='replace'):
+                        parsed = self._parse_line(line)
+                        if parsed is not None:
+                            yield parsed
+                finally:
+                    try:
+                        proc.terminate()
+                    except Exception:
+                        pass
+            finally:
+                # Temp directory and files are automatically cleaned up
                 pass

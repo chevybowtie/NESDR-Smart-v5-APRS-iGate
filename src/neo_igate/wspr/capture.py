@@ -88,16 +88,23 @@ class WsprCapture:
         prepare_rtlsdr()
 
         try:
-            from rtlsdr import RtlSdr
-        except ImportError as exc:
-            LOG.error("RTL-SDR library not available: %s", exc)
-            self._running = False
-            return
+            from rtlsdr import RtlSdrAio as RtlSdr
+        except ImportError:
+            try:
+                from rtlsdr import RtlSdr
+            except ImportError as exc:
+                LOG.error("RTL-SDR library not available: %s", exc)
+                self._running = False
+                return
 
         sdr = None
         try:
             # Check for devices
-            device_count = RtlSdr.get_device_count()  # type: ignore[attr-defined]
+            try:
+                device_count = RtlSdr.get_device_count()  # type: ignore[attr-defined]
+            except AttributeError:
+                # Some versions don't have get_device_count, assume available
+                device_count = 1
             if device_count == 0:
                 LOG.error("No RTL-SDR devices found")
                 self._running = False
@@ -105,8 +112,36 @@ class WsprCapture:
 
             sdr = RtlSdr()  # type: ignore[operator]
             LOG.info("RTL-SDR initialized for WSPR capture")
+            LOG.info("Note: '[R82XX] PLL not locked!' messages during tuning are normal and don't indicate errors")
+
+            # Check system time accuracy - critical for WSPR synchronization
+            import datetime
+            now = datetime.datetime.now()
+            if now.year < 2024:
+                LOG.warning("System time appears to be incorrect (year %d). WSPR synchronization requires accurate system time within seconds. Please configure NTP (e.g., 'sudo apt install ntp' and 'sudo systemctl enable ntp').", now.year)
+            else:
+                LOG.info("System time appears reasonable. For optimal WSPR reception, ensure NTP synchronization: 'timedatectl status' should show 'NTP synchronized: yes'")
 
             decoder = WsprDecoder()
+
+            # Wait for next even minute to synchronize with WSPR schedule
+            now = time.time()
+            seconds_since_epoch = int(now)
+            current_minute = (seconds_since_epoch // 60) % 60
+            seconds_into_minute = seconds_since_epoch % 60
+            
+            if current_minute % 2 == 0:
+                # Already at even minute, wait until next even minute
+                wait_seconds = 120 - seconds_into_minute
+            else:
+                # At odd minute, wait until next even minute
+                wait_seconds = (120 - seconds_into_minute) % 120
+            
+            if wait_seconds > 0:
+                LOG.info("Waiting %d seconds to synchronize with WSPR schedule (next even minute)", wait_seconds)
+                if self._stop_event.wait(wait_seconds):
+                    # Stop event was set while waiting
+                    return
 
             while not self._stop_event.is_set():
                 for band_hz in self.bands_hz:
@@ -116,6 +151,8 @@ class WsprCapture:
                     LOG.info("Tuning to band %s Hz for %s s", band_hz, self.capture_duration_s)
                     try:
                         sdr.set_center_freq(band_hz)  # type: ignore[attr-defined]
+                        # Allow PLL to settle after frequency change
+                        time.sleep(0.1)  # 100ms delay for tuner stabilization
                         sdr.set_sample_rate(1_200_000)  # Standard for WSPR
                         # Capture IQ samples
                         iq_data = b""

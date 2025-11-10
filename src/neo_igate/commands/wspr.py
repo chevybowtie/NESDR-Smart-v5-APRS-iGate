@@ -6,6 +6,7 @@ Provides a single entrypoint `run_wspr` used by `neo-igate wspr`.
 from __future__ import annotations
 
 import logging
+import time
 from argparse import Namespace
 from typing import Optional
 
@@ -42,92 +43,41 @@ def run_wspr(args: Namespace) -> int:
     """
     cfg = _load_config_if_present(getattr(args, "config", None))
 
-    if getattr(args, "start", False):
-        LOG.info("Starting WSPR worker")
-        decoder = WsprDecoder(options={})
-        publisher = None
-        try:
-            # Respect CLI override when present; otherwise fall back to config
-            mqtt_override = getattr(args, "mqtt", None)
-            mqtt_enabled = (
-                mqtt_override
-                if mqtt_override is not None
-                else (cfg.mqtt_enabled if cfg is not None else False)
-            )
-            if mqtt_enabled:
-                try:
-                    if cfg is None:
-                        # No config available: construct a default MQTT publisher
-                        from neo_igate.telemetry.mqtt_publisher import MqttPublisher
-
-                        publisher = MqttPublisher(host="127.0.0.1", port=1883)
-                    else:
-                        publisher = make_publisher_from_config(cfg)
-
-                    if publisher is not None:
-                        # prefer configured topic when present
-                        publisher.topic = cfg.mqtt_topic if (cfg and cfg.mqtt_topic) else "neo_igate/wspr/spots"
-                        publisher.connect()
-                except Exception:
-                    LOG.exception("Failed to create/connect publisher; continuing without it")
-            else:
-                LOG.debug("MQTT disabled by config/CLI; no publisher created")
-
-            # create capture with publisher so run_capture_cycle (if used) will publish
-            capture = WsprCapture(
-                bands_hz=cfg.wspr_bands_hz if (cfg and cfg.wspr_bands_hz) else None,
-                capture_duration_s=(cfg.wspr_capture_duration_s if cfg else 120),
-                publisher=publisher,
-            )
-            capture.start()
-
-            import signal
-
-            LOG.info("WSPR capture started. Running decoder subprocess (if available)...")
-
-            old_int = signal.getsignal(signal.SIGINT)
-            old_term = signal.getsignal(signal.SIGTERM)
-
-            def _raise_keyboard(signum, frame):
-                raise KeyboardInterrupt()
-
-            signal.signal(signal.SIGINT, _raise_keyboard)
-            signal.signal(signal.SIGTERM, _raise_keyboard)
-
+    # Set up publisher if MQTT is enabled
+    publisher = None
+    try:
+        # Respect CLI override when present; otherwise fall back to config
+        mqtt_override = getattr(args, "mqtt", None)
+        mqtt_enabled = (
+            mqtt_override
+            if mqtt_override is not None
+            else (cfg.mqtt_enabled if cfg is not None else False)
+        )
+        if mqtt_enabled:
             try:
-                for spot in decoder.run_wsprd_subprocess():
-                    LOG.info("Decoded spot: %s", spot)
-                    try:
-                        if publisher is not None:
-                            topic = cfg.mqtt_topic if (cfg and cfg.mqtt_topic) else "neo_igate/wspr/spots"
-                            publisher.publish(topic, spot)
-                    except Exception:
-                        LOG.exception("Failed publishing spot; continuing")
+                if cfg is None:
+                    # No config available: construct a default MQTT publisher
+                    from neo_igate.telemetry.mqtt_publisher import MqttPublisher
 
-            except KeyboardInterrupt:
-                LOG.info("WSPR worker interrupted by user")
-            finally:
-                # restore original handlers
-                try:
-                    signal.signal(signal.SIGINT, old_int)
-                    signal.signal(signal.SIGTERM, old_term)
-                except Exception:
-                    pass
-        finally:
-            if publisher is not None:
-                try:
-                    publisher.close()
-                except Exception:
-                    LOG.exception("Error closing publisher")
-            capture.stop()
-            LOG.info("WSPR worker stopped")
-        return 0
+                    publisher = MqttPublisher(host="127.0.0.1", port=1883)
+                else:
+                    publisher = make_publisher_from_config(cfg)
+
+                if publisher is not None:
+                    # prefer configured topic when present
+                    publisher.topic = cfg.mqtt_topic if (cfg and cfg.mqtt_topic) else "neo_igate/wspr/spots"
+                    publisher.connect()
+            except Exception:
+                LOG.exception("Failed to create/connect publisher; continuing without it")
+        else:
+            LOG.debug("MQTT disabled by config/CLI; no publisher created")
+    except Exception:
+        LOG.exception("Error setting up publisher")
 
     if getattr(args, "scan", False):
         LOG.info("Running WSPR band-scan")
         import shutil
         import subprocess
-        import time
 
         bands = []
         if cfg is not None and cfg.wspr_bands_hz:
@@ -139,10 +89,13 @@ def run_wspr(args: Namespace) -> int:
 
         def _capture_fn(band_hz: int, dur: int):
             # Try to run `wsprd` and capture stdout lines for `dur` seconds.
-            if shutil.which("wsprd") is None:
+            from neo_igate.wspr.decoder import WsprDecoder
+            decoder = WsprDecoder()
+            wsprd_path = decoder.wsprd_path
+            if wsprd_path is None:
                 LOG.warning("wsprd not found; skipping live capture for band %s", band_hz)
                 return []
-            cmd = ["wsprd"]
+            cmd = [wsprd_path]
             try:
                 proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             except Exception:
@@ -194,7 +147,7 @@ def run_wspr(args: Namespace) -> int:
         from neo_igate.wspr import diagnostics as wspr_diag
 
         # attempt to load recent spots from data dir (best-effort)
-        data_dir = config_module.get_data_dir() if cfg is not None else Path("./data")
+        data_dir = config_module.get_data_dir() / "wspr"
         spots_file = data_dir / "wspr_spots.jsonl"
         spots = []
         try:
@@ -218,10 +171,8 @@ def run_wspr(args: Namespace) -> int:
         spots_path = None
         if getattr(args, "spots_file", None):
             spots_path = Path(getattr(args, "spots_file"))
-        elif cfg is not None:
-            spots_path = config_module.get_data_dir() / "wspr_spots.jsonl"
         else:
-            spots_path = Path("./data/wspr_spots.jsonl")
+            spots_path = (config_module.get_data_dir() / "wspr") / "wspr_spots.jsonl"
 
         spots = load_spots_from_jsonl(spots_path)
         if not spots:
@@ -293,7 +244,23 @@ def run_wspr(args: Namespace) -> int:
             LOG.exception("Upload operation failed")
             return 1
 
-    LOG.info("No action specified for wspr; nothing to do")
+    # Default action: run full WSPR monitoring
+    LOG.info("Starting WSPR monitoring")
+    from pathlib import Path
+    data_dir = config_module.get_data_dir() / "wspr"
+    LOG.info("WSPR spots will be saved to: %s", data_dir / "wspr_spots.jsonl")
+    LOG.info("Application logs are available in: %s", config_module.get_data_dir() / "logs")
+    bands = cfg.wspr_bands_hz if cfg is not None else None
+    duration = cfg.wspr_capture_duration_s if cfg is not None else 120
+    capture = WsprCapture(bands_hz=bands, capture_duration_s=duration, data_dir=data_dir, publisher=publisher)
+    capture.start()
+    try:
+        while capture.is_running():
+            time.sleep(1)
+    except KeyboardInterrupt:
+        LOG.info("WSPR monitoring interrupted by user")
+    finally:
+        capture.stop()
     return 0
 
 
