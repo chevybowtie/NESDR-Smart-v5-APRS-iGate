@@ -45,15 +45,31 @@ def run_wspr(args: Namespace) -> int:
         decoder = WsprDecoder(options={})
         publisher = None
         try:
-            if cfg is not None:
+            # Respect CLI override when present; otherwise fall back to config
+            mqtt_override = getattr(args, "mqtt", None)
+            mqtt_enabled = (
+                mqtt_override
+                if mqtt_override is not None
+                else (cfg.mqtt_enabled if cfg is not None else False)
+            )
+            if mqtt_enabled:
                 try:
-                    publisher = make_publisher_from_config(cfg)
+                    if cfg is None:
+                        # No config available: construct a default MQTT publisher
+                        from neo_igate.telemetry.mqtt_publisher import MqttPublisher
+
+                        publisher = MqttPublisher(host="127.0.0.1", port=1883)
+                    else:
+                        publisher = make_publisher_from_config(cfg)
+
                     if publisher is not None:
                         # prefer configured topic when present
-                        publisher.topic = cfg.mqtt_topic or "neo_igate/wspr/spots"
+                        publisher.topic = cfg.mqtt_topic if (cfg and cfg.mqtt_topic) else "neo_igate/wspr/spots"
                         publisher.connect()
                 except Exception:
                     LOG.exception("Failed to create/connect publisher; continuing without it")
+            else:
+                LOG.debug("MQTT disabled by config/CLI; no publisher created")
 
             # create capture with publisher so run_capture_cycle (if used) will publish
             capture = WsprCapture(

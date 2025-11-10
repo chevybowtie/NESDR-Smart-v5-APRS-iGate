@@ -230,6 +230,22 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Upload queued spots to WSPRNet (stub)",
     )
+    # Allow CLI override for MQTT enablement/disablement
+    mqtt_group = wspr_parser.add_mutually_exclusive_group()
+    mqtt_group.add_argument(
+        "--mqtt",
+        dest="mqtt",
+        action="store_true",
+        default=None,
+        help="Enable MQTT (overrides config)",
+    )
+    mqtt_group.add_argument(
+        "--no-mqtt",
+        dest="mqtt",
+        action="store_false",
+        default=None,
+        help="Disable MQTT (overrides config)",
+    )
     subparser_map["wspr"] = wspr_parser
 
     setattr(parser, "_nesdr_subparser_map", subparser_map)
