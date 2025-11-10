@@ -28,7 +28,28 @@ def compute_ppm_from_offset(freq_hz: float, offset_hz: float) -> float:
 
 def apply_ppm_to_radio(ppm: float) -> None:
     """Apply ppm correction to the radio driver (requires implementation)."""
-    LOG.info("Applying ppm correction (stub): %s", ppm)
+    try:
+        from rtlsdr import RtlSdr
+    except ImportError as exc:
+        LOG.error("RTL-SDR library not available: %s", exc)
+        raise RuntimeError("RTL-SDR driver unavailable") from exc
+
+    try:
+        # Check for available devices
+        device_count = RtlSdr.get_device_count()  # type: ignore[attr-defined]
+        if device_count == 0:
+            raise RuntimeError("No RTL-SDR devices found")
+
+        sdr = RtlSdr()  # type: ignore[operator]
+        try:
+            # Apply PPM correction
+            sdr.set_ppm_offset(int(round(ppm)))  # type: ignore[attr-defined]
+            LOG.info("Applied ppm correction %s to RTL-SDR device", ppm)
+        finally:
+            sdr.close()
+    except Exception as exc:
+        LOG.error("Failed to apply ppm correction to RTL-SDR: %s", exc)
+        raise RuntimeError(f"RTL-SDR ppm application failed: {exc}") from exc
 
 
 def persist_ppm_to_config(ppm: float, config_path: str | None = None) -> None:
@@ -101,13 +122,17 @@ def estimate_offset_from_spots(spots: Iterable[dict], expected_freq_hz: Optional
     snrs: list[float] = []
     for s in spots:
         try:
-            f = float(s.get("freq_hz"))
-        except Exception:
+            freq_val = s.get("freq_hz")
+            if freq_val is not None:
+                f = float(freq_val)
+                freqs.append(f)
+        except (TypeError, ValueError):
             continue
-        freqs.append(f)
         try:
-            snrs.append(float(s.get("snr_db")))
-        except Exception:
+            snr_val = s.get("snr_db")
+            if snr_val is not None:
+                snrs.append(float(snr_val))
+        except (TypeError, ValueError):
             pass
 
     if not freqs:
