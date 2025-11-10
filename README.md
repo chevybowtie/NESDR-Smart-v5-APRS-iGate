@@ -8,6 +8,7 @@ Command-line utility for turning an SDR (for example a NESDR Smart v5 RTL-SDR) i
 - Direwolf packet modem installed and on `PATH`
 	- `rtl_fm`, `rtl_test`, and `direwolf` binaries must be callable
 - (Optional) `sox` for Direwolf audio tooling (installed automatically with the `direwolf` extra)
+- (Optional) WSPR decoding (bundled with the `wspr` extra)
 
 On Debian- or Ubuntu-based systems you can install the radio tools and Direwolf with:
 ```bash
@@ -17,6 +18,11 @@ Add `sox` if you want the optional audio helpers:
 ```bash
 sudo apt install sox
 ```
+
+### WSPR Support
+WSPR decoding is supported via the bundled `wsprd` binary (from WSJT-X). No additional installation is required beyond the Python dependencies.
+
+The WSPR feature uses the bundled `wsprd` for IQ data decoding.
 
 ## 1. Create and activate a virtual environment
 ```bash
@@ -29,6 +35,10 @@ python -m pip install --upgrade pip
 Install the project in editable mode along with the Direwolf helper extra:
 ```bash
 pip install -e '.[direwolf]'
+```
+For WSPR support, add the WSPR extra (includes the bundled `wsprd` binary):
+```bash
+pip install -e '.[direwolf,wspr]'
 ```
 Add `.[dev]` if you also want formatting, linting, and test tooling.
 
@@ -108,6 +118,26 @@ Useful flags:
 - `--config PATH` to point at an alternate configuration file
 
 Logs and temporary probe outputs are stored beneath `~/.local/share/neo-igate/logs/` by default.
+
+## 6. WSPR Monitoring (optional)
+If you installed WSPR support, you can monitor WSPR bands for propagation reports:
+```bash
+neo-igate wspr
+```
+
+The WSPR monitor will:
+1. Cycle through WSPR bands (80m, 40m, 30m, 10m) with 2-minute intervals
+2. Capture IQ samples from the RTL-SDR
+3. Decode signals using `wsprd`
+4. Log spots to JSON-lines and publish to MQTT (if configured)
+
+Useful flags:
+- `--calibrate` to measure and apply frequency correction
+- `--scan` to scan bands without decoding
+- `--upload` to submit queued spots to WSPRnet
+- `--config PATH` to point at an alternate configuration file
+
+WSPR data is stored beneath `~/.local/share/neo-igate/wspr/` by default.
 
 ## Troubleshooting
 - `neo-igate diagnostics` surfaces missing dependencies, SDR availability, and network reachability issues.

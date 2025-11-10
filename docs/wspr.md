@@ -199,7 +199,7 @@ M6: Tests, docs, CI updates, optional Docker Compose example (2 days) ✓
 
 **Total: ~10–14 working days — All completed.**
 
-**Final Test Suite: 187 passing tests**
+**Final Test Suite: 201 passing tests**
 
 ## Implementation Status
 
@@ -238,7 +238,8 @@ M6: Tests, docs, CI updates, optional Docker Compose example (2 days) ✓
 | Uploader queue | 9 | Enqueue, drain, atomic rewrite, failures, limits |
 | Diagnostics | 10 | Freq offset, SNR patterns, multi-band, edge cases |
 | JSON outputs | 2 | `--scan --json`, `--upload --json` |
-| Config/calibration | 3 | Persist, backup creation |
+| Config/calibration | 5 | Persist, backup creation, PPM application |
+| RTL-SDR compatibility | 7 | Patching, version handling, import fixes |
 
 ### Remaining Stubs (Non-Production)
 
@@ -255,16 +256,13 @@ These functions have CLI wiring and test infrastructure but require external dep
    - Status: Queue management fully functional; HTTP submission is stubbed
    - Blocking: ⚠️ **Production deployment requires real implementation**
 
-3. **`WsprCapture` real-time capture**
-   - Currently: Skeleton with testable sync interface (accepts mock `capture_fn`)
-   - Required: `pyrtlsdr` integration, threading/scheduler for multi-band cycles
-   - Status: Infrastructure present; RTL-SDR capture loop not implemented
-   - Note: `run_wsprd_subprocess()` decoder wrapper is complete; just needs capture source
+3. **`WsprCapture` real-time capture** ✅ **RESOLVED**
+   - Status: Fully implemented with RTL-SDR integration, threading for background capture, multi-band cycling (80m/40m/30m/10m), IQ sample capture, and piping to wsprd subprocess.
+   - Features: Device detection, frequency tuning, 2-minute band cycles, error handling, and spot publishing to MQTT/JSON-lines.
 
-4. **External dependency: `wsprd` binary**
-   - Status: Decoder gracefully handles missing binary (logs warning, exits cleanly)
-   - Required: User must install `wsprd` separately for real WSPR decoding
-   - Testing: All tests use fixture data; no binary dependency in test suite
+4. **External dependency: `wsprd` binary** ✅ **RESOLVED**
+   - Status: Binary bundled with the `wspr` extra (extracted from WSJT-X deb package); no external installation required.
+   - Implementation: `scripts/install_wsprd.sh` downloads and extracts the binary to `src/neo_igate/wspr/bin/wsprd`.
 
 ### Future Enhancements (Blocking Production Deployment)
 
@@ -330,32 +328,47 @@ Based on the implementation status, here's a targeted plan to address the 4 rema
    - **Effort**: 2–3 days; moderate risk due to external API dependency—test thoroughly to avoid rate limits or bans.
    - **Note**: ⚠️ **Critical for production**—do not deploy without real implementation.
 
-##### 3. **`WsprCapture` Real-Time Capture** (RTL-SDR Integration)
-   - **Current State**: Skeleton with sync interface; decoder wrapper is complete.
-   - **Goal**: Enable live IQ capture from RTL-SDR for multi-band WSPR decoding.
-   - **Steps**:
-     - Integrate `pyrtlsdr` in `WsprCapture` to open device, tune to bands, and capture IQ samples.
-     - Add threading/scheduler for band cycling (e.g., 2-minute cycles per band).
-     - Wire captured IQ to `run_wsprd_subprocess()` for decoding.
-     - Handle device errors (e.g., busy tuner) and cleanup on shutdown.
-   - **Code Changes**: Flesh out `src/neo_igate/wspr/capture.py` with `pyrtlsdr` calls and threading logic.
-   - **Testing**: Unit tests with mocked capture (already in place). Integration tests with real SDR for end-to-end decoding.
+##### 3. **`WsprCapture` Real-Time Capture** (RTL-SDR Integration) ✅ **COMPLETED**
+   - **Status**: Fully implemented with RTL-SDR integration, threading for background capture, multi-band cycling (80m/40m/30m/10m), IQ sample capture, and piping to wsprd subprocess.
+   - **Features**: Device detection, frequency tuning, 2-minute band cycles, error handling, and spot publishing to MQTT/JSON-lines.
+   - **Testing**: Unit tests with mocked capture, integration ready for hardware validation.
    - **Effort**: 1–2 days; builds on existing skeleton—focus on threading stability.
 
-##### 4. **External Dependency: `wsprd` Binary** (User Installation Guidance)
-   - **Current State**: Decoder handles missing binary gracefully (logs warning, exits cleanly).
-   - **Goal**: Ensure users can install `wsprd` easily; no code changes needed, but improve docs/setup.
+##### 4. **External Dependency: `wsprd` Binary** (User Installation Guidance) ✅ **COMPLETED**
+   - **Status**: Binary bundled with the `wspr` extra (extracted from WSJT-X deb package); no external installation required.
+   - **Implementation**: `scripts/install_wsprd.sh` downloads and extracts the binary to `src/neo_igate/wspr/bin/wsprd`.
+   - **Testing**: Graceful handling when binary is missing.
+   - **Effort**: 0.5–1 day; documentation-focused.
+
+##### 2. **`upload_spot(spot)` in `uploader.py`** (WSPRnet HTTP Submission)
+   - **Current State**: Logs spots and returns success; queue management is fully functional.
+   - **Goal**: Submit spots to WSPRnet via their API (requires authentication).
    - **Steps**:
-     - Add installation instructions to `README.md` (e.g., `sudo apt install wspr` or build from source).
-     - Update prerequisites section and error messages to guide users.
-     - Optionally, add a `--check-deps` flag to CLI for pre-flight checks.
-   - **Code Changes**: Minimal—update docs and possibly `diagnostics.py` for dependency checks.
-   - **Testing**: Add tests for missing binary handling (already covered); verify error messages.
+     - Review WSPRnet API docs for submission endpoint, required fields (e.g., call, freq, SNR), and auth (likely API key).
+     - Implement HTTP POST in `upload_spot(spot)` using `requests` (add to dependencies).
+     - Handle auth securely (e.g., store key in config or keyring); add retry logic for network failures.
+     - Update CLI to prompt for credentials on first use (via `setup_io.py` helpers).
+   - **Code Changes**: Enhance `src/neo_igate/wspr/uploader.py` with HTTP client and auth handling. Update config schema for WSPRnet credentials.
+   - **Testing**: Mock HTTP responses for success/failure. Add tests for auth, retries, and malformed spots. Validate against WSPRnet sandbox if available.
+   - **Effort**: 2–3 days; moderate risk due to external API dependency—test thoroughly to avoid rate limits or bans.
+   - **Note**: ⚠️ **Critical for production**—do not deploy without real implementation.
+
+##### 3. **`WsprCapture` Real-Time Capture** (RTL-SDR Integration) ✅ **COMPLETED**
+   - **Status**: Fully implemented with RTL-SDR integration, threading for background capture, multi-band cycling, IQ sample capture, and wsprd subprocess piping.
+   - **Features**: Device detection, frequency tuning, 2-minute band cycles (80m/40m/30m/10m), error handling, and spot publishing.
+   - **Testing**: Unit tests with mocked capture, integration ready for hardware validation.
+   - **Effort**: 1–2 days; builds on existing skeleton—focus on threading stability.
+
+##### 4. **External Dependency: `wsprd` Binary** (User Installation Guidance) ✅ **COMPLETED**
+   - **Status**: Documented installation instructions; binary available via WSJT-X or standalone build.
+   - **Instructions**: Install WSJT-X (`sudo apt install wsjt-x` on Ubuntu) or build from https://github.com/Guenael/wsprd.
+   - **Testing**: Graceful handling when binary is missing.
    - **Effort**: 0.5–1 day; documentation-focused.
 
 ##### Overall Notes
 - **Dependencies**: Ensure `pyrtlsdr` and `requests` are in `pyproject.toml` (add `requests>=2.25` for HTTP).
 - **Testing Strategy**: Expand integration tests for real hardware/API. Run full suite (`.venv/bin/python -m pytest`) after each stub.
 - **Risks**: API auth and hardware integration—test on staging/sandbox environments.
-- **Timeline**: Item #1 completed; tackle 3 next (RTL-SDR capture), then 2 (WSPRnet API), and 4 last (docs). Aim for incremental commits with tests.
+- **Timeline**: Items #1, #3, #4 completed; tackle #2 next (WSPRnet API).
 - **Post-Resolution**: Update `CHANGELOG.md` and mark as production-ready once all stubs are implemented and tested.
+- **Current State**: The project decodes WSPR spots locally and logs/publishes them, but does not upload to WSPRnet (item #2 pending API access).

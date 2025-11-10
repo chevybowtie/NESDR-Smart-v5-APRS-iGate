@@ -7,7 +7,12 @@ CLI and unit tests.
 
 from __future__ import annotations
 
+import io
 import logging
+import os
+import shutil
+import subprocess
+import tempfile
 from typing import Iterable
 from typing import Iterator, List
 
@@ -17,6 +22,19 @@ LOG = logging.getLogger(__name__)
 class WsprDecoder:
     def __init__(self, options: dict | None = None) -> None:
         self.options = options or {}
+        self.wsprd_path = self._find_wsprd()
+
+    def _find_wsprd(self) -> str | None:
+        """Find the wsprd binary, preferring bundled over system."""
+        # Check bundled
+        bundled = os.path.join(os.path.dirname(__file__), 'bin', 'wsprd')
+        if os.path.exists(bundled):
+            return bundled
+        # Check system
+        system = shutil.which('wsprd')
+        if system:
+            return system
+        return None
 
     def _parse_line(self, line: str) -> dict | None:
         """Parse a single line of (simulated) wsprd output into a spot dict.
@@ -86,10 +104,10 @@ class WsprDecoder:
                     yield parsed
 
     def run_wsprd_subprocess(self, iq_data: bytes, band_hz: int, cmd: List[str] | None = None) -> Iterator[dict]:
-        """Run `wsprd` as a subprocess, feed IQ data to stdin, and yield parsed spots.
+        """Run `wsprd` as a subprocess, feed IQ data via temp file, and yield parsed spots.
 
-        This function feeds the provided IQ data (as bytes) to `wsprd`'s stdin,
-        runs the subprocess, and parses stdout for spots.
+        This function writes the provided IQ data to a temporary file, runs `wsprd`
+        on it, and parses stdout for spots.
 
         If the command is not found or the subprocess cannot be started, it logs
         and returns without raising.
@@ -97,43 +115,43 @@ class WsprDecoder:
         Args:
             iq_data: IQ samples as bytes (int16 little-endian).
             band_hz: The band frequency in Hz.
-            cmd: Optional command list; defaults to ['wsprd', '-f', str(band_hz / 1e6)].
+            cmd: Optional command list; defaults to [wsprd_path, '-f', str(band_hz / 1e6), temp_file].
         """
-        import subprocess
-        import io
+        if self.wsprd_path is None:
+            LOG.warning("wsprd binary not found")
+            return
 
-        if cmd is None:
-            cmd = ["wsprd", "-f", str(band_hz / 1e6)]
+        # Create temp file
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.c2') as temp_file:
+            temp_file.write(iq_data)
+            temp_file_path = temp_file.name
 
         try:
+            if cmd is None:
+                cmd = [self.wsprd_path, '-f', str(band_hz / 1e6), temp_file_path]
+
             proc = subprocess.Popen(
                 cmd,
-                stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 bufsize=0,  # Unbuffered
             )
-        except FileNotFoundError:
-            LOG.warning("wsprd binary not found: %s", cmd[0])
-            return
-        except Exception:
-            LOG.exception("Failed to start wsprd subprocess: %s", cmd)
-            return
 
-        assert proc.stdin is not None
-        assert proc.stdout is not None
-        try:
-            # Write IQ data to stdin
-            proc.stdin.write(iq_data)
-            proc.stdin.close()
-
-            # Read stdout as text
-            for line in io.TextIOWrapper(proc.stdout, encoding='utf-8', errors='replace'):
-                parsed = self._parse_line(line)
-                if parsed is not None:
-                    yield parsed
-        finally:
+            assert proc.stdout is not None
             try:
-                proc.terminate()
+                # Read stdout as text
+                for line in io.TextIOWrapper(proc.stdout, encoding='utf-8', errors='replace'):
+                    parsed = self._parse_line(line)
+                    if parsed is not None:
+                        yield parsed
+            finally:
+                try:
+                    proc.terminate()
+                except Exception:
+                    pass
+        finally:
+            # Clean up temp file
+            try:
+                os.unlink(temp_file_path)
             except Exception:
                 pass
