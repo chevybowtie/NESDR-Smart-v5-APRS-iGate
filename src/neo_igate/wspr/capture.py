@@ -34,9 +34,11 @@ class WsprCapture:
     def __init__(
         self,
         bands_hz: list[int] | None = None,
-        capture_duration_s: int = 120,
+        capture_duration_s: int = 119,  # 119 seconds to allow processing time before next 2-min window
         data_dir: Path | None = None,
         publisher: Optional[object] = None,
+        upconverter_enabled: bool = False,
+        upconverter_offset_hz: int | None = None,
     ) -> None:
         # Default to primary WSPR bands (Hz)
         self.bands_hz = bands_hz or [
@@ -54,6 +56,8 @@ class WsprCapture:
         self._data_dir.mkdir(parents=True, exist_ok=True)
         self._spots_file = self._data_dir / "wspr_spots.jsonl"
         self._publisher = publisher
+        self._upconverter_enabled = upconverter_enabled
+        self._upconverter_offset_hz = upconverter_offset_hz or 125_000_000  # Default 125MHz
 
     def start(self) -> None:
         if self._running:
@@ -155,10 +159,14 @@ class WsprCapture:
 
                     LOG.info("Tuning to band %s Hz for %s s", band_hz, self.capture_duration_s)
                     try:
-                        # Apply NESDR Smart v5 upconverter offset (125MHz shift for HF bands)
-                        upconverter_offset = 125_000_000  # 125 MHz
-                        actual_freq = band_hz + upconverter_offset
-                        LOG.info("RTL-SDR tuning to %.3f MHz (HF: %.3f MHz + 125 MHz offset)", actual_freq / 1e6, band_hz / 1e6)
+                        # Apply upconverter offset if enabled
+                        if self._upconverter_enabled and self._upconverter_offset_hz:
+                            actual_freq = band_hz + self._upconverter_offset_hz
+                            LOG.info("RTL-SDR tuning to %.3f MHz (HF: %.3f MHz + %d MHz upconverter offset)", 
+                                   actual_freq / 1e6, band_hz / 1e6, self._upconverter_offset_hz // 1_000_000)
+                        else:
+                            actual_freq = band_hz
+                            LOG.info("RTL-SDR tuning to %.3f MHz (no upconverter)", actual_freq / 1e6)
                         sdr.set_center_freq(actual_freq)  # type: ignore[attr-defined]
                         # Allow PLL to settle after frequency change
                         time.sleep(0.1)  # 100ms delay for tuner stabilization

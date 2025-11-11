@@ -111,22 +111,31 @@ def test_cli_publisher_wiring(monkeypatch):
 
     class StubCapture:
         def __init__(self, *args, **kwargs):
-            pass
+            self.publisher = kwargs.get('publisher')
+            self.bands_hz = kwargs.get('bands_hz', [14_080_000])
 
         def start(self):
-            return None
+            # Simulate publishing spots
+            from neo_igate.wspr.decoder import WsprDecoder
+            decoder = WsprDecoder()
+            for spot in decoder.run_wsprd_subprocess(b'', self.bands_hz[0]):
+                if self.publisher:
+                    topic = getattr(self.publisher, "topic", "neo_igate/wspr/spots")
+                    self.publisher.publish(topic, spot)
 
         def stop(self):
             return None
+
+        def is_running(self):
+            return False  # Return False so the loop exits immediately
 
     monkeypatch.setattr(wspr_cmd, "WsprCapture", StubCapture)
 
     import neo_igate.wspr.decoder as decoder_mod
 
-    def fake_run(self):
+    def fake_run(self, iq_data, band_hz):
         yield {"spot": 1}
         yield {"spot": 2}
-        raise KeyboardInterrupt
 
     monkeypatch.setattr(decoder_mod.WsprDecoder, "run_wsprd_subprocess", fake_run)
 

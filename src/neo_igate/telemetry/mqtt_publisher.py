@@ -41,6 +41,7 @@ class MqttPublisher:
         self._port = port
         self._client = mqtt.Client()
         self._connected = False
+        self.topic: Optional[str] = None  # Default topic for publishing
         # wire basic callbacks to track connection state
         self._client.on_connect = self._on_connect
         self._client.on_disconnect = self._on_disconnect

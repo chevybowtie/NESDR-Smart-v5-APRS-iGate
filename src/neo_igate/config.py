@@ -84,9 +84,9 @@ class StationConfig:
     wspr_enabled: bool = False
     wspr_auto_upload: bool = False
     wspr_bands_hz: list[int] | None = None
-    wspr_capture_duration_s: int = 120
-    upconverter_enabled: bool = False
-    upconverter_lo_offset_hz: int | None = None
+    wspr_capture_duration_s: int = 119
+    upconverter_enabled: bool = True
+    upconverter_lo_offset_hz: int | None = 125_000_000
     mqtt_enabled: bool = False
     mqtt_host: str | None = None
     mqtt_port: int | None = None
@@ -198,9 +198,9 @@ class StationConfig:
             wspr_enabled=bool(wspr.get("enabled", False)),
             wspr_auto_upload=bool(wspr.get("auto_upload", False)),
             wspr_bands_hz=wspr.get("bands_hz"),
-            wspr_capture_duration_s=int(wspr.get("capture_duration_s", 120)),
+            wspr_capture_duration_s=int(wspr.get("capture_duration_s", 119)),
             upconverter_enabled=bool(upconverter.get("enabled", False)),
-            upconverter_lo_offset_hz=_optional_int(upconverter.get("lo_offset_hz")),
+            upconverter_lo_offset_hz=_optional_int(upconverter.get("lo_offset_hz")) or 125_000_000,
             mqtt_enabled=bool(mqtt.get("enabled", False)),
             mqtt_host=mqtt.get("host"),
             mqtt_port=_optional_int(mqtt.get("port")),

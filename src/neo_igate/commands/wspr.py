@@ -267,8 +267,17 @@ def run_wspr(args: Namespace) -> int:
     else:
         bands = cfg.wspr_bands_hz if cfg is not None else None
     
-    duration = cfg.wspr_capture_duration_s if cfg is not None else 120
-    capture = WsprCapture(bands_hz=bands, capture_duration_s=duration, data_dir=data_dir, publisher=publisher)
+    duration = cfg.wspr_capture_duration_s if cfg is not None else 119
+    upconverter_enabled = cfg.upconverter_enabled if cfg is not None else False
+    upconverter_offset = cfg.upconverter_lo_offset_hz if cfg is not None else None
+    capture = WsprCapture(
+        bands_hz=bands, 
+        capture_duration_s=duration, 
+        data_dir=data_dir, 
+        publisher=publisher,
+        upconverter_enabled=upconverter_enabled,
+        upconverter_offset_hz=upconverter_offset
+    )
     capture.start()
     try:
         while capture.is_running():
