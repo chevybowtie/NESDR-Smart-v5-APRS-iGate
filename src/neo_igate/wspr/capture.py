@@ -39,6 +39,7 @@ class WsprCapture:
         publisher: Optional[object] = None,
         upconverter_enabled: bool = False,
         upconverter_offset_hz: int | None = None,
+        keep_temp: bool = False,
     ) -> None:
         # Default to primary WSPR bands (Hz)
         self.bands_hz = bands_hz or [
@@ -58,6 +59,8 @@ class WsprCapture:
         self._publisher = publisher
         self._upconverter_enabled = upconverter_enabled
         self._upconverter_offset_hz = upconverter_offset_hz or 125_000_000  # Default 125MHz
+        # When True, preserve wsprd temp files for debugging
+        self._keep_temp = bool(keep_temp)
 
     def start(self) -> None:
         if self._running:
@@ -171,24 +174,112 @@ class WsprCapture:
                         # Allow PLL to settle after frequency change
                         time.sleep(0.1)  # 100ms delay for tuner stabilization
                         sdr.set_sample_rate(1_200_000)  # Standard for WSPR
-                        sdr.set_gain(30)  # Set gain to 30dB (matches SDR++ settings of 20-35dB range)
-                        LOG.info("RTL-SDR configured: sample rate 1.2 MHz, gain 30dB")
+                        sdr.set_gain(35)  # Set gain to 35dB (matches SDR++ settings of 20-35dB range)
+                        LOG.info("RTL-SDR configured: sample rate 1.2 MHz, gain 35dB")
                         # Capture IQ samples
                         iq_data = b""
                         start_time = time.time()
-                        while time.time() - start_time < self.capture_duration_s and not self._stop_event.is_set():
-                            samples = sdr.read_samples(1024)  # Read in chunks
-                            # Convert complex samples to bytes (IQ as int16)
-                            iq_bytes = b"".join(
-                                int(sample.real * 32767).to_bytes(2, 'little', signed=True) +
-                                int(sample.imag * 32767).to_bytes(2, 'little', signed=True)
-                                for sample in samples
-                            )
-                            iq_data += iq_bytes
+                        last_progress = start_time
+                        iterations = 0
+                        # Increase chunk size to improve throughput; some rtlsdr bindings
+                        # are more efficient with larger read sizes.
+                        chunk_size = 16384
+
+                        # Prefer async/callback-based capture if supported by the binding.
+                        use_async = hasattr(sdr, 'read_samples_async')
+                        if use_async:
+                            LOG.info("Using async capture via read_samples_async")
+                            buf = bytearray()
+
+                            def _async_cb(samples, rtlsdr_obj=None):
+                                # samples is typically a numpy array of complex64
+                                try:
+                                    for sample in samples:
+                                        buf.extend(int(sample.real * 32767).to_bytes(2, 'little', signed=True))
+                                        buf.extend(int(sample.imag * 32767).to_bytes(2, 'little', signed=True))
+                                    # Do not call cancel_read_async() from the callback; the
+                                    # main thread will stop the async read when the duration
+                                    # has elapsed. Calling cancel from the callback can race
+                                    # with librtlsdr internals and cause crashes.
+                                except Exception:
+                                    LOG.exception("Error in async capture callback")
+
+                            import threading as _threading
+
+                            reader_thread = _threading.Thread(target=lambda: sdr.read_samples_async(_async_cb, chunk_size), daemon=True)
+                            reader_thread.start()
+
+                            # Wait until duration elapsed or stop requested
+                            while time.time() - start_time < self.capture_duration_s and not self._stop_event.is_set():
+                                time.sleep(0.1)
+
+                            # Ensure async read stopped. Call cancel_read_async from the
+                            # main thread and wait (up to a few seconds) for the reader
+                            # thread to exit cleanly. This avoids races that can cause
+                            # segmentation faults in librtlsdr when cancel is invoked
+                            # from the callback thread.
+                            try:
+                                sdr.cancel_read_async()
+                            except Exception:
+                                LOG.debug("sdr.cancel_read_async() raised an exception during shutdown")
+
+                            # Wait for the reader thread to exit (give it up to 5s).
+                            timeout = 5.0
+                            waited = 0.0
+                            interval = 0.05
+                            while reader_thread.is_alive() and waited < timeout:
+                                time.sleep(interval)
+                                waited += interval
+
+                            if reader_thread.is_alive():
+                                LOG.warning("Async reader thread did not exit within %.1fs", timeout)
+
+                            iq_data = bytes(buf)
+                        else:
+                            # Fallback synchronous capture (existing approach)
+                            while time.time() - start_time < self.capture_duration_s and not self._stop_event.is_set():
+                                samples = sdr.read_samples(chunk_size)  # Read in larger chunks
+                                # Convert complex samples to bytes (IQ as int16)
+                                iq_bytes = b"".join(
+                                    int(sample.real * 32767).to_bytes(2, 'little', signed=True) +
+                                    int(sample.imag * 32767).to_bytes(2, 'little', signed=True)
+                                    for sample in samples
+                                )
+                                iq_data += iq_bytes
+
+                                iterations += 1
+                                # Periodically log progress (every ~5 seconds)
+                                now = time.time()
+                                if now - last_progress >= 5.0:
+                                    try:
+                                        total_samples = len(iq_data) // 4
+                                        elapsed = now - start_time
+                                        LOG.info("WSPR capture progress: %d complex samples in %.1fs (%.1f sps)", total_samples, elapsed, total_samples / max(1.0, elapsed))
+                                    except Exception:
+                                        LOG.debug("Failed to compute capture progress")
+                                    last_progress = now
 
                         # Decode using wsprd
                         if iq_data:
-                            for spot in decoder.run_wsprd_subprocess(iq_data, band_hz):
+                            # Log capture diagnostics: sample rate reported by driver and written data size
+                            try:
+                                actual_sr = getattr(sdr, 'get_sample_rate', None)
+                                if callable(actual_sr):
+                                    reported_sr = actual_sr()
+                                else:
+                                    # Some bindings expose property instead
+                                    reported_sr = getattr(sdr, 'sample_rate', None)
+                                if reported_sr:
+                                    LOG.info("RTL-SDR reported sample rate: %s", reported_sr)
+                            except Exception:
+                                LOG.debug("Could not read sample rate from SDR object")
+                            try:
+                                total_samples = len(iq_data) // 4
+                                inferred_duration = total_samples / float(1_200_000)
+                                LOG.info("Captured %d complex samples (%.2f seconds at 1.2e6 sps assumed)", total_samples, inferred_duration)
+                            except Exception:
+                                LOG.debug("Failed to compute captured sample count/duration")
+                            for spot in decoder.run_wsprd_subprocess(iq_data, band_hz, keep_temp=self._keep_temp):
                                 self._handle_spot(spot)
 
                     except Exception as exc:

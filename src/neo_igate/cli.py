@@ -235,6 +235,11 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["80m", "40m", "30m", "20m", "10m"],
         help="Monitor only the specified WSPR band (default: all bands)",
     )
+    wspr_parser.add_argument(
+        "--keep-temp",
+        action="store_true",
+        help="Preserve temporary wsprd input files for debugging",
+    )
     subparser_map["wspr"] = wspr_parser
 
     setattr(parser, "_nesdr_subparser_map", subparser_map)

@@ -270,13 +270,15 @@ def run_wspr(args: Namespace) -> int:
     duration = cfg.wspr_capture_duration_s if cfg is not None else 119
     upconverter_enabled = cfg.upconverter_enabled if cfg is not None else False
     upconverter_offset = cfg.upconverter_lo_offset_hz if cfg is not None else None
+    keep_temp = getattr(args, "keep_temp", False)
     capture = WsprCapture(
         bands_hz=bands, 
         capture_duration_s=duration, 
         data_dir=data_dir, 
         publisher=publisher,
         upconverter_enabled=upconverter_enabled,
-        upconverter_offset_hz=upconverter_offset
+        upconverter_offset_hz=upconverter_offset,
+        keep_temp=keep_temp,
     )
     capture.start()
     try:
