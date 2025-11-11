@@ -42,6 +42,7 @@ class WsprCapture:
         self.bands_hz = bands_hz or [
             3_594_000,   # 80m
             7_038_600,   # 40m
+            14_095_600,  # 20m
             10_140_200,  # 30m
             28_124_600,  # 10m
         ]
@@ -139,9 +140,13 @@ class WsprCapture:
             
             if wait_seconds > 0:
                 LOG.info("Waiting %d seconds to synchronize with WSPR schedule (next even minute)", wait_seconds)
-                if self._stop_event.wait(wait_seconds):
-                    # Stop event was set while waiting
-                    return
+                # Countdown with updates every second
+                for remaining in range(wait_seconds, 0, -1):
+                    if self._stop_event.wait(1.0):  # Wait 1 second, check for stop
+                        return
+                    if remaining <= 10 or remaining % 10 == 0:  # Log every 10 seconds, or last 10
+                        LOG.info("WSPR sync: %d seconds remaining", remaining)
+                LOG.info("WSPR synchronization complete - starting capture")
 
             while not self._stop_event.is_set():
                 for band_hz in self.bands_hz:
@@ -150,10 +155,16 @@ class WsprCapture:
 
                     LOG.info("Tuning to band %s Hz for %s s", band_hz, self.capture_duration_s)
                     try:
-                        sdr.set_center_freq(band_hz)  # type: ignore[attr-defined]
+                        # Apply NESDR Smart v5 upconverter offset (125MHz shift for HF bands)
+                        upconverter_offset = 125_000_000  # 125 MHz
+                        actual_freq = band_hz + upconverter_offset
+                        LOG.info("RTL-SDR tuning to %.3f MHz (HF: %.3f MHz + 125 MHz offset)", actual_freq / 1e6, band_hz / 1e6)
+                        sdr.set_center_freq(actual_freq)  # type: ignore[attr-defined]
                         # Allow PLL to settle after frequency change
                         time.sleep(0.1)  # 100ms delay for tuner stabilization
                         sdr.set_sample_rate(1_200_000)  # Standard for WSPR
+                        sdr.set_gain(30)  # Set gain to 30dB (matches SDR++ settings of 20-35dB range)
+                        LOG.info("RTL-SDR configured: sample rate 1.2 MHz, gain 30dB")
                         # Capture IQ samples
                         iq_data = b""
                         start_time = time.time()

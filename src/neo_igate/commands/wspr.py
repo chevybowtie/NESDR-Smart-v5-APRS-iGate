@@ -250,7 +250,23 @@ def run_wspr(args: Namespace) -> int:
     data_dir = config_module.get_data_dir() / "wspr"
     LOG.info("WSPR spots will be saved to: %s", data_dir / "wspr_spots.jsonl")
     LOG.info("Application logs are available in: %s", config_module.get_data_dir() / "logs")
-    bands = cfg.wspr_bands_hz if cfg is not None else None
+    
+    # Handle band selection
+    band_mapping = {
+        "80m": 3_594_000,
+        "40m": 7_038_600,
+        "30m": 10_140_200,
+        "20m": 14_095_600,
+        "10m": 28_124_600,
+    }
+    
+    selected_band = getattr(args, "band", None)
+    if selected_band:
+        bands = [band_mapping[selected_band]]
+        LOG.info("Monitoring only %s band (%s Hz)", selected_band, band_mapping[selected_band])
+    else:
+        bands = cfg.wspr_bands_hz if cfg is not None else None
+    
     duration = cfg.wspr_capture_duration_s if cfg is not None else 120
     capture = WsprCapture(bands_hz=bands, capture_duration_s=duration, data_dir=data_dir, publisher=publisher)
     capture.start()
