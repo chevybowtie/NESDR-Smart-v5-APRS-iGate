@@ -25,3 +25,13 @@ build/
 # Ephemeral venvs used by verify_release
 .venv-check/
 .venv-release/
+# SDR / wsprd temporary and output files
+out.iq
+ALL_WSPR.TXT
+hashtable.txt
+wspr_spots.txt
+wspr_timer.out
+wspr_wisdom.dat
+wspr_*.dat
+*.iq
+*.out
