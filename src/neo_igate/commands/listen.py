@@ -245,7 +245,7 @@ def run_listen(args: Namespace) -> int:
                 aprs_config.host,
                 aprs_config.port,
             )
-            logger.info("Press `s` at any time for a 24h station summary overlay.")
+            logger.info("Press `s` at any time for a 24h station summary.")
         except APRSISClientError as exc:
             delay = aprs_backoff.record_failure()
             logger.warning(

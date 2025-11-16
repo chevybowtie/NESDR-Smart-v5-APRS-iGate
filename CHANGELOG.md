@@ -28,12 +28,12 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 - Added a persistent listener log at `~/.local/share/neo-igate/logs/neo-igate.log` with UTC timestamps while keeping stdout output unchanged.
-- While `neo-igate listen` runs, pressing `s` now prints a 24-hour station activity summary overlay that survives restarts by reading the listener log.
+- While `neo-igate listen` runs, pressing `s` now prints a 24-hour station activity summary that survives restarts by reading the listener log.
 - Introduced optional software TOCALL rewriting for APRS-IS uplink traffic to better identify packets originated by the local station.
 - Added opt-in colorized output for CLI commands and diagnostics with explicit `--color`/`--no-color` flags and `NO_COLOR` environment support.
 
 ### Changed
-- Stats lines now include UTC timestamps and prompt operators about the new summary overlay after establishing the APRS-IS connection.
+- Stats lines now include UTC timestamps and prompt operators about the new summary after establishing the APRS-IS connection.
 - Centralized version reporting through `neo_igate.__version__` and ensured the CLI writes both to stdout and the persistent log file.
 
 ### Fixed
