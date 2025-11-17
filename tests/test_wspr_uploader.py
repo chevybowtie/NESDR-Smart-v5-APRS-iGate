@@ -388,3 +388,40 @@ def test_drain_daemon_backoff_resets_after_success(tmp_path: Path, monkeypatch):
     immediate = uploader.drain(daemon=True)
     assert immediate["attempted"] == 1
     assert immediate.get("skipped_due_to_backoff") is None
+
+
+def test_send_heartbeat_success(tmp_path: Path):
+    session = DummySession(DummyResponse(200, "OK"))
+    uploader = WsprUploader(queue_path=tmp_path / "queue.jsonl", session=session)
+
+    ok = uploader.send_heartbeat(
+        reporter_call="N0CALL-10",
+        reporter_grid="EM12ab",
+        dial_freq_hz=14_095_600,
+        reporter_power_dbm=37,
+        percent_time=92.0,
+    )
+
+    assert ok is True
+    assert len(session.calls) == 1
+    params = session.calls[0]["params"]
+    assert params["function"] == "wsprstat"
+    assert params["tpct"] == "92"
+    assert params["rqrg"].startswith("14.095")
+
+
+def test_send_heartbeat_missing_metadata(tmp_path: Path):
+    session = DummySession(DummyResponse(200, "OK"))
+    uploader = WsprUploader(queue_path=tmp_path / "queue.jsonl", session=session)
+
+    ok = uploader.send_heartbeat(
+        reporter_call="",
+        reporter_grid="",
+        dial_freq_hz=14_095_600,
+        reporter_power_dbm=37,
+        percent_time=100.0,
+    )
+
+    assert ok is False
+    assert session.calls == []
+    assert uploader.last_error is not None

@@ -186,6 +186,8 @@ to prevent corruption on unexpected shutdown.
   in the returned stats.
 - `upload_spot(spot)`: abstract method (currently a logging stub) for submitting
   a single spot to WSPRnet.
+- `send_heartbeat(...)`: issues a `wsprstat` heartbeat (matching `rtlsdr-wsprd`)
+  so stations can publish a “no uploads this slot” beacon when desired.
 
 **Example usage:**
 
@@ -206,6 +208,14 @@ neo-rx wspr --upload
 
 # Emit drain results in JSON (helpful for monitoring/scripting)
 neo-rx wspr --upload --json
+
+# Force a wsprstat heartbeat when no uploads occur (opt-in)
+neo-rx wspr --upload --heartbeat
+
+JSON drain output always includes `attempted`, `succeeded`, `failed`, and
+`last_error` (which is `null` when the last run succeeded). When `--heartbeat`
+is set, the JSON blob also records `heartbeat_sent` plus a `heartbeat_error`
+string if the stat ping failed.
 
 The CLI now logs the first failing error surfaced by `drain()` so you can see
 whether the queue is blocked on metadata issues, HTTP errors, or network

@@ -119,3 +119,106 @@ def test_upload_json_output(monkeypatch, capsys, tmp_path):
     assert data["attempted"] == 2
     assert data["succeeded"] == 2
     assert data["failed"] == 0
+    assert "last_error" in data
+    assert data["last_error"] is None
+
+
+def test_upload_json_includes_last_error(monkeypatch, capsys, tmp_path):
+    cfg = config_module.StationConfig(
+        callsign="TEST",
+        passcode="12345",
+        wspr_grid="EM12ab",
+        wspr_power_dbm=37,
+        wspr_uploader_enabled=True,
+    )
+    monkeypatch.setattr(config_module, "load_config", lambda path=None: cfg)
+    monkeypatch.setattr(config_module, "get_data_dir", lambda: tmp_path)
+
+    def mock_init(self, *args, **kwargs):
+        self.queue_path = tmp_path / "wspr_queue.jsonl"
+        self.credentials = {}
+        self.base_url = "https://example.com"
+        self._timeout = (5, 10)
+        self._last_upload_error = None
+
+    monkeypatch.setattr(wspr_cmd.WsprUploader, "__init__", mock_init)
+    monkeypatch.setattr(
+        wspr_cmd.WsprUploader,
+        "drain",
+        lambda self: {"attempted": 1, "succeeded": 0, "failed": 1, "last_error": "boom"},
+    )
+
+    args = Namespace(
+        upload=True,
+        json=True,
+        heartbeat=False,
+        config=None,
+        start=False,
+        scan=False,
+        diagnostics=False,
+        calibrate=False,
+        mqtt=None,
+    )
+
+    result = wspr_cmd.run_wspr(args)
+    assert result == 0
+
+    captured = capsys.readouterr()
+    data = json.loads(captured.out.strip())
+    assert data["last_error"] == "boom"
+
+
+def test_upload_sends_heartbeat_when_requested(monkeypatch, capsys, tmp_path):
+    cfg = config_module.StationConfig(
+        callsign="TEST",
+        passcode="12345",
+        wspr_grid="EM12ab",
+        wspr_power_dbm=37,
+        wspr_bands_hz=[14_095_600],
+        wspr_capture_duration_s=119,
+        wspr_uploader_enabled=True,
+    )
+    monkeypatch.setattr(config_module, "load_config", lambda path=None: cfg)
+    monkeypatch.setattr(config_module, "get_data_dir", lambda: tmp_path)
+
+    def mock_init(self, *args, **kwargs):
+        self.queue_path = tmp_path / "wspr_queue.jsonl"
+        self.credentials = {}
+        self.base_url = "https://example.com"
+        self._timeout = (5, 10)
+        self._last_upload_error = None
+
+    monkeypatch.setattr(wspr_cmd.WsprUploader, "__init__", mock_init)
+    monkeypatch.setattr(
+        wspr_cmd.WsprUploader,
+        "drain",
+        lambda self: {"attempted": 0, "succeeded": 0, "failed": 0},
+    )
+
+    heartbeat_calls: list[dict] = []
+
+    def mock_send(self, **kwargs):
+        heartbeat_calls.append(kwargs)
+        return True
+
+    monkeypatch.setattr(wspr_cmd.WsprUploader, "send_heartbeat", mock_send)
+
+    args = Namespace(
+        upload=True,
+        heartbeat=True,
+        json=True,
+        config=None,
+        start=False,
+        scan=False,
+        diagnostics=False,
+        calibrate=False,
+        mqtt=None,
+    )
+
+    result = wspr_cmd.run_wspr(args)
+    assert result == 0
+    assert len(heartbeat_calls) == 1
+
+    captured = capsys.readouterr()
+    data = json.loads(captured.out.strip())
+    assert data.get("heartbeat_sent") is True

@@ -72,9 +72,9 @@ Implementation choices:
    - `WsprUploader.drain(..., daemon=True)` now enforces a simple exponential backoff window (30s base → 10 min max) using a monotonic clock so daemonized upload loops don’t hammer WSPRnet during outages.
    - `drain()` propagates the first failure reason via `last_error`, and the CLI surfaces it immediately after each `--upload` run for easier diagnostics.
 
-5. **CLI updates**
-   - Allow `neo-rx wspr --upload` to optionally force a `wsprstat` heartbeat when no spots were uploaded (mirrors rtlsdr-wsprd’s empty-report behavior).
-   - Support `--json` output containing success/failure counts plus a `last_error` string.
+5. **CLI updates** ✅ (2025-11-16)
+   - `neo-rx wspr --upload --heartbeat` now forces a `wsprstat` ping whenever a drain cycle produces zero successful uploads, mirroring rtlsdr-wsprd’s empty-report behavior while reusing the existing config metadata.
+   - The `--json` output always includes `attempted`, `succeeded`, `failed`, and `last_error` (null when healthy) plus `heartbeat_sent`/`heartbeat_error` fields when the heartbeat flag is used, making monitoring scripts straightforward.
 
 6. **Testing**
    - Unit tests in `tests/test_wspr_uploader.py`:

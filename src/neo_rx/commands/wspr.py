@@ -8,15 +8,26 @@ from __future__ import annotations
 import logging
 import time
 from argparse import Namespace
-from typing import Optional
+from typing import Optional, TypedDict
 
 from neo_rx import config as config_module
+from neo_rx.config import StationConfig
 from neo_rx.wspr.capture import WsprCapture
 from neo_rx.wspr.publisher import make_publisher_from_config
 from neo_rx.wspr.uploader import WsprUploader
 from neo_rx.wspr import scan as wspr_scan
 
 LOG = logging.getLogger(__name__)
+DEFAULT_HEARTBEAT_FREQ_HZ = 14_095_600
+
+
+class HeartbeatArgs(TypedDict):
+    reporter_call: str
+    reporter_grid: str
+    dial_freq_hz: float
+    target_freq_hz: float
+    reporter_power_dbm: float | int
+    percent_time: float
 
 
 def _load_config_if_present(path: Optional[str]):
@@ -30,6 +41,38 @@ def _load_config_if_present(path: Optional[str]):
     except Exception:
         LOG.exception("Failed to load configuration from %s", path)
         return None
+
+
+def _build_heartbeat_kwargs(cfg: StationConfig | None) -> Optional[HeartbeatArgs]:
+    if cfg is None:
+        return None
+    reporter_call = cfg.callsign
+    reporter_grid = cfg.wspr_grid
+    power_dbm = cfg.wspr_power_dbm
+    if not reporter_call or not reporter_grid or power_dbm is None:
+        return None
+
+    dial_freq_hz = None
+    if cfg.wspr_bands_hz:
+        for band in cfg.wspr_bands_hz:
+            if band:
+                dial_freq_hz = float(band)
+                break
+    if dial_freq_hz is None:
+        dial_freq_hz = float(DEFAULT_HEARTBEAT_FREQ_HZ)
+
+    capture_duration = cfg.wspr_capture_duration_s or 120
+    percent_time = float(max(0.0, min(100.0, (capture_duration / 120.0) * 100.0)))
+    power_value = float(power_dbm)
+
+    return {
+        "reporter_call": reporter_call,
+        "reporter_grid": reporter_grid,
+        "dial_freq_hz": dial_freq_hz,
+        "target_freq_hz": dial_freq_hz,
+        "reporter_power_dbm": power_value,
+        "percent_time": percent_time,
+    }
 
 
 def run_wspr(args: Namespace) -> int:
@@ -228,6 +271,9 @@ def run_wspr(args: Namespace) -> int:
             LOG.error("WSPR uploader is disabled. Set [wspr].uploader_enabled = true in config.toml before uploading.")
             return 1
         queue_path = data_dir / "wspr_upload_queue.jsonl"
+        heartbeat_requested = bool(getattr(args, "heartbeat", False))
+        heartbeat_sent = False
+        heartbeat_error: Optional[str] = None
         try:
             uploader = WsprUploader(queue_path=queue_path)
             result = uploader.drain()
@@ -240,10 +286,35 @@ def run_wspr(args: Namespace) -> int:
             last_error = result.get("last_error")
             if last_error:
                 LOG.warning("Last WSPR upload error: %s", last_error)
+
+            if heartbeat_requested and result.get("succeeded", 0) == 0:
+                heartbeat_kwargs = _build_heartbeat_kwargs(cfg)
+                if heartbeat_kwargs is None:
+                    heartbeat_error = "Missing station metadata for heartbeat"
+                    LOG.warning(
+                        "Cannot send WSPR heartbeat; ensure callsign, grid, power, and bands are configured",
+                    )
+                else:
+                    heartbeat_sent = uploader.send_heartbeat(**heartbeat_kwargs)
+                    if heartbeat_sent:
+                        LOG.info(
+                            "Sent wsprstat heartbeat for %s at %.6f MHz",
+                            cfg.callsign,
+                            heartbeat_kwargs["dial_freq_hz"] / 1_000_000,
+                        )
+                    else:
+                        heartbeat_error = uploader.last_error or "Unknown heartbeat error"
+                        LOG.warning("WSPR heartbeat failed: %s", heartbeat_error)
+
             # Emit machine-readable JSON if requested
             if getattr(args, "json", False):
                 import json
 
+                result.setdefault("last_error", None)
+                if heartbeat_requested:
+                    result["heartbeat_sent"] = heartbeat_sent
+                    if heartbeat_error:
+                        result["heartbeat_error"] = heartbeat_error
                 print(json.dumps(result, indent=2))
             return 0
         except Exception:

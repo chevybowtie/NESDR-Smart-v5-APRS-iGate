@@ -114,42 +114,41 @@ class WsprUploader:
             if self._last_upload_error is None:
                 self._last_upload_error = "Spot missing metadata required for upload"
             return False
-
-        try:
-            response = self._session.get(self.base_url, params=params, timeout=self._timeout)
-        except Exception as exc:  # requests.RequestException but keep generic for typing
-            LOG.warning("WSPR upload failed for %s: %s", params.get("tcall"), exc)
-            self._last_upload_error = f"Request error: {exc}"
-            return False
-
-        if response.status_code != 200:
-            LOG.warning(
-                "WSPR upload HTTP %s for %s (rcall=%s)",
-                response.status_code,
-                params.get("tcall"),
-                params.get("rcall"),
-            )
-            self._last_upload_error = (
-                f"HTTP {response.status_code} when uploading {params.get('tcall')}"
-            )
-            return False
-
-        body = (response.text or "").strip()
-        if not body:
-            LOG.warning("WSPR upload returned empty response for %s", params.get("tcall"))
-            self._last_upload_error = "Empty response body from WSPRnet"
-            return False
-
-        LOG.info(
-            "Uploaded WSPR spot %s (%s → %s) via %s",
-            params.get("tcall"),
-            params.get("tgrid"),
-            params.get("rgrid"),
-            self.base_url,
+        success_message = (
+            f"Uploaded WSPR spot {params.get('tcall')} ({params.get('tgrid')} → {params.get('rgrid')})"
         )
-        LOG.debug("WSPR upload response: %s", body[:200])
+        return self._perform_request(params, success_log=success_message)
+
+    def send_heartbeat(
+        self,
+        *,
+        reporter_call: str,
+        reporter_grid: str,
+        dial_freq_hz: float,
+        target_freq_hz: float | None = None,
+        reporter_power_dbm: float | int | None = None,
+        percent_time: float | int | None = None,
+    ) -> bool:
+        """Send a wsprstat heartbeat when no uploads were performed."""
+
         self._last_upload_error = None
-        return True
+        params = self._build_stat_params(
+            reporter_call=reporter_call,
+            reporter_grid=reporter_grid,
+            dial_freq_hz=dial_freq_hz,
+            target_freq_hz=target_freq_hz,
+            reporter_power_dbm=reporter_power_dbm,
+            percent_time=percent_time,
+        )
+        if params is None:
+            if self._last_upload_error is None:
+                self._last_upload_error = "Heartbeat missing metadata"
+            return False
+
+        success_message = (
+            f"Sent WSPR heartbeat for {params.get('rcall')} at {params.get('rqrg')} MHz"
+        )
+        return self._perform_request(params, success_log=success_message)
 
     def drain(self, max_items: Optional[int] = None, *, daemon: bool = False) -> Dict[str, Any]:
         """Attempt to upload queued spots; keep failures and unattempted in the queue.
@@ -219,6 +218,10 @@ class WsprUploader:
                 self._reset_daemon_backoff()
 
         return result
+
+    @property
+    def last_error(self) -> Optional[str]:
+        return self._last_upload_error
 
     # --- Helpers ----------------------------------------------------------
     def _build_query_params(self, spot: Dict) -> Dict | None:
@@ -321,6 +324,92 @@ class WsprUploader:
         }
         return params
 
+    def _build_stat_params(
+        self,
+        *,
+        reporter_call: object,
+        reporter_grid: object,
+        dial_freq_hz: object,
+        target_freq_hz: object | None,
+        reporter_power_dbm: object | None,
+        percent_time: object | None,
+    ) -> Dict | None:
+        missing: list[str] = []
+
+        call = _as_str(reporter_call)
+        if not call:
+            missing.append("reporter_callsign")
+
+        grid = _as_str(reporter_grid)
+        if not grid:
+            missing.append("reporter_grid")
+
+        dial_freq = _as_float(dial_freq_hz)
+        if dial_freq is None:
+            missing.append("dial_freq_hz")
+
+        target_freq = _as_float(target_freq_hz if target_freq_hz is not None else dial_freq)
+        if target_freq is None:
+            missing.append("target_freq_hz")
+
+        power = _as_float(reporter_power_dbm)
+        if power is None:
+            missing.append("reporter_power_dbm")
+
+        pct = _as_float(percent_time if percent_time is not None else 100.0)
+        if pct is None:
+            missing.append("percent_time")
+
+        if missing:
+            missing_fields = ", ".join(sorted(missing))
+            LOG.warning("Skipping WSPR heartbeat; missing metadata: %s", missing_fields)
+            self._last_upload_error = f"Heartbeat missing metadata: {missing_fields}"
+            return None
+
+        pct = cast(float, pct)
+        dial_freq = cast(float, dial_freq)
+        target_freq = cast(float, target_freq)
+        power = cast(float, power)
+        pct = max(0.0, min(100.0, pct))
+
+        params = {
+            "function": "wsprstat",
+            "rcall": call,
+            "rgrid": grid,
+            "rqrg": _format_freq_mhz(dial_freq),
+            "tpct": f"{int(round(pct))}",
+            "tqrg": _format_freq_mhz(target_freq),
+            "dbm": f"{int(round(power))}",
+            "version": self._version_tag,
+            "mode": "2",
+        }
+        return params
+
+    def _perform_request(self, params: Dict[str, str], *, success_log: str) -> bool:
+        function = params.get("function", "wspr")
+        try:
+            response = self._session.get(self.base_url, params=params, timeout=self._timeout)
+        except Exception as exc:  # requests.RequestException but keep generic for typing
+            LOG.warning("WSPR %s request failed: %s", function, exc)
+            self._last_upload_error = f"Request error: {exc}"
+            return False
+
+        if response.status_code != 200:
+            LOG.warning("WSPR %s HTTP %s", function, response.status_code)
+            self._last_upload_error = f"HTTP {response.status_code} during {function}"
+            return False
+
+        body = (response.text or "").strip()
+        if not body:
+            LOG.warning("WSPR %s returned empty response", function)
+            self._last_upload_error = "Empty response body from WSPRnet"
+            return False
+
+        LOG.info("%s via %s", success_log, self.base_url)
+        LOG.debug("WSPR %s response: %s", function, body[:200])
+        self._last_upload_error = None
+        return True
+
     def _daemon_ready(self) -> bool:
         return self._clock() >= self._daemon_backoff_next
 
@@ -371,3 +460,12 @@ def _as_str(value: object | None) -> Optional[str]:
         return None
     text = str(value).strip()
     return text or None
+
+
+def _as_float(value: Any | None) -> Optional[float]:
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None

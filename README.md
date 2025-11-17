@@ -135,6 +135,7 @@ Useful flags:
 - `--calibrate` to measure and apply frequency correction
 - `--scan` to scan bands without decoding
 - `--upload` to submit queued spots to WSPRnet
+- `--heartbeat` to send a wsprstat ping when `--upload` finds no successes
 - `--config PATH` to point at an alternate configuration file
 
 WSPR data is stored beneath `~/.local/share/neo-rx/wspr/` by default.
@@ -157,6 +158,11 @@ uploader_enabled = false  # Flip to true to allow `neo-rx wspr --upload`
 These fields complement existing options such as `wspr_enabled`, `wspr_auto_upload`, and `wspr_bands_hz`.
 
 When `uploader_enabled = true`, `neo-rx wspr` will also start writing an enriched upload queue to `~/.local/share/neo-rx/wspr/wspr_upload_queue.jsonl`. Each record now captures the tuned band (`dial_freq_hz`), the aligned 2-minute slot start, and your reporter metadata (`callsign`, `grid`, `power_dbm`) so subsequent `neo-rx wspr --upload` runs have everything needed to talk to WSPRnet.
+
+`neo-rx wspr --upload --json` now reports `attempted`, `succeeded`, `failed`, and a
+`last_error` string so automation can react to stalled queues. Pair it with
+`--heartbeat` to emit a `wsprstat` ping whenever a drain cycle produces no
+successful uploads (matching `rtlsdr-wsprd` parity).
 
 > **Safety gate:** `neo-rx wspr --upload` refuses to contact WSPRnet unless `[wspr].uploader_enabled = true`, preventing accidental network submissions.
 

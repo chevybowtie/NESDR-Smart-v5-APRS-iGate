@@ -231,6 +231,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Upload queued spots to WSPRNet (stub)",
     )
     wspr_parser.add_argument(
+        "--heartbeat",
+        action="store_true",
+        help="Send a wsprstat heartbeat if --upload finds no successful submissions",
+    )
+    wspr_parser.add_argument(
         "--band",
         choices=["80m", "40m", "30m", "20m", "10m"],
         help="Monitor only the specified WSPR band (default: all bands)",
