@@ -139,6 +139,23 @@ Useful flags:
 
 WSPR data is stored beneath `~/.local/share/neo-rx/wspr/` by default.
 
+### WSPR uploader configuration
+
+The uploader reuses the main `config.toml`. Add the following keys under the `[wspr]` table to describe your reporter:
+
+```toml
+[wspr]
+grid = "EM12ab"          # Maidenhead grid (6 characters recommended)
+power_dbm = 37            # Reported transmit power in dBm (37 ≈ 5 W)
+uploader_enabled = false  # Flip to true to allow `neo-rx wspr --upload`
+```
+
+- `grid` is required by WSPRnet. You can enter it manually or derive it from your lat/long via any Maidenhead converter.
+- `power_dbm` defaults to 37 if omitted. Set it to the nearest whole-dBm value for your transmit chain.
+- `uploader_enabled` is a safety gate: once the uploader logic is wired up, this flag must be `true` before the CLI contacts WSPRnet. Keep it `false` while you verify credentials and networking.
+
+These fields complement existing options such as `wspr_enabled`, `wspr_auto_upload`, and `wspr_bands_hz`.
+
 ## Troubleshooting
 - `neo-rx diagnostics` surfaces missing dependencies, SDR availability, and network reachability issues.
 - Ensure `rtl_fm`, `rtl_test`, `direwolf`, and `sox` (optional) are installed and executable.

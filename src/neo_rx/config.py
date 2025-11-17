@@ -117,6 +117,9 @@ class StationConfig:
     wspr_auto_upload: bool = False
     wspr_bands_hz: list[int] | None = None
     wspr_capture_duration_s: int = 119
+    wspr_grid: str | None = None
+    wspr_power_dbm: int = 37
+    wspr_uploader_enabled: bool = False
     upconverter_enabled: bool = True
     upconverter_lo_offset_hz: int | None = 125_000_000
     mqtt_enabled: bool = False
@@ -161,6 +164,9 @@ class StationConfig:
                     "auto_upload": self.wspr_auto_upload,
                     "bands_hz": self.wspr_bands_hz,
                     "capture_duration_s": self.wspr_capture_duration_s,
+                    "grid": self.wspr_grid,
+                    "power_dbm": self.wspr_power_dbm,
+                    "uploader_enabled": self.wspr_uploader_enabled,
                 }
             ),
             "upconverter": _drop_none(
@@ -200,6 +206,10 @@ class StationConfig:
         upconverter = data.get("upconverter", {})
         mqtt = data.get("mqtt", {})
 
+        wspr_power = _optional_int(wspr.get("power_dbm"))
+        if wspr_power is None:
+            wspr_power = 37
+
         callsign = station.get("callsign")
         passcode = station.get("passcode")
         if not callsign or not passcode:
@@ -231,6 +241,9 @@ class StationConfig:
             wspr_auto_upload=bool(wspr.get("auto_upload", False)),
             wspr_bands_hz=wspr.get("bands_hz"),
             wspr_capture_duration_s=int(wspr.get("capture_duration_s", 119)),
+            wspr_grid=wspr.get("grid"),
+            wspr_power_dbm=wspr_power,
+            wspr_uploader_enabled=bool(wspr.get("uploader_enabled", False)),
             upconverter_enabled=bool(upconverter.get("enabled", False)),
             upconverter_lo_offset_hz=_optional_int(upconverter.get("lo_offset_hz")) or 125_000_000,
             mqtt_enabled=bool(mqtt.get("enabled", False)),

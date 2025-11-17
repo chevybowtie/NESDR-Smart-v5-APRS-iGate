@@ -50,10 +50,11 @@ Implementation choices:
 
 ## 5. Implementation Steps
 
-1. **Config/schema updates**
-   - Extend `StationConfig` (`config.py`) with `wspr_grid`, `wspr_power_dbm`, and `wspr_uploader_enabled`.
-   - Update `docs/wspr.md`, sample `config.toml`, and CLI help to describe the new fields.
-   - Optional: add Maidenhead conversion helper so users can enter lat/long and we derive the grid.
+1. **Config/schema updates** ✅ (2025-11-16)
+   - `StationConfig` now persists `wspr.grid`, `wspr.power_dbm`, and `wspr.uploader_enabled` with sensible defaults (grid optional, power defaults to 37 dBm, uploader disabled by default).
+   - `README.md` and `docs/wspr.md` document how to configure the new fields, including a sample `[wspr]` snippet for `config.toml`.
+   - Regression coverage added in `tests/test_config.py` to ensure the new fields survive a save/load round-trip.
+   - Maidenhead auto-derivation remains optional and is tracked in the open questions below.
 
 2. **Spot enrichment**
    - When saving/enqueueing spots (in capture pipeline), ensure every record includes `dial_freq_hz`, `slot_start_utc`, and reporter metadata to avoid recomputation later.

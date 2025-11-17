@@ -142,6 +142,31 @@ neo-rx wspr --calibrate --apply --write-config --config /path/to/config.toml \
 - Buffer management with configurable size limits and automatic rotation.
 - **Optional auto-upload to WSPRnet** with queue/retry and manual credential input.
 
+## Configuration additions
+
+The `[wspr]` section in `config.toml` now accepts the following uploader-specific keys:
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `grid` | string | `null` | Maidenhead grid (6 character preferred) used for `rcall`/`rgrid` fields when uploading. |
+| `power_dbm` | integer | `37` | Transmit power reported to WSPRnet. `37` dBm ≈ 5 W. |
+| `uploader_enabled` | bool | `false` | Gate to prevent accidental uploads until credentials/networking are verified. |
+
+Example snippet:
+
+```toml
+[wspr]
+enabled = true
+auto_upload = false
+grid = "EM12ab"
+power_dbm = 37
+uploader_enabled = false
+```
+
+The uploader wiring will respect `uploader_enabled` before attempting to drain the queue. This provides a deliberate safety switch that lets you confirm your station metadata, networking, and credentials before publishing to WSPRnet.
+
+These fields complement the existing `wspr_bands_hz`, `wspr_capture_duration_s`, and MQTT options, and will be consumed by the uploader once the HTTP integration is implemented.
+
 ### WSPRnet Uploader
 
 The `WsprUploader` class provides a lightweight on-disk JSON-lines queue for spots

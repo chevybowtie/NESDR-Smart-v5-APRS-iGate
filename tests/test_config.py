@@ -21,6 +21,9 @@ def test_save_and_load_roundtrip(tmp_path) -> None:
         sample_rate_sps=250_000.0,
         gain="auto",
         ppm_correction=2,
+        wspr_grid="EM12ab",
+        wspr_power_dbm=33,
+        wspr_uploader_enabled=True,
     )
 
     path = tmp_path / "config.toml"
