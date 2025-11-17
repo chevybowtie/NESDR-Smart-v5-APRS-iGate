@@ -220,6 +220,24 @@ string if the stat ping failed.
 The CLI now logs the first failing error surfaced by `drain()` so you can see
 whether the queue is blocked on metadata issues, HTTP errors, or network
 exceptions without digging through debug logs.
+
+### Operational tips & observability
+
+- **Queue location:** All pending uploads live in `~/.local/share/neo-rx/wspr/wspr_upload_queue.jsonl`.
+  You can inspect/remove entries manually (JSON-lines) if you need to recover from
+  repeated failures.
+- **Logs:** Upload attempts are logged at DEBUG (shows rcall/target) while successes
+  land at INFO and failures at WARNING. Enable `NEO_RX_LOG_LEVEL=DEBUG` when chasing
+  HTTP/metadata issues; log files live under `~/.local/share/neo-rx/logs/neo-rx.log`.
+- **Heartbeats:** Use `neo-rx wspr --upload --heartbeat` to emit a `wsprstat` ping whenever
+  a drain cycle produces zero successful uploads. The JSON response includes `heartbeat_sent`
+  plus an error string to aid dashboards.
+- **Rate-limit etiquette:** `wsprnet.org` is mission-critical for shared spectrum.
+  Schedule `--upload` runs no more frequently than once per slot (2 minutes), and
+  let the built-in exponential backoff handle outages instead of hammering the service.
+- **Troubleshooting:** If `last_error` reports missing metadata, re-run `neo-rx setup`
+  to populate `[wspr]` fields or inspect recent spots for malformed timestamps. Network
+  failures leave entries queued; check firewall/CA bundles before deleting anything.
 ```
 
 ## Testing

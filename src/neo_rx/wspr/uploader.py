@@ -387,6 +387,12 @@ class WsprUploader:
 
     def _perform_request(self, params: Dict[str, str], *, success_log: str) -> bool:
         function = params.get("function", "wspr")
+        LOG.debug(
+            "WSPR %s attempt for rcall=%s target=%s",
+            function,
+            params.get("rcall"),
+            params.get("tcall") or params.get("tqrg"),
+        )
         try:
             response = self._session.get(self.base_url, params=params, timeout=self._timeout)
         except Exception as exc:  # requests.RequestException but keep generic for typing

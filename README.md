@@ -164,6 +164,10 @@ When `uploader_enabled = true`, `neo-rx wspr` will also start writing an enriche
 `--heartbeat` to emit a `wsprstat` ping whenever a drain cycle produces no
 successful uploads (matching `rtlsdr-wsprd` parity).
 
+Uploader logs live under `~/.local/share/neo-rx/logs/neo-rx.log`; set
+`NEO_RX_LOG_LEVEL=DEBUG` to watch each attempt/heartbeat in real time, and see
+`docs/wspr.md` for rate-limit and troubleshooting guidance.
+
 > **Safety gate:** `neo-rx wspr --upload` refuses to contact WSPRnet unless `[wspr].uploader_enabled = true`, preventing accidental network submissions.
 
 ## Troubleshooting

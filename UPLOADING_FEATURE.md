@@ -81,9 +81,9 @@ Implementation choices:
    - `tests/test_wspr_cli_upload.py` exercises the CLI guard rails for missing configuration or disabled uploader flags, ensuring we emit actionable errors before touching the queue.
    - JSON output/heartbeat expectations live in `tests/test_wspr_json_output.py`, keeping the CLI contract under regression.
 
-7. **Observability & docs**
-   - Log each upload attempt at DEBUG and successes/failures at INFO.
-   - Document operational steps in `docs/wspr.md` (credential setup, queue location, troubleshooting tips, rate-limit etiquette).
+7. **Observability & docs** ✅ (2025-11-16)
+   - `WsprUploader` now emits a DEBUG log for every upload/heartbeat attempt plus INFO/WARNING entries for success/failure, ensuring field ops can trace retries without digging into HTTP captures.
+   - `docs/wspr.md` + `README.md` document queue locations, heartbeat usage, log files, troubleshooting tips, and rate-limit etiquette so operators know how to triage stalled uploads.
 
 ## 6. Open Questions / Follow-ups
 
