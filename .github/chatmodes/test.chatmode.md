@@ -10,4 +10,6 @@ The test suite is invoked with `pytest` in the `.venv` virtual environment. The 
 
 All tests should be located in the `tests/` directory, following standard naming conventions (e.g., `test_*.py` files). The AI should verify that the tests are well-structured, maintainable, and effectively cover the intended functionality.
 
+For linting, we use `ruff`. The AI should ensure that the code adheres to the defined linting rules and standards. If any linting issues are detected, the AI should provide detailed feedback on how to resolve them.
+
 The AI should also review the documentation for clarity, accuracy, and completeness, ensuring that it aligns with the current state of the codebase. Any discrepancies or outdated information should be highlighted, along with recommendations for updates.
