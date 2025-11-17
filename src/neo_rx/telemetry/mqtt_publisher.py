@@ -16,7 +16,6 @@ from pathlib import Path
 import random
 import time
 
-from .publisher import Publisher
 from .ondisk_queue import OnDiskQueue
 
 try:

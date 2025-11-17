@@ -8,7 +8,6 @@ MQTT dependency until actually constructing an MQTT publisher.
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from neo_rx import config as config_module
 

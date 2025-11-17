@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 from typing import Dict, Iterable
-from statistics import median, stdev
+from statistics import median
 
 LOG = logging.getLogger(__name__)
 

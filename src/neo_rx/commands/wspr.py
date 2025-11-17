@@ -12,7 +12,6 @@ from typing import Optional
 
 from neo_rx import config as config_module
 from neo_rx.wspr.capture import WsprCapture
-from neo_rx.wspr.decoder import WsprDecoder
 from neo_rx.wspr.publisher import make_publisher_from_config
 from neo_rx.wspr.uploader import WsprUploader
 from neo_rx.wspr import scan as wspr_scan
@@ -76,7 +75,6 @@ def run_wspr(args: Namespace) -> int:
 
     if getattr(args, "scan", False):
         LOG.info("Running WSPR band-scan")
-        import shutil
         import subprocess
 
         bands = []

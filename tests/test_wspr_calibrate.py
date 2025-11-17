@@ -136,7 +136,6 @@ class TestLoadSpotsFromJsonl:
         assert spots == []
 
 
-from neo_rx.wspr.calibrate import estimate_offset_from_spots, compute_ppm_from_offset
 
 
 def test_compute_ppm_from_offset_basic():

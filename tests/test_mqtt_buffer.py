@@ -1,10 +1,7 @@
 """Tests for MQTT publisher on-disk buffering."""
 import json
-import tempfile
 import types
-from pathlib import Path
 
-import pytest
 
 import neo_rx.telemetry.mqtt_publisher as mp
 

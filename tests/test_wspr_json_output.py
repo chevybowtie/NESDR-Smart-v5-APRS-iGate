@@ -3,7 +3,6 @@
 import json
 from argparse import Namespace
 
-import pytest
 
 from neo_rx.commands import wspr as wspr_cmd
 from neo_rx import config as config_module

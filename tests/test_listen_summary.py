@@ -38,7 +38,7 @@ def test_summarize_recent_activity_handles_invalid_lines(tmp_path) -> None:
     contents = [
         "garbled",  # split failure
         f"{now.strftime('%Y-%m-%dT%H:%M:%SZ')} not_a_frame",  # missing [
-        f"not-a-time [000001] port=0 CALL>APRS:PAYLOAD",  # timestamp parse error
+        "not-a-time [000001] port=0 CALL>APRS:PAYLOAD",  # timestamp parse error
         f"{now.strftime('%Y-%m-%dT%H:%M:%SZ')} [000002] other CALL>APRS:PAYLOAD",  # missing port marker
     ]
     log_path.write_text("\n".join(contents), encoding="utf-8")

@@ -1,4 +1,3 @@
-import tempfile
 from pathlib import Path
 
 from neo_rx import config as config_module

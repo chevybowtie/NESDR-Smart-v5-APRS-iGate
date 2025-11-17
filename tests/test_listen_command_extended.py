@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import io
 import logging
-import threading
 from argparse import Namespace
 from queue import Queue
 from typing import Any, cast

@@ -3,7 +3,6 @@
 import json
 from pathlib import Path
 
-import pytest
 
 from neo_rx.wspr.uploader import WsprUploader
 
