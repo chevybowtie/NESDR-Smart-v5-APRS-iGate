@@ -179,8 +179,11 @@ to prevent corruption on unexpected shutdown.
 
 **Queue management:**
 - `enqueue_spot(spot)`: append a spot dict to the queue.
-- `drain(max_items=None)`: attempt to upload all queued items; failures and
-  unattempted items (when `max_items` is set) remain for retry.
+- `drain(max_items=None, daemon=False)`: attempt to upload queued items; failures and
+  unattempted items (when `max_items` is set) remain for retry. When `daemon=True`,
+  the uploader enforces a simple exponential backoff window so repeated failures
+  don't hammer WSPRnet, and it surfaces the first error message via `last_error`
+  in the returned stats.
 - `upload_spot(spot)`: abstract method (currently a logging stub) for submitting
   a single spot to WSPRnet.
 
@@ -203,6 +206,10 @@ neo-rx wspr --upload
 
 # Emit drain results in JSON (helpful for monitoring/scripting)
 neo-rx wspr --upload --json
+
+The CLI now logs the first failing error surfaced by `drain()` so you can see
+whether the queue is blocked on metadata issues, HTTP errors, or network
+exceptions without digging through debug logs.
 ```
 
 ## Testing

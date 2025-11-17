@@ -6,9 +6,10 @@ import json
 import logging
 import os
 import tempfile
+import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, cast
+from typing import Any, Callable, Dict, Iterable, List, Optional, cast
 
 from neo_rx import __version__
 
@@ -23,6 +24,9 @@ except ImportError:  # pragma: no cover - surfaced at runtime if extra missing
 DEFAULT_ENDPOINT = "https://wsprnet.org/post"
 CONNECT_TIMEOUT_S = 5
 READ_TIMEOUT_S = 10
+DAEMON_BACKOFF_BASE_S = 30.0
+DAEMON_BACKOFF_MAX_S = 600.0
+DAEMON_BACKOFF_MULTIPLIER = 2.0
 
 
 class WsprUploader:
@@ -34,6 +38,7 @@ class WsprUploader:
         queue_path: str | Path | None = None,
         base_url: str | None = None,
         session: object | None = None,
+        clock: Callable[[], float] | None = None,
     ) -> None:
         if requests is None:  # pragma: no cover - exercised when extra missing
             raise RuntimeError(
@@ -50,6 +55,10 @@ class WsprUploader:
         self._user_agent = f"neo-rx/{__version__}"
         self._session: Any = session or requests.Session()
         self._session.headers.setdefault("User-Agent", self._user_agent)
+        self._clock = clock or time.monotonic
+        self._daemon_backoff_current = DAEMON_BACKOFF_BASE_S
+        self._daemon_backoff_next = 0.0
+        self._last_upload_error: Optional[str] = None
 
     # --- Queue management -------------------------------------------------
     def enqueue_spot(self, spot: Dict) -> None:
@@ -99,14 +108,18 @@ class WsprUploader:
     def upload_spot(self, spot: Dict) -> bool:
         """Upload a single spot to WSPRNet via HTTPS GET."""
 
+        self._last_upload_error = None
         params = self._build_query_params(spot)
         if params is None:
+            if self._last_upload_error is None:
+                self._last_upload_error = "Spot missing metadata required for upload"
             return False
 
         try:
             response = self._session.get(self.base_url, params=params, timeout=self._timeout)
         except Exception as exc:  # requests.RequestException but keep generic for typing
             LOG.warning("WSPR upload failed for %s: %s", params.get("tcall"), exc)
+            self._last_upload_error = f"Request error: {exc}"
             return False
 
         if response.status_code != 200:
@@ -116,11 +129,15 @@ class WsprUploader:
                 params.get("tcall"),
                 params.get("rcall"),
             )
+            self._last_upload_error = (
+                f"HTTP {response.status_code} when uploading {params.get('tcall')}"
+            )
             return False
 
         body = (response.text or "").strip()
         if not body:
             LOG.warning("WSPR upload returned empty response for %s", params.get("tcall"))
+            self._last_upload_error = "Empty response body from WSPRnet"
             return False
 
         LOG.info(
@@ -131,9 +148,10 @@ class WsprUploader:
             self.base_url,
         )
         LOG.debug("WSPR upload response: %s", body[:200])
+        self._last_upload_error = None
         return True
 
-    def drain(self, max_items: Optional[int] = None) -> Dict[str, int]:
+    def drain(self, max_items: Optional[int] = None, *, daemon: bool = False) -> Dict[str, Any]:
         """Attempt to upload queued spots; keep failures and unattempted in the queue.
 
         Returns a dict with counts: {"attempted", "succeeded", "failed"}.
@@ -142,11 +160,24 @@ class WsprUploader:
         """
         items = self._read_queue()
         if not items:
+            if daemon:
+                self._reset_daemon_backoff()
             return {"attempted": 0, "succeeded": 0, "failed": 0}
+
+        if daemon and not self._daemon_ready():
+            remaining = max(0.0, self._daemon_backoff_next - self._clock())
+            return {
+                "attempted": 0,
+                "succeeded": 0,
+                "failed": len(items),
+                "skipped_due_to_backoff": True,
+                "next_attempt_in": remaining,
+            }
 
         attempted = 0
         succeeded = 0
         failed_items: List[Dict] = []
+        first_error: Optional[str] = None
 
         for idx, spot in enumerate(items):
             if max_items is not None and attempted >= max_items:
@@ -156,19 +187,42 @@ class WsprUploader:
             attempted += 1
             try:
                 ok = self.upload_spot(spot)
-            except Exception:
+            except Exception as exc:
                 LOG.exception("Uploader threw; keeping spot in queue")
                 ok = False
+                if first_error is None:
+                    first_error = f"Exception while uploading {spot.get('call')}: {exc}"
+                if self._last_upload_error is None:
+                    self._last_upload_error = first_error
             if ok:
                 succeeded += 1
             else:
                 failed_items.append(spot)
+                if first_error is None:
+                    reason = self._last_upload_error or f"Upload failed for {spot.get('call')}"
+                    first_error = reason
 
         self._rewrite_queue(failed_items)
-        return {"attempted": attempted, "succeeded": succeeded, "failed": len(failed_items)}
+        result: Dict[str, Any] = {
+            "attempted": attempted,
+            "succeeded": succeeded,
+            "failed": len(failed_items),
+        }
+        if first_error:
+            result["last_error"] = first_error
+
+        if daemon and attempted > 0:
+            if succeeded == 0:
+                delay = self._record_daemon_failure()
+                result["backoff_seconds"] = delay
+            else:
+                self._reset_daemon_backoff()
+
+        return result
 
     # --- Helpers ----------------------------------------------------------
     def _build_query_params(self, spot: Dict) -> Dict | None:
+        self._last_upload_error = None
         missing: list[str] = []
 
         reporter_call = _as_str(spot.get("reporter_callsign"))
@@ -230,10 +284,12 @@ class WsprUploader:
             missing.append("slot_start_utc")
 
         if missing:
+            missing_fields = ", ".join(sorted(missing))
             LOG.warning(
                 "Skipping WSPR upload; spot missing metadata: %s",
-                ", ".join(sorted(missing)),
+                missing_fields,
             )
+            self._last_upload_error = f"Spot missing metadata: {missing_fields}"
             return None
 
         reporter_call = cast(str, reporter_call)
@@ -264,6 +320,22 @@ class WsprUploader:
             "mode": "2",
         }
         return params
+
+    def _daemon_ready(self) -> bool:
+        return self._clock() >= self._daemon_backoff_next
+
+    def _record_daemon_failure(self) -> float:
+        delay = self._daemon_backoff_current
+        self._daemon_backoff_next = self._clock() + delay
+        self._daemon_backoff_current = min(
+            self._daemon_backoff_current * DAEMON_BACKOFF_MULTIPLIER,
+            DAEMON_BACKOFF_MAX_S,
+        )
+        return delay
+
+    def _reset_daemon_backoff(self) -> None:
+        self._daemon_backoff_current = DAEMON_BACKOFF_BASE_S
+        self._daemon_backoff_next = 0.0
 
 
 def _format_freq_mhz(freq_hz: float) -> str:

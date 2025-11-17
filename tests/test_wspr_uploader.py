@@ -4,7 +4,10 @@ import json
 from pathlib import Path
 
 
-from neo_rx.wspr.uploader import WsprUploader
+from neo_rx.wspr.uploader import (
+    DAEMON_BACKOFF_BASE_S,
+    WsprUploader,
+)
 
 
 class DummyResponse:
@@ -40,6 +43,17 @@ def sample_spot(**overrides):
     }
     spot.update(overrides)
     return spot
+
+
+class FakeClock:
+    def __init__(self, start: float = 0.0) -> None:
+        self.current = start
+
+    def __call__(self) -> float:
+        return self.current
+
+    def advance(self, seconds: float) -> None:
+        self.current += seconds
 
 
 def test_enqueue_spot_creates_queue_file(tmp_path: Path):
@@ -287,3 +301,90 @@ def test_upload_spot_empty_body(tmp_path: Path):
 
     assert ok is False
     assert len(session.calls) == 1
+
+
+def test_drain_records_first_failure_message(tmp_path: Path, monkeypatch):
+    queue_file = tmp_path / "queue.jsonl"
+    uploader = WsprUploader(queue_path=queue_file)
+    uploader.enqueue_spot({"call": "K1ABC"})
+    uploader.enqueue_spot({"call": "K2DEF"})
+
+    def mock_upload(spot):
+        uploader._last_upload_error = f"boom {spot['call']}"  # noqa: SLF001 - intentional for test
+        return False
+
+    monkeypatch.setattr(uploader, "upload_spot", mock_upload)
+
+    result = uploader.drain()
+
+    assert result["failed"] == 2
+    assert result.get("last_error") == "boom K1ABC"
+
+
+def test_drain_daemon_backoff_skips_until_ready(tmp_path: Path, monkeypatch):
+    queue_file = tmp_path / "queue.jsonl"
+    clock = FakeClock()
+    uploader = WsprUploader(queue_path=queue_file, clock=clock)
+    uploader.enqueue_spot({"call": "K1ABC"})
+
+    call_count = {"count": 0}
+
+    def mock_upload(spot):
+        call_count["count"] += 1
+        uploader._last_upload_error = "boom"  # noqa: SLF001 - intentional for test
+        return False
+
+    monkeypatch.setattr(uploader, "upload_spot", mock_upload)
+
+    first = uploader.drain(daemon=True)
+    assert first["attempted"] == 1
+    assert first["failed"] == 1
+    assert first.get("backoff_seconds") == DAEMON_BACKOFF_BASE_S
+    assert first.get("last_error") == "boom"
+
+    skipped = uploader.drain(daemon=True)
+    assert skipped["attempted"] == 0
+    assert skipped["failed"] == 1
+    assert skipped.get("skipped_due_to_backoff") is True
+    assert skipped.get("next_attempt_in", 0) > 0
+    assert call_count["count"] == 1
+
+    clock.advance(DAEMON_BACKOFF_BASE_S)
+    again = uploader.drain(daemon=True)
+    assert again["attempted"] == 1
+    assert call_count["count"] == 2
+
+
+def test_drain_daemon_backoff_resets_after_success(tmp_path: Path, monkeypatch):
+    queue_file = tmp_path / "queue.jsonl"
+    clock = FakeClock()
+    uploader = WsprUploader(queue_path=queue_file, clock=clock)
+    uploader.enqueue_spot({"call": "K1ABC"})
+
+    outcomes = iter([False, True, True])
+
+    def mock_upload(_spot):
+        result = next(outcomes)
+        uploader._last_upload_error = None
+        if not result:
+            uploader._last_upload_error = "boom"  # noqa: SLF001 - intentional for test
+        return result
+
+    monkeypatch.setattr(uploader, "upload_spot", mock_upload)
+
+    first = uploader.drain(daemon=True)
+    assert first.get("backoff_seconds") == DAEMON_BACKOFF_BASE_S
+
+    # Still within backoff window -> skip
+    skipped = uploader.drain(daemon=True)
+    assert skipped.get("skipped_due_to_backoff") is True
+
+    clock.advance(DAEMON_BACKOFF_BASE_S)
+    second = uploader.drain(daemon=True)
+    assert "backoff_seconds" not in second
+    assert second["failed"] == 0
+
+    uploader.enqueue_spot({"call": "K9ZZZ"})
+    immediate = uploader.drain(daemon=True)
+    assert immediate["attempted"] == 1
+    assert immediate.get("skipped_due_to_backoff") is None

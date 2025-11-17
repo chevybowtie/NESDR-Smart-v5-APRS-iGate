@@ -67,10 +67,10 @@ Implementation choices:
    - Network calls hit `https://wsprnet.org/post` with a `(5s,10s)` timeout; non-200 responses, exceptions, and empty bodies all leave the spot in the queue for retry.
    - `pyproject.toml` now includes `requests` in the core dependencies so the uploader is always runnable when the package is installed.
 
-4. **Queue & retry behavior**
-   - Keep existing JSON-lines queue; after each drain attempt, keep failed/unattempted entries.
-   - Add simple exponential backoff tracking when drain is invoked in daemon mode (so repeated failures don’t hammer WSPRnet).
-   - Surface first error message back to CLI for easier diagnostics.
+4. **Queue & retry behavior** ✅ (2025-11-16)
+   - Queue semantics unchanged: failed/unattempted entries remain on disk after each drain so retries are lossless.
+   - `WsprUploader.drain(..., daemon=True)` now enforces a simple exponential backoff window (30s base → 10 min max) using a monotonic clock so daemonized upload loops don’t hammer WSPRnet during outages.
+   - `drain()` propagates the first failure reason via `last_error`, and the CLI surfaces it immediately after each `--upload` run for easier diagnostics.
 
 5. **CLI updates**
    - Allow `neo-rx wspr --upload` to optionally force a `wsprstat` heartbeat when no spots were uploaded (mirrors rtlsdr-wsprd’s empty-report behavior).

@@ -237,6 +237,9 @@ def run_wspr(args: Namespace) -> int:
                 result.get("succeeded", 0),
                 result.get("failed", 0),
             )
+            last_error = result.get("last_error")
+            if last_error:
+                LOG.warning("Last WSPR upload error: %s", last_error)
             # Emit machine-readable JSON if requested
             if getattr(args, "json", False):
                 import json
