@@ -25,6 +25,6 @@ except Exception:
 import warnings
 warnings.filterwarnings("ignore", message="pkg_resources is deprecated", category=UserWarning)
 
-from . import cli, config, diagnostics_helpers, term
+from . import cli, config, diagnostics_helpers, term  # noqa: E402
 
 __all__ = ["cli", "config", "diagnostics_helpers", "term", "__version__"]

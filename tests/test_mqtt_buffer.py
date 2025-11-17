@@ -146,7 +146,7 @@ def test_buffer_dir_creation(monkeypatch, tmp_path):
     buffer_dir = tmp_path / "nested" / "mqtt"
     assert not buffer_dir.exists()
     
-    pub = mp.MqttPublisher(host="fake", port=1883, buffer_dir=buffer_dir)
+    mp.MqttPublisher(host="fake", port=1883, buffer_dir=buffer_dir)
     
     assert buffer_dir.exists()
     assert buffer_dir.is_dir()

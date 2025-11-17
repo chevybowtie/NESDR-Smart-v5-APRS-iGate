@@ -78,9 +78,6 @@ def test_upload_json_output(monkeypatch, capsys, tmp_path):
     # Mock the uploader to succeed on all
     monkeypatch.setattr(uploader, "upload_spot", lambda spot: True)
 
-    # Patch the factory to return our uploader
-    original_init = wspr_cmd.WsprUploader.__init__
-
     def mock_init(self, *args, **kwargs):
         self.queue_path = queue_file
         self.credentials = {}

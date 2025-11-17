@@ -29,7 +29,7 @@ except ImportError as import_error:  # pragma: no cover - handled via runtime er
 else:
     _RTLSDR_IMPORT_ERROR = None
 
-from .base import RadioBackend, RadioError, RadioSettings, RadioStatus
+from .base import RadioBackend, RadioError, RadioSettings, RadioStatus  # noqa: E402
 
 
 class NESDRBackend(RadioBackend):
