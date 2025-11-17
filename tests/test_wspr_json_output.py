@@ -8,7 +8,7 @@ from neo_rx.commands import wspr as wspr_cmd
 from neo_rx import config as config_module
 
 
-def test_scan_json_output(monkeypatch, capsys):
+def test_scan_json_output(monkeypatch, capsys, tmp_path):
     """Test --scan --json produces valid JSON report."""
     cfg = config_module.StationConfig(
         callsign="TEST",
@@ -17,6 +17,7 @@ def test_scan_json_output(monkeypatch, capsys):
         wspr_capture_duration_s=10,
     )
     monkeypatch.setattr(config_module, "load_config", lambda path=None: cfg)
+    monkeypatch.setattr(config_module, "get_data_dir", lambda: tmp_path)
 
     def fake_scan_bands(bands, capture_fn, duration_s):
         """Mock scan_bands that ignores capture_fn and returns canned reports."""
@@ -69,20 +70,32 @@ def test_scan_json_output(monkeypatch, capsys):
 
 def test_upload_json_output(monkeypatch, capsys, tmp_path):
     """Test --upload --json produces drain result in JSON."""
-    # Enqueue some spots
-    queue_file = tmp_path / "queue.jsonl"
-    uploader = wspr_cmd.WsprUploader(queue_path=queue_file)
-    uploader.enqueue_spot({"call": "K1ABC", "freq_hz": 14080000})
-    uploader.enqueue_spot({"call": "K2DEF", "freq_hz": 14080100})
+    queue_dir = tmp_path / "wspr"
+    queue_dir.mkdir(parents=True, exist_ok=True)
+    queue_file = queue_dir / "wspr_upload_queue.jsonl"
+    queue_file.write_text(
+        '{"call":"K1ABC","freq_hz":14080000}\n{"call":"K2DEF","freq_hz":14080100}\n',
+        encoding="utf-8",
+    )
 
-    # Mock the uploader to succeed on all
-    monkeypatch.setattr(uploader, "upload_spot", lambda spot: True)
+    cfg = config_module.StationConfig(
+        callsign="TEST",
+        passcode="12345",
+        wspr_grid="EM12ab",
+        wspr_power_dbm=37,
+        wspr_uploader_enabled=True,
+    )
+    monkeypatch.setattr(config_module, "load_config", lambda path=None: cfg)
+    monkeypatch.setattr(config_module, "get_data_dir", lambda: tmp_path)
 
     def mock_init(self, *args, **kwargs):
         self.queue_path = queue_file
         self.credentials = {}
+        self.base_url = "https://example.com"
+        self._timeout = (5, 10)
 
     monkeypatch.setattr(wspr_cmd.WsprUploader, "__init__", mock_init)
+    monkeypatch.setattr(wspr_cmd.WsprUploader, "upload_spot", lambda self, spot: True)
 
     args = Namespace(
         upload=True,

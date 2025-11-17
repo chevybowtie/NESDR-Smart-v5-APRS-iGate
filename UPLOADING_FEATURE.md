@@ -61,11 +61,11 @@ Implementation choices:
    - The capture CLI instantiates a persistent `wspr_upload_queue.jsonl` beneath the WSPR data directory whenever `wspr_uploader_enabled=true`; enriched spots are appended automatically.
    - If the reporter grid/power/slot metadata is missing, the uploader queue is skipped with a clear warning so partial data never enters the backlog.
 
-3. **HTTP upload logic (`upload_spot`)**
-   - Replace the stub with real network code using `requests` (add dep to `pyproject.toml`).
-   - Build query params exactly as rtlsdr-wsprd does (see `postSpots()` in `rtlsdr_wsprd.c`).
-   - Use a shared `requests.Session` with `timeout=5s` (connect) / `10s` (read) and TLS verification.
-   - Treat non-200 status or empty body as failure (`return False`) so the queue keeps the spot.
+3. **HTTP upload logic (`upload_spot`)** ✅ (2025-11-16)
+   - `WsprUploader` now owns a persistent `requests.Session`, formats the rtlsdr-wsprd query parameters (MHz frequencies at 6 decimals, YYMMDD/HHMM slot stamps, SNR/DT/DRIFT conversions), and enforces a `neo-rx-<version>` tag capped at 10 chars.
+   - Added a hard guard: missing reporter metadata or malformed slot timestamps skip the HTTP call with a warning so corrupt entries stay queued.
+   - Network calls hit `https://wsprnet.org/post` with a `(5s,10s)` timeout; non-200 responses, exceptions, and empty bodies all leave the spot in the queue for retry.
+   - `pyproject.toml` now includes `requests` in the core dependencies so the uploader is always runnable when the package is installed.
 
 4. **Queue & retry behavior**
    - Keep existing JSON-lines queue; after each drain attempt, keep failed/unattempted entries.

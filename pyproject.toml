@@ -24,6 +24,7 @@ dependencies = [
 	"pyrtlsdr>=0.3.0,<0.4",
 	"aprslib>=0.7.2,<0.9",
 	"tomli-w>=1.1,<2",
+	"requests>=2.31,<3",
 ]
 
 [project.urls]

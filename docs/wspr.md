@@ -167,6 +167,8 @@ The uploader wiring will respect `uploader_enabled` before attempting to drain t
 
 With the flag enabled, the capture pipeline now writes enriched spot entries to `~/.local/share/neo-rx/wspr/wspr_upload_queue.jsonl`. Each entry carries the tuned band (`dial_freq_hz`), the aligned slot start timestamp, and the reporter fields required by WSPRnet so uploads can happen later without recomputing context.
 
+When you invoke `neo-rx wspr --upload`, the command enforces the same gate: it aborts with an actionable error until `[wspr].uploader_enabled = true`, guaranteeing that uploads remain opt-in.
+
 These fields complement the existing `wspr_bands_hz`, `wspr_capture_duration_s`, and MQTT options, and will be consumed by the uploader once the HTTP integration is implemented.
 
 ### WSPRnet Uploader

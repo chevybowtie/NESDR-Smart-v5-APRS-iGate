@@ -221,6 +221,12 @@ def run_wspr(args: Namespace) -> int:
 
     if getattr(args, "upload", False):
         LOG.info("Requested WSPR upload")
+        if cfg is None:
+            LOG.error("Cannot upload WSPR spots without a configuration; rerun neo-rx setup or provide --config.")
+            return 1
+        if not cfg.wspr_uploader_enabled:
+            LOG.error("WSPR uploader is disabled. Set [wspr].uploader_enabled = true in config.toml before uploading.")
+            return 1
         queue_path = data_dir / "wspr_upload_queue.jsonl"
         try:
             uploader = WsprUploader(queue_path=queue_path)

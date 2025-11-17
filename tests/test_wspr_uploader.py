@@ -1,10 +1,45 @@
-"""Tests for WSPR uploader queue and drain logic."""
+"""Tests for WSPR uploader queue and HTTP drain logic."""
 
 import json
 from pathlib import Path
 
 
 from neo_rx.wspr.uploader import WsprUploader
+
+
+class DummyResponse:
+    def __init__(self, status_code=200, text="OK") -> None:
+        self.status_code = status_code
+        self.text = text
+
+
+class DummySession:
+    def __init__(self, response: DummyResponse) -> None:
+        self._response = response
+        self.calls: list[dict] = []
+        self.headers: dict[str, str] = {}
+
+    def get(self, url, params=None, timeout=None):
+        self.calls.append({"url": url, "params": params, "timeout": timeout})
+        return self._response
+
+
+def sample_spot(**overrides):
+    spot = {
+        "reporter_callsign": "N0CALL-10",
+        "reporter_grid": "EM12ab",
+        "reporter_power_dbm": 33,
+        "dial_freq_hz": 14_080_000,
+        "slot_start_utc": "2025-11-08T12:34:00Z",
+        "freq_hz": 14_080_060,
+        "call": "K1ABC",
+        "grid": "FN42",
+        "snr_db": -12.3,
+        "dt": 0.5,
+        "drift": -1,
+    }
+    spot.update(overrides)
+    return spot
 
 
 def test_enqueue_spot_creates_queue_file(tmp_path: Path):
@@ -199,3 +234,56 @@ def test_drain_exception_handling(tmp_path: Path, monkeypatch):
     assert len(lines) == 1
     parsed = json.loads(lines[0])
     assert parsed["call"] == "K1ABC"
+
+
+def test_upload_spot_success_builds_params(tmp_path: Path):
+    session = DummySession(DummyResponse(200, "OK"))
+    uploader = WsprUploader(queue_path=tmp_path / "queue.jsonl", session=session)
+
+    ok = uploader.upload_spot(sample_spot())
+
+    assert ok is True
+    assert len(session.calls) == 1
+    call = session.calls[0]
+    assert call["url"] == uploader.base_url
+    assert call["timeout"] == (5, 10)
+    params = call["params"]
+    assert params["function"] == "wspr"
+    assert params["rcall"] == "N0CALL-10"
+    assert params["rqrg"] == "14.080000"
+    assert params["tqrg"] == "14.080060"
+    assert params["sig"] == "-12"
+    assert params["dt"] == "0.5"
+    assert params["date"] == "251108"
+    assert params["time"] == "1234"
+
+
+def test_upload_spot_missing_metadata_skips_request(tmp_path: Path):
+    session = DummySession(DummyResponse(200, "OK"))
+    uploader = WsprUploader(queue_path=tmp_path / "queue.jsonl", session=session)
+
+    spot = sample_spot(reporter_grid=None)
+    ok = uploader.upload_spot(spot)
+
+    assert ok is False
+    assert session.calls == []
+
+
+def test_upload_spot_http_error(tmp_path: Path):
+    session = DummySession(DummyResponse(500, "ERR"))
+    uploader = WsprUploader(queue_path=tmp_path / "queue.jsonl", session=session)
+
+    ok = uploader.upload_spot(sample_spot())
+
+    assert ok is False
+    assert len(session.calls) == 1
+
+
+def test_upload_spot_empty_body(tmp_path: Path):
+    session = DummySession(DummyResponse(200, ""))
+    uploader = WsprUploader(queue_path=tmp_path / "queue.jsonl", session=session)
+
+    ok = uploader.upload_spot(sample_spot())
+
+    assert ok is False
+    assert len(session.calls) == 1
