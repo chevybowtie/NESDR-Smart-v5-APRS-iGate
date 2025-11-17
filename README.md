@@ -156,6 +156,8 @@ uploader_enabled = false  # Flip to true to allow `neo-rx wspr --upload`
 
 These fields complement existing options such as `wspr_enabled`, `wspr_auto_upload`, and `wspr_bands_hz`.
 
+When `uploader_enabled = true`, `neo-rx wspr` will also start writing an enriched upload queue to `~/.local/share/neo-rx/wspr/wspr_upload_queue.jsonl`. Each record now captures the tuned band (`dial_freq_hz`), the aligned 2-minute slot start, and your reporter metadata (`callsign`, `grid`, `power_dbm`) so subsequent `neo-rx wspr --upload` runs have everything needed to talk to WSPRnet.
+
 ## Troubleshooting
 - `neo-rx diagnostics` surfaces missing dependencies, SDR availability, and network reachability issues.
 - Ensure `rtl_fm`, `rtl_test`, `direwolf`, and `sox` (optional) are installed and executable.

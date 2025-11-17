@@ -41,6 +41,7 @@ def run_wspr(args: Namespace) -> int:
     in subsequent milestones.
     """
     cfg = _load_config_if_present(getattr(args, "config", None))
+    data_dir = config_module.get_data_dir() / "wspr"
 
     # Set up publisher if MQTT is enabled
     publisher = None
@@ -141,11 +142,9 @@ def run_wspr(args: Namespace) -> int:
 
     if getattr(args, "diagnostics", False):
         LOG.info("Requested WSPR diagnostics")
-        from pathlib import Path
         from neo_rx.wspr import diagnostics as wspr_diag
 
         # attempt to load recent spots from data dir (best-effort)
-        data_dir = config_module.get_data_dir() / "wspr"
         spots_file = data_dir / "wspr_spots.jsonl"
         spots = []
         try:
@@ -158,7 +157,6 @@ def run_wspr(args: Namespace) -> int:
         hint = wspr_diag.detect_upconverter_hint(spots)
         LOG.info("Upconverter diagnostic: %s", hint)
         return 0
-        return 0
 
     if getattr(args, "calibrate", False):
         LOG.info("Requested WSPR calibration")
@@ -170,7 +168,7 @@ def run_wspr(args: Namespace) -> int:
         if getattr(args, "spots_file", None):
             spots_path = Path(getattr(args, "spots_file"))
         else:
-            spots_path = (config_module.get_data_dir() / "wspr") / "wspr_spots.jsonl"
+            spots_path = data_dir / "wspr_spots.jsonl"
 
         spots = load_spots_from_jsonl(spots_path)
         if not spots:
@@ -223,8 +221,9 @@ def run_wspr(args: Namespace) -> int:
 
     if getattr(args, "upload", False):
         LOG.info("Requested WSPR upload")
+        queue_path = data_dir / "wspr_upload_queue.jsonl"
         try:
-            uploader = WsprUploader()
+            uploader = WsprUploader(queue_path=queue_path)
             result = uploader.drain()
             LOG.info(
                 "Upload drain complete: attempted=%d succeeded=%d failed=%d",
@@ -244,10 +243,16 @@ def run_wspr(args: Namespace) -> int:
 
     # Default action: run full WSPR monitoring
     LOG.info("Starting WSPR monitoring")
-    from pathlib import Path
-    data_dir = config_module.get_data_dir() / "wspr"
     LOG.info("WSPR spots will be saved to: %s", data_dir / "wspr_spots.jsonl")
     LOG.info("Application logs are available in: %s", config_module.get_data_dir() / "logs")
+
+    uploader = None
+    if cfg is not None and cfg.wspr_uploader_enabled:
+        queue_path = data_dir / "wspr_upload_queue.jsonl"
+        uploader = WsprUploader(queue_path=queue_path)
+        LOG.info("WSPR uploader queue enabled: %s", queue_path)
+    else:
+        LOG.debug("WSPR uploader queue disabled; set wspr_uploader_enabled=true to collect upload backlog")
     
     # Handle band selection
     band_mapping = {
@@ -277,6 +282,8 @@ def run_wspr(args: Namespace) -> int:
         upconverter_enabled=upconverter_enabled,
         upconverter_offset_hz=upconverter_offset,
         keep_temp=keep_temp,
+        station_config=cfg,
+        uploader=uploader,
     )
     capture.start()
     try:

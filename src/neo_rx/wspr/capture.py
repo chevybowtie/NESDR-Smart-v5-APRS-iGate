@@ -10,8 +10,14 @@ import json
 import logging
 import threading
 import time
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable, Iterable, Optional
+from typing import Callable, Iterable, Optional, TYPE_CHECKING
+
+from neo_rx.config import StationConfig
+
+if TYPE_CHECKING:  # pragma: no cover - type-checking only
+    from neo_rx.wspr.uploader import WsprUploader
 
 LOG = logging.getLogger(__name__)
 
@@ -40,6 +46,8 @@ class WsprCapture:
         upconverter_enabled: bool = False,
         upconverter_offset_hz: int | None = None,
         keep_temp: bool = False,
+        station_config: StationConfig | None = None,
+        uploader: "WsprUploader | None" = None,
     ) -> None:
         # Default to primary WSPR bands (Hz)
         self.bands_hz = bands_hz or [
@@ -61,6 +69,8 @@ class WsprCapture:
         self._upconverter_offset_hz = upconverter_offset_hz or 125_000_000  # Default 125MHz
         # When True, preserve wsprd temp files for debugging
         self._keep_temp = bool(keep_temp)
+        self._station_config = station_config
+        self._uploader = uploader
 
     def start(self) -> None:
         if self._running:
@@ -280,7 +290,7 @@ class WsprCapture:
                             except Exception:
                                 LOG.debug("Failed to compute captured sample count/duration")
                             for spot in decoder.run_wsprd_subprocess(iq_data, band_hz, keep_temp=self._keep_temp):
-                                self._handle_spot(spot)
+                                self._handle_spot(spot, band_hz)
 
                     except Exception as exc:
                         LOG.error("Error capturing band %s: %s", band_hz, exc)
@@ -296,22 +306,13 @@ class WsprCapture:
                     pass
             self._running = False
 
-    def _handle_spot(self, spot: dict) -> None:
-        """Handle a decoded spot: log, save to file, publish."""
-        # append to JSON-lines file
-        try:
-            with self._spots_file.open("a", encoding="utf-8") as fh:
-                fh.write(json.dumps(spot, default=str) + "\n")
-        except Exception:
-            LOG.exception("Failed to write spot to file: %s", self._spots_file)
-
-        # publish if available
-        if self._publisher is not None:
-            try:
-                topic = getattr(self._publisher, "topic", "neo_rx/wspr/spots")
-                self._publisher.publish(topic, spot)  # type: ignore[attr-defined]
-            except Exception:
-                LOG.exception("Publisher failed to publish spot; continuing")
+    def _handle_spot(self, spot: dict, band_hz: int) -> dict:
+        """Handle a decoded spot: enrich, persist, publish, and enqueue if enabled."""
+        enriched, missing_for_queue = self._enrich_spot(spot, band_hz)
+        self._persist_spot(enriched)
+        self._publish_spot(enriched)
+        self._maybe_enqueue_spot(enriched, missing_for_queue)
+        return enriched
 
     def run_capture_cycle(self, capture_fn: CaptureFunc) -> list[dict]:
         """Run a single capture for each configured band using `capture_fn`.
@@ -336,7 +337,92 @@ class WsprCapture:
                 continue
 
             for spot in decoder.decode_stream(lines):
-                all_spots.append(spot)
-                self._handle_spot(spot)
+                enriched = self._handle_spot(spot, band)
+                all_spots.append(enriched)
 
         return all_spots
+
+    def _persist_spot(self, spot: dict) -> None:
+        try:
+            with self._spots_file.open("a", encoding="utf-8") as fh:
+                fh.write(json.dumps(spot, default=str) + "\n")
+        except Exception:
+            LOG.exception("Failed to write spot to file: %s", self._spots_file)
+
+    def _publish_spot(self, spot: dict) -> None:
+        if self._publisher is None:
+            return
+        try:
+            topic = getattr(self._publisher, "topic", "neo_rx/wspr/spots")
+            self._publisher.publish(topic, spot)  # type: ignore[attr-defined]
+        except Exception:
+            LOG.exception("Publisher failed to publish spot; continuing")
+
+    def _maybe_enqueue_spot(self, spot: dict, missing_fields: list[str]) -> None:
+        if self._uploader is None:
+            return
+        lacking = sorted({field for field in missing_fields})
+        if lacking:
+            LOG.warning(
+                "Skipping WSPR uploader enqueue due to missing metadata: %s",
+                ", ".join(lacking),
+            )
+            return
+        try:
+            self._uploader.enqueue_spot(spot)
+        except Exception:
+            LOG.exception("Failed to enqueue spot for WSPR uploader; queue unchanged")
+
+    def _enrich_spot(self, spot: dict, band_hz: int) -> tuple[dict, list[str]]:
+        enriched = dict(spot)
+        missing: list[str] = []
+
+        enriched["dial_freq_hz"] = band_hz
+
+        slot_start = _compute_slot_start(enriched.get("timestamp"))
+        if slot_start is None:
+            missing.append("slot_start_utc")
+        else:
+            enriched["slot_start_utc"] = slot_start
+
+        if self._station_config is not None:
+            reporter_callsign = self._station_config.callsign
+            if reporter_callsign:
+                enriched["reporter_callsign"] = reporter_callsign
+            else:
+                missing.append("reporter_callsign")
+
+            reporter_grid = self._station_config.wspr_grid
+            if reporter_grid:
+                enriched["reporter_grid"] = reporter_grid
+            else:
+                missing.append("reporter_grid")
+
+            reporter_power = self._station_config.wspr_power_dbm
+            if reporter_power is not None:
+                enriched["reporter_power_dbm"] = reporter_power
+            else:
+                missing.append("reporter_power_dbm")
+        else:
+            missing.extend(["reporter_callsign", "reporter_grid", "reporter_power_dbm"])
+
+        return enriched, missing
+
+
+def _compute_slot_start(timestamp: str | None) -> str | None:
+    if not timestamp:
+        return None
+    try:
+        normalized = timestamp.replace("Z", "+00:00")
+        dt = datetime.fromisoformat(normalized)
+    except ValueError:
+        return None
+
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    else:
+        dt = dt.astimezone(timezone.utc)
+
+    slot_minute = (dt.minute // 2) * 2
+    dt = dt.replace(minute=slot_minute, second=0, microsecond=0)
+    return dt.isoformat().replace("+00:00", "Z")

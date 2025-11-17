@@ -56,9 +56,10 @@ Implementation choices:
    - Regression coverage added in `tests/test_config.py` to ensure the new fields survive a save/load round-trip.
    - Maidenhead auto-derivation remains optional and is tracked in the open questions below.
 
-2. **Spot enrichment**
-   - When saving/enqueueing spots (in capture pipeline), ensure every record includes `dial_freq_hz`, `slot_start_utc`, and reporter metadata to avoid recomputation later.
-   - Validate that missing fields cause a warning and skip enqueue rather than uploading partial data.
+2. **Spot enrichment** ✅ (2025-11-16)
+   - `WsprCapture` now enriches every decoded spot (in-memory, on-disk, and queued) with `dial_freq_hz`, the aligned `slot_start_utc`, and reporter metadata sourced from `StationConfig`.
+   - The capture CLI instantiates a persistent `wspr_upload_queue.jsonl` beneath the WSPR data directory whenever `wspr_uploader_enabled=true`; enriched spots are appended automatically.
+   - If the reporter grid/power/slot metadata is missing, the uploader queue is skipped with a clear warning so partial data never enters the backlog.
 
 3. **HTTP upload logic (`upload_spot`)**
    - Replace the stub with real network code using `requests` (add dep to `pyproject.toml`).
