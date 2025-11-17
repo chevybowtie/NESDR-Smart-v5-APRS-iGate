@@ -1,7 +1,11 @@
 """Tests for WSPR uploader queue and HTTP drain logic."""
 
+import http.server
 import json
+import socketserver
+import threading
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 
 from neo_rx.wspr.uploader import (
@@ -425,3 +429,38 @@ def test_send_heartbeat_missing_metadata(tmp_path: Path):
     assert ok is False
     assert session.calls == []
     assert uploader.last_error is not None
+
+
+def test_upload_spot_against_live_http_server(tmp_path: Path):
+    class Handler(http.server.BaseHTTPRequestHandler):
+        requests: list[str] = []
+
+        def do_GET(self):  # type: ignore[override]
+            Handler.requests.append(self.path)
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b"OK")
+
+        def log_message(self, format: str, *args):  # noqa: A003 - silence server logs
+            return
+
+    with socketserver.TCPServer(("127.0.0.1", 0), Handler) as server:
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        port = server.server_address[1]
+        uploader = WsprUploader(
+            queue_path=tmp_path / "queue.jsonl",
+            base_url=f"http://127.0.0.1:{port}/upload",
+        )
+
+        ok = uploader.upload_spot(sample_spot())
+
+        server.shutdown()
+        thread.join(timeout=2)
+
+    assert ok is True
+    assert Handler.requests, "HTTP server did not receive any requests"
+    parsed = urlparse(Handler.requests[0])
+    params = parse_qs(parsed.query)
+    assert params["function"] == ["wspr"]
+    assert params["tcall"] == ["K1ABC"]

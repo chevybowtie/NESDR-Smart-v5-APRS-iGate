@@ -76,13 +76,10 @@ Implementation choices:
    - `neo-rx wspr --upload --heartbeat` now forces a `wsprstat` ping whenever a drain cycle produces zero successful uploads, mirroring rtlsdr-wsprd’s empty-report behavior while reusing the existing config metadata.
    - The `--json` output always includes `attempted`, `succeeded`, `failed`, and `last_error` (null when healthy) plus `heartbeat_sent`/`heartbeat_error` fields when the heartbeat flag is used, making monitoring scripts straightforward.
 
-6. **Testing**
-   - Unit tests in `tests/test_wspr_uploader.py`:
-     - Happy-path upload: verify query string and `requests` calls via mocking.
-     - Network failures / timeouts: ensure spot stays in queue.
-     - Missing config: uploader refuses to run and logs actionable message.
-     - `max_items` behavior still works with real uploader logic.
-   - Optional integration test using `responses` or a tiny HTTP server fixture.
+6. **Testing** ✅ (2025-11-16)
+   - `tests/test_wspr_uploader.py` now covers the happy-path param formatting, network/HTTP failures, metadata guards, max-items queue rewrites, daemon backoff, heartbeat handling, and even a live HTTP server smoke test to validate the real `requests` plumbing.
+   - `tests/test_wspr_cli_upload.py` exercises the CLI guard rails for missing configuration or disabled uploader flags, ensuring we emit actionable errors before touching the queue.
+   - JSON output/heartbeat expectations live in `tests/test_wspr_json_output.py`, keeping the CLI contract under regression.
 
 7. **Observability & docs**
    - Log each upload attempt at DEBUG and successes/failures at INFO.
