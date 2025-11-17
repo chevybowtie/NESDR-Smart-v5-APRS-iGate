@@ -163,6 +163,19 @@ def _interactive_prompt(existing: StationConfig | None) -> StationConfig:
         maximum=65535,
     )
 
+    wspr_grid = prompt.optional_string(
+        "WSPR reporter grid (Maidenhead, e.g. EM12ab)",
+        default=_default(existing, "wspr_grid"),
+    )
+    wspr_power_dbm = prompt.integer(
+        "Reported WSPR transmit power (dBm)",
+        default=_default(existing, "wspr_power_dbm", fallback=37),
+    )
+    wspr_uploader_enabled = _prompt_yes_no(
+        "Enable WSPR uploader queue (collect spots for later upload)?",
+        default=bool(_default(existing, "wspr_uploader_enabled", fallback=False)),
+    )
+
     return StationConfig(
         callsign=callsign,
         passcode=passcode,
@@ -174,6 +187,9 @@ def _interactive_prompt(existing: StationConfig | None) -> StationConfig:
         beacon_comment=beacon_comment,
         kiss_host=kiss_host,
         kiss_port=kiss_port,
+        wspr_grid=wspr_grid,
+        wspr_power_dbm=wspr_power_dbm,
+        wspr_uploader_enabled=wspr_uploader_enabled,
     )
 
 
