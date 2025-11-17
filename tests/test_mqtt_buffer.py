@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-import neo_igate.telemetry.mqtt_publisher as mp
+import neo_rx.telemetry.mqtt_publisher as mp
 
 
 class MockClient:
@@ -56,13 +56,13 @@ def test_buffer_message_when_not_connected(monkeypatch, tmp_path):
     
     # Don't call connect, so we're not connected
     # Publish should buffer the message
-    pub.publish("neo_igate/wspr/spots", {"call": "K1ABC"})
+    pub.publish("neo_rx/wspr/spots", {"call": "K1ABC"})
     
     queue_dir = tmp_path / "queue"
     files = list(queue_dir.glob("*.json"))
     assert len(files) == 1
     record = json.loads(files[0].read_text())
-    assert record["topic"] == "neo_igate/wspr/spots"
+    assert record["topic"] == "neo_rx/wspr/spots"
     assert "K1ABC" in record["body"]
 
 
@@ -74,7 +74,7 @@ def test_drain_buffer_on_connect(monkeypatch, tmp_path):
     queue_dir = tmp_path / "queue"
     queue_dir.mkdir(parents=True, exist_ok=True)
     msg_file = queue_dir / "0001-test.json"
-    msg_file.write_text(json.dumps({"topic": "neo_igate/wspr/spots", "body": '{"call":"K1ABC"}', "ts": 1234567890}))
+    msg_file.write_text(json.dumps({"topic": "neo_rx/wspr/spots", "body": '{"call":"K1ABC"}', "ts": 1234567890}))
     
     mock = MockClient()
     monkeypatch.setattr(mp, "mqtt", types.SimpleNamespace(Client=lambda: mock))
@@ -86,7 +86,7 @@ def test_drain_buffer_on_connect(monkeypatch, tmp_path):
     files = list(queue_dir.glob("*.json"))
     assert not files
     assert len(mock._publish_calls) == 1
-    assert mock._publish_calls[0][0] == "neo_igate/wspr/spots"
+    assert mock._publish_calls[0][0] == "neo_rx/wspr/spots"
 
 
 def test_buffer_rotation_at_capacity(monkeypatch, tmp_path):
@@ -103,7 +103,7 @@ def test_buffer_rotation_at_capacity(monkeypatch, tmp_path):
     
     # Publish 5 messages while disconnected
     for i in range(5):
-        pub.publish("neo_igate/test", {"msg": i})
+        pub.publish("neo_rx/test", {"msg": i})
     
     queue_dir = tmp_path / "queue"
     files = sorted(queue_dir.glob("*.json"))
@@ -126,7 +126,7 @@ def test_partial_drain_on_publish_failure(monkeypatch, tmp_path):
     queue_dir.mkdir(parents=True, exist_ok=True)
     for i in range(3):
         f = queue_dir / f"msg-{i:03d}.json"
-        f.write_text(json.dumps({"topic": f"neo_igate/test/{i}", "body": f'{{"msg":{i}}}', "ts": 1234567890 + i}))
+        f.write_text(json.dumps({"topic": f"neo_rx/test/{i}", "body": f'{{"msg":{i}}}', "ts": 1234567890 + i}))
     
     # Mock client that fails on 2nd and 3rd publish
     behavior = {"publish_fail_times": 2}

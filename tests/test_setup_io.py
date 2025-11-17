@@ -4,8 +4,8 @@ from typing import Iterator
 
 import pytest
 
-from neo_igate.commands import setup_io
-from neo_igate.config import StationConfig
+from neo_rx.commands import setup_io
+from neo_rx.config import StationConfig
 
 
 def test_prompt_string_validates_and_transforms() -> None:

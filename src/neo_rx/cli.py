@@ -1,4 +1,4 @@
-"""Command-line interface entry points for the Neo-iGate."""
+"""Command-line interface entry points for the Neo-RX."""
 
 from __future__ import annotations
 
@@ -10,10 +10,10 @@ import time
 from argparse import Namespace
 from typing import Callable, Dict
 
-from neo_igate import __version__
-from neo_igate import config as config_module
+from neo_rx import __version__
+from neo_rx import config as config_module
 
-from neo_igate.commands import (  # type: ignore[import]
+from neo_rx.commands import (  # type: ignore[import]
     run_diagnostics,
     run_listen,
     run_setup,
@@ -34,12 +34,12 @@ _LOG_LEVEL_ALIASES: dict[str, int] = {
 def _package_version() -> str:
     # Use the package-level canonical version value. This avoids
     # repeated importlib.metadata lookups and keeps a single source of
-    # truth for runtime reporting (see ``neo_igate.__version__``).
+    # truth for runtime reporting (see ``neo_rx.__version__``).
     return __version__
 
 
 def _resolve_log_level(candidate: str | None) -> int:
-    for value in (candidate, os.getenv("NEO_IGATE_LOG_LEVEL")):
+    for value in (candidate, os.getenv("NEO_RX_LOG_LEVEL")):
         if not value:
             continue
         stripped = value.strip()
@@ -61,7 +61,7 @@ def _configure_logging(level_name: str | None) -> None:
     try:
         log_dir = config_module.get_data_dir() / "logs"
         log_dir.mkdir(parents=True, exist_ok=True)
-        log_file = log_dir / "neo-igate.log"
+        log_file = log_dir / "neo-rx.log"
         file_handler = logging.FileHandler(log_file, encoding="utf-8")
         file_formatter = logging.Formatter(
             "%(asctime)sZ %(message)s", datefmt="%Y-%m-%dT%H:%M:%S"
@@ -83,13 +83,13 @@ def _configure_logging(level_name: str | None) -> None:
 def build_parser() -> argparse.ArgumentParser:
     """Construct the top-level argument parser."""
     parser = argparse.ArgumentParser(
-        prog="neo-igate",
-        description="Neo-iGate utility.",
+        prog="neo-rx",
+        description="Neo-RX utility.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "Environment overrides:\n"
-            "  NEO_IGATE_LOG_LEVEL    Default logging level when --log-level is omitted.\n"
-            "  NEO_IGATE_CONFIG_PATH  Path to config.toml used by setup/listen/diagnostics."
+            "  NEO_RX_LOG_LEVEL    Default logging level when --log-level is omitted.\n"
+            "  NEO_RX_CONFIG_PATH  Path to config.toml used by setup/listen/diagnostics."
         ),
     )
     parser.add_argument(

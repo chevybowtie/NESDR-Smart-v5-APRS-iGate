@@ -3,9 +3,9 @@ requires = ["setuptools>=69", "build>=1.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "neo-igate"
+name = "neo-rx"
 version = "0.2.1"
-description = "Neo-iGate APRS iGate CLI"
+description = "Neo-RX APRS iGate CLI"
 authors = [{ name = "Paul Sturm" }]
 readme = "README.md"
 requires-python = ">=3.11"
@@ -30,7 +30,7 @@ dependencies = [
 Homepage = "https://github.com/chevybowtie/NESDR-Smart-v5-APRS-iGate"
 
 [project.scripts]
-neo-igate = "neo_igate.cli:main"
+neo-rx = "neo_rx.cli:main"
 
 [project.optional-dependencies]
 dev = [
@@ -59,7 +59,7 @@ mqtt = [
 package-dir = {"" = "src"}
 
 [tool.setuptools.package-data]
-neo_igate = ["templates/direwolf.conf", "wspr/bin/wsprd"]
+neo_rx = ["templates/direwolf.conf", "wspr/bin/wsprd"]
 
 [tool.pytest.ini_options]
 addopts = "-ra"

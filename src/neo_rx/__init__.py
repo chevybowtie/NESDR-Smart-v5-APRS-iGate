@@ -1,4 +1,4 @@
-"""Neo-iGate package.
+"""Neo-RX package.
 
 Expose a single runtime version value (``__version__``) so modules
 within the package can consistently report the package version at
@@ -15,7 +15,7 @@ except Exception:  # pragma: no cover - defensive for very old runtimes
     import importlib_metadata as _importlib_metadata  # type: ignore
 
 try:
-    __version__ = _importlib_metadata.version("neo-igate")
+    __version__ = _importlib_metadata.version("neo-rx")
 except Exception:
     # When running from source (not installed) metadata may be absent;
     # fall back to a sensible dev placeholder.

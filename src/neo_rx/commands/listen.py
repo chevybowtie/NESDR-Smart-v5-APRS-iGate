@@ -15,23 +15,23 @@ from pathlib import Path
 from queue import Empty, Queue
 from typing import Optional
 
-from neo_igate import config as config_module
-from neo_igate.aprs.ax25 import AX25DecodeError, kiss_payload_to_tnc2  # type: ignore[import]
-from neo_igate.aprs.aprsis_client import (  # type: ignore[import]
+from neo_rx import config as config_module
+from neo_rx.aprs.ax25 import AX25DecodeError, kiss_payload_to_tnc2  # type: ignore[import]
+from neo_rx.aprs.aprsis_client import (  # type: ignore[import]
     APRSISClient,
     APRSISClientError,
     APRSISConfig,
     RetryBackoff,
 )
-from neo_igate.aprs.kiss_client import KISSClient, KISSClientConfig, KISSClientError  # type: ignore[import]
-from neo_igate.radio.capture import AudioCaptureError, RtlFmAudioCapture, RtlFmConfig  # type: ignore[import]
+from neo_rx.aprs.kiss_client import KISSClient, KISSClientConfig, KISSClientError  # type: ignore[import]
+from neo_rx.radio.capture import AudioCaptureError, RtlFmAudioCapture, RtlFmConfig  # type: ignore[import]
 
-from neo_igate import __version__ as _SOFTWARE_VERSION
+from neo_rx import __version__ as _SOFTWARE_VERSION
 
 
 AUDIO_SAMPLE_RATE = 22_050
 _AUDIO_CHUNK_BYTES = 4096
-_SOFTWARE_NAME = "neo-igate"
+_SOFTWARE_NAME = "neo-rx"
 
 # _SOFTWARE_VERSION is provided by the package-level __version__ value.
 
@@ -47,7 +47,7 @@ def run_listen(args: Namespace) -> int:
         station_config = config_module.load_config(config_path)
     except FileNotFoundError:
         logger.error(
-            "Config not found at %s; run `neo-igate setup` first.", config_path
+            "Config not found at %s; run `neo-rx setup` first.", config_path
         )
         return 1
     except ValueError as exc:
@@ -55,7 +55,7 @@ def run_listen(args: Namespace) -> int:
         return 1
 
     logger.info(
-        "neo-igate v%s — starting listener (callsign=%s, aprs_server=%s:%s)",
+        "neo-rx v%s — starting listener (callsign=%s, aprs_server=%s:%s)",
         _SOFTWARE_VERSION,
         station_config.callsign,
         station_config.aprs_server,
@@ -95,7 +95,7 @@ def run_listen(args: Namespace) -> int:
     stop_event = threading.Event()
     command_queue: "Queue[str]" = Queue()
     keyboard_thread = _start_keyboard_listener(stop_event, command_queue)
-    summary_log_path = config_module.get_data_dir() / "logs" / "neo-igate.log"
+    summary_log_path = config_module.get_data_dir() / "logs" / "neo-rx.log"
 
     def _pump_audio() -> None:
         try:
@@ -450,7 +450,7 @@ def _start_keyboard_listener(
             except termios.error:
                 pass
 
-    thread = threading.Thread(target=worker, name="neo-igate-keyboard", daemon=True)
+    thread = threading.Thread(target=worker, name="neo-rx-keyboard", daemon=True)
     thread.start()
     return thread
 

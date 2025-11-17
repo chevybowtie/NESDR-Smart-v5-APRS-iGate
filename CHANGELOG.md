@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Fixed
-- Patched the third-party `rtlsdr` loader so importing `neo-igate` no longer emits the Setuptools `pkg_resources` deprecation warning.
+- Patched the third-party `rtlsdr` loader so importing `neo-rx` no longer emits the Setuptools `pkg_resources` deprecation warning.
 
 ### Testing & Tooling
 - Ran the full pytest suite to confirm the compatibility shim leaves existing behaviour unchanged.
@@ -15,7 +15,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 - The `listen` command now logs a startup banner that includes the packaged version, callsign, and APRS-IS endpoint, making it easy to confirm the running build from captured logs.
-- Text-mode `diagnostics` runs emit a matching `neo-igate diagnostics v…` banner so operators and support logs clearly identify the tool version without switching to JSON output.
+- Text-mode `diagnostics` runs emit a matching `neo-rx diagnostics v…` banner so operators and support logs clearly identify the tool version without switching to JSON output.
 
 ### Testing & Tooling
 - Extended CLI and diagnostics tests to assert the new version banners so future regressions are caught automatically.
@@ -24,17 +24,17 @@ All notable changes to this project will be documented in this file.
 ## [0.2.0] - 2025-11-01
 
 ### Breaking
-- Renamed the project and installable package from `nesdr-igate` to `neo-igate`, including the CLI entry point and Python import paths.
+- Renamed the project and installable package from `nesdr-igate` to `neo-rx`, including the CLI entry point and Python import paths.
 
 ### Added
-- Added a persistent listener log at `~/.local/share/neo-igate/logs/neo-igate.log` with UTC timestamps while keeping stdout output unchanged.
-- While `neo-igate listen` runs, pressing `s` now prints a 24-hour station activity summary that survives restarts by reading the listener log.
+- Added a persistent listener log at `~/.local/share/neo-rx/logs/neo-rx.log` with UTC timestamps while keeping stdout output unchanged.
+- While `neo-rx listen` runs, pressing `s` now prints a 24-hour station activity summary that survives restarts by reading the listener log.
 - Introduced optional software TOCALL rewriting for APRS-IS uplink traffic to better identify packets originated by the local station.
 - Added opt-in colorized output for CLI commands and diagnostics with explicit `--color`/`--no-color` flags and `NO_COLOR` environment support.
 
 ### Changed
 - Stats lines now include UTC timestamps and prompt operators about the new summary after establishing the APRS-IS connection.
-- Centralized version reporting through `neo_igate.__version__` and ensured the CLI writes both to stdout and the persistent log file.
+- Centralized version reporting through `neo_rx.__version__` and ensured the CLI writes both to stdout and the persistent log file.
 
 ### Fixed
 - Improved diagnostics for Direwolf installation and connectivity checks, providing clearer messaging when dependencies are missing or misconfigured.

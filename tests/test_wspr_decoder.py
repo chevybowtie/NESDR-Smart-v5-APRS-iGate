@@ -1,6 +1,6 @@
 import pathlib
 
-from neo_igate.wspr.decoder import WsprDecoder
+from neo_rx.wspr.decoder import WsprDecoder
 
 
 def test_parse_wsprd_fixture():

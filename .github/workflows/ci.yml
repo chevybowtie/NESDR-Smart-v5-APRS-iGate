@@ -35,7 +35,7 @@ jobs:
         with:
           filters: |
             wspr:
-              - 'src/neo_igate/wspr/**'
+              - 'src/neo_rx/wspr/**'
               - 'docs/wspr.md'
               - 'tests/**/wspr*'
             pyproject:

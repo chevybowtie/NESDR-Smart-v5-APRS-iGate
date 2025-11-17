@@ -4,7 +4,7 @@ from pathlib import Path
 import json
 import tempfile
 
-from neo_igate.wspr.calibrate import (
+from neo_rx.wspr.calibrate import (
     compute_ppm_from_offset,
     apply_ppm_to_radio,
     persist_ppm_to_config,
@@ -70,7 +70,7 @@ class TestApplyPpmToRadio:
 
 
 class TestPersistPpmToConfig:
-    @patch("neo_igate.config", create=True)
+    @patch("neo_rx.config", create=True)
     def test_successful_persist(self, mock_config):
         mock_cfg = MagicMock()
         mock_config.load_config.return_value = mock_cfg
@@ -136,7 +136,7 @@ class TestLoadSpotsFromJsonl:
         assert spots == []
 
 
-from neo_igate.wspr.calibrate import estimate_offset_from_spots, compute_ppm_from_offset
+from neo_rx.wspr.calibrate import estimate_offset_from_spots, compute_ppm_from_offset
 
 
 def test_compute_ppm_from_offset_basic():

@@ -10,36 +10,36 @@ from collections.abc import Iterator
 
 import pytest
 
-from neo_igate.aprs.aprsis_client import APRSISClientError
-from neo_igate.cli import main
-from neo_igate.aprs.kiss_client import KISSCommand
-from neo_igate.config import CONFIG_ENV_VAR, StationConfig, save_config
-import neo_igate.cli as cli
+from neo_rx.aprs.aprsis_client import APRSISClientError
+from neo_rx.cli import main
+from neo_rx.aprs.kiss_client import KISSCommand
+from neo_rx.config import CONFIG_ENV_VAR, StationConfig, save_config
+import neo_rx.cli as cli
 
 
 def test_cli_version_flag(monkeypatch, capsys) -> None:
-    monkeypatch.setattr("neo_igate.cli._package_version", lambda: "9.9.9")
+    monkeypatch.setattr("neo_rx.cli._package_version", lambda: "9.9.9")
 
     exit_code = main(["--version"])
     captured = capsys.readouterr()
 
     assert exit_code == 0
-    assert captured.out.strip() == "neo-igate 9.9.9"
+    assert captured.out.strip() == "neo-rx 9.9.9"
     assert captured.err == ""
 
 
 def test_resolve_log_level_prefers_argument(monkeypatch) -> None:
-    monkeypatch.delenv("NEO_IGATE_LOG_LEVEL", raising=False)
+    monkeypatch.delenv("NEO_RX_LOG_LEVEL", raising=False)
     assert cli._resolve_log_level(" 42 ") == 42
 
 
 def test_resolve_log_level_falls_back_to_env(monkeypatch) -> None:
-    monkeypatch.setenv("NEO_IGATE_LOG_LEVEL", "debug")
+    monkeypatch.setenv("NEO_RX_LOG_LEVEL", "debug")
     assert cli._resolve_log_level(None) == logging.DEBUG
 
 
 def test_configure_logging_handles_oserror(monkeypatch) -> None:
-    monkeypatch.delenv("NEO_IGATE_LOG_LEVEL", raising=False)
+    monkeypatch.delenv("NEO_RX_LOG_LEVEL", raising=False)
 
     class BrokenPath:
         def __truediv__(self, _name: str):  # pragma: no cover - simple helper
@@ -66,7 +66,7 @@ def test_configure_logging_handles_oserror(monkeypatch) -> None:
 
 
 def test_main_errors_on_unknown_args(monkeypatch, capsys) -> None:
-    monkeypatch.setattr("neo_igate.cli.run_listen", lambda _: 0)
+    monkeypatch.setattr("neo_rx.cli.run_listen", lambda _: 0)
 
     with pytest.raises(SystemExit) as excinfo:
         main(["listen", "--bogus"])
@@ -83,7 +83,7 @@ def test_main_defaults_to_listen_when_no_command(monkeypatch) -> None:
         captured["args"] = args
         return 7
 
-    monkeypatch.setattr("neo_igate.cli.run_listen", fake_run_listen)
+    monkeypatch.setattr("neo_rx.cli.run_listen", fake_run_listen)
 
     exit_code = main([])
 
@@ -101,7 +101,7 @@ def test_main_injects_listen_for_flag_only_invocation(monkeypatch) -> None:
         captured["args"] = args
         return 0
 
-    monkeypatch.setattr("neo_igate.cli.run_listen", fake_run_listen)
+    monkeypatch.setattr("neo_rx.cli.run_listen", fake_run_listen)
 
     exit_code = main(["--no-aprsis"])
 
@@ -131,10 +131,10 @@ def test_setup_dry_run_interactive(tmp_path, monkeypatch, capsys) -> None:
     config_path = tmp_path / "config.toml"
     monkeypatch.setenv(CONFIG_ENV_VAR, str(config_path))
     monkeypatch.setattr(
-        "neo_igate.commands.setup.config_module.keyring_supported", lambda: False
+        "neo_rx.commands.setup.config_module.keyring_supported", lambda: False
     )
     monkeypatch.setattr(
-        "neo_igate.commands.setup._offer_hardware_validation", lambda *_: None
+        "neo_rx.commands.setup._offer_hardware_validation", lambda *_: None
     )
 
     inputs: Iterator[str] = iter(
@@ -152,7 +152,7 @@ def test_setup_dry_run_interactive(tmp_path, monkeypatch, capsys) -> None:
     passwords: Iterator[str] = iter(["12345", "12345"])
 
     monkeypatch.setattr("builtins.input", lambda _: next(inputs))
-    monkeypatch.setattr("neo_igate.commands.setup.getpass", lambda _: next(passwords))
+    monkeypatch.setattr("neo_rx.commands.setup.getpass", lambda _: next(passwords))
 
     exit_code = main(["setup", "--dry-run"])
     captured = capsys.readouterr()
@@ -168,10 +168,10 @@ def test_setup_writes_direwolf_config(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "xdg_data"))
     monkeypatch.setattr(
-        "neo_igate.commands.setup.config_module.keyring_supported", lambda: False
+        "neo_rx.commands.setup.config_module.keyring_supported", lambda: False
     )
     monkeypatch.setattr(
-        "neo_igate.commands.setup._offer_hardware_validation", lambda *_: None
+        "neo_rx.commands.setup._offer_hardware_validation", lambda *_: None
     )
 
     inputs: Iterator[str] = iter(
@@ -190,7 +190,7 @@ def test_setup_writes_direwolf_config(tmp_path, monkeypatch) -> None:
     passwords: Iterator[str] = iter(["s3cret", "s3cret"])
 
     monkeypatch.setattr("builtins.input", lambda _: next(inputs))
-    monkeypatch.setattr("neo_igate.commands.setup.getpass", lambda _: next(passwords))
+    monkeypatch.setattr("neo_rx.commands.setup.getpass", lambda _: next(passwords))
 
     exit_code = main(["setup"])
 
@@ -201,7 +201,7 @@ def test_setup_writes_direwolf_config(tmp_path, monkeypatch) -> None:
     assert direwolf_path.exists()
 
     text = direwolf_path.read_text(encoding="utf-8")
-    expected_log_dir = tmp_path / "xdg_data" / "neo-igate" / "logs"
+    expected_log_dir = tmp_path / "xdg_data" / "neo-rx" / "logs"
 
     assert "MYCALL KJ5EVH-10" in text
     assert "IGLOGIN KJ5EVH-10 s3cret" in text
@@ -265,7 +265,7 @@ def test_listen_command_once(tmp_path, monkeypatch, capsys) -> None:
         def kill(self) -> None:
             self.killed = True
 
-    from neo_igate.aprs.kiss_client import KISSFrame
+    from neo_rx.aprs.kiss_client import KISSFrame
 
     class DummyKISSClient:
         def __init__(self, config: object) -> None:
@@ -303,14 +303,14 @@ def test_listen_command_once(tmp_path, monkeypatch, capsys) -> None:
         def close(self) -> None:
             self.closed = True
 
-    monkeypatch.setattr("neo_igate.commands.listen.RtlFmAudioCapture", DummyCapture)
+    monkeypatch.setattr("neo_rx.commands.listen.RtlFmAudioCapture", DummyCapture)
     monkeypatch.setattr(
-        "neo_igate.commands.listen.subprocess.Popen", lambda *a, **k: DummyProcess()
+        "neo_rx.commands.listen.subprocess.Popen", lambda *a, **k: DummyProcess()
     )
-    monkeypatch.setattr("neo_igate.commands.listen.KISSClient", DummyKISSClient)
-    monkeypatch.setattr("neo_igate.commands.listen.APRSISClient", DummyAPRSClient)
+    monkeypatch.setattr("neo_rx.commands.listen.KISSClient", DummyKISSClient)
+    monkeypatch.setattr("neo_rx.commands.listen.APRSISClient", DummyAPRSClient)
     monkeypatch.setattr(
-        "neo_igate.commands.listen.kiss_payload_to_tnc2",
+        "neo_rx.commands.listen.kiss_payload_to_tnc2",
         lambda *_: "N0CALL-10>APRS:TEST",
     )
 
@@ -318,7 +318,7 @@ def test_listen_command_once(tmp_path, monkeypatch, capsys) -> None:
     captured = capsys.readouterr()
 
     assert exit_code == 0
-    assert "neo-igate v" in captured.out
+    assert "neo-rx v" in captured.out
     assert "Frames processed: 1" in captured.out
     assert "Connected to APRS-IS" in captured.out
     assert "Press `s`" in captured.out
@@ -356,7 +356,7 @@ def test_listen_reconnect_and_stats(tmp_path, monkeypatch, capsys) -> None:
             self.current += seconds
 
     time_stub = TimeStub()
-    monkeypatch.setattr("neo_igate.commands.listen.time", time_stub)
+    monkeypatch.setattr("neo_rx.commands.listen.time", time_stub)
 
     class DummyCapture:
         def __init__(self, *_: object, **__: object) -> None:
@@ -391,7 +391,7 @@ def test_listen_reconnect_and_stats(tmp_path, monkeypatch, capsys) -> None:
         def kill(self) -> None:
             self.killed = True
 
-    from neo_igate.aprs.kiss_client import KISSFrame
+    from neo_rx.aprs.kiss_client import KISSFrame
 
     class DummyKISSClient:
         def __init__(self, config: object) -> None:
@@ -437,14 +437,14 @@ def test_listen_reconnect_and_stats(tmp_path, monkeypatch, capsys) -> None:
         def close(self) -> None:
             self.closed = True
 
-    monkeypatch.setattr("neo_igate.commands.listen.RtlFmAudioCapture", DummyCapture)
+    monkeypatch.setattr("neo_rx.commands.listen.RtlFmAudioCapture", DummyCapture)
     monkeypatch.setattr(
-        "neo_igate.commands.listen.subprocess.Popen", lambda *a, **k: DummyProcess()
+        "neo_rx.commands.listen.subprocess.Popen", lambda *a, **k: DummyProcess()
     )
-    monkeypatch.setattr("neo_igate.commands.listen.KISSClient", DummyKISSClient)
-    monkeypatch.setattr("neo_igate.commands.listen.APRSISClient", DummyAPRSClient)
+    monkeypatch.setattr("neo_rx.commands.listen.KISSClient", DummyKISSClient)
+    monkeypatch.setattr("neo_rx.commands.listen.APRSISClient", DummyAPRSClient)
     monkeypatch.setattr(
-        "neo_igate.commands.listen.kiss_payload_to_tnc2",
+        "neo_rx.commands.listen.kiss_payload_to_tnc2",
         lambda payload: f"N0CALL-10>APRS:{payload.decode()}",
     )
 
@@ -452,7 +452,7 @@ def test_listen_reconnect_and_stats(tmp_path, monkeypatch, capsys) -> None:
     captured = capsys.readouterr()
 
     assert exit_code == 0
-    assert "neo-igate v" in captured.out
+    assert "neo-rx v" in captured.out
     assert "APRS-IS transmission error" in captured.out
     stats_line = next(
         (line for line in captured.out.splitlines() if line.startswith("[stats ")), None
@@ -481,7 +481,7 @@ def test_diagnostics_command_json(tmp_path, monkeypatch, capsys) -> None:
     save_config(cfg, path=config_path)
     monkeypatch.setenv(CONFIG_ENV_VAR, str(config_path))
 
-    from neo_igate.commands import diagnostics as diag
+    from neo_rx.commands import diagnostics as diag
 
     monkeypatch.setattr(
         diag,

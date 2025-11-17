@@ -145,9 +145,9 @@ class MqttPublisher:
 
         xdg_state = os.environ.get("XDG_STATE_HOME")
         if xdg_state:
-            return Path(xdg_state) / "neo_igate" / "mqtt"
+            return Path(xdg_state) / "neo_rx" / "mqtt"
         home = Path.home()
-        return home / ".local" / "state" / "neo_igate" / "mqtt"
+        return home / ".local" / "state" / "neo_rx" / "mqtt"
 
     def _ensure_buffer_dir(self) -> None:
         """Ensure buffer directory exists."""

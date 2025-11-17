@@ -1,6 +1,6 @@
 # WSPRnet Uploading Feature Plan
 
-This document captures the concrete plan for finishing the WSPRnet uploader in `neo-igate`, based on the proven implementation in [`rtlsdr-wsprd`](https://github.com/Guenael/rtlsdr-wsprd). Store all updates here so the plan survives restarts and context resets.
+This document captures the concrete plan for finishing the WSPRnet uploader in `neo-rx`, based on the proven implementation in [`rtlsdr-wsprd`](https://github.com/Guenael/rtlsdr-wsprd). Store all updates here so the plan survives restarts and context resets.
 
 ---
 
@@ -13,7 +13,7 @@ This document captures the concrete plan for finishing the WSPRnet uploader in `
 
 ## 2. Current State (feature/WSPR branch)
 
-- `WsprUploader` already provides a durable JSON-lines queue plus `drain()` and CLI wiring (`neo-igate wspr --upload`).
+- `WsprUploader` already provides a durable JSON-lines queue plus `drain()` and CLI wiring (`neo-rx wspr --upload`).
 - `upload_spot()` is still a stub that just logs success.
 - Spot records (written to `wspr_spots.jsonl`) already contain decoded data: frequency, dt, drift, snr, target call/grid, etc.
 - Station identity (callsign, lat/long) lives in `config.toml`, but we do **not** yet persist a Maidenhead grid or reporter power dBm.
@@ -31,11 +31,11 @@ Implementation choices:
 
 - Use HTTPS GET just like rtlsdr-wsprd for maximum compatibility. (POST is optional but not required.)
 - Build query strings with six-decimal-place MHz frequencies and zero-padded UTC date/time representing the start of the 2‑minute slot (`tm_year-100`, etc.).
-- Provide a project-specific version string (`neo-igate-<semver>`), max 10 characters.
+- Provide a project-specific version string (`neo-rx-<semver>`), max 10 characters.
 
-## 4. Data Mapping (neo-igate → WSPRnet)
+## 4. Data Mapping (neo-rx → WSPRnet)
 
-| WSPRnet field | Source in neo-igate | Notes |
+| WSPRnet field | Source in neo-rx | Notes |
 | --- | --- | --- |
 | `rcall` | `StationConfig.callsign` | Already required for APRS. |
 | `rgrid` | **New**: add `wspr_grid` to config or derive from lat/long (Maidenhead 6). |
@@ -45,7 +45,7 @@ Implementation choices:
 | `sig`, `dt`, `drift` | Parsed from `wsprd` output | Ensure float formatting matches WSJT-X (sig=%.0f, dt=%.1f). |
 | `tqrg` | `spot["freq_hz"] / 1e6` | Already available. |
 | `tcall` / `tgrid` / `pwr` | From decoder | Validate they exist before enqueue. |
-| `version` | Hardcode `neo-igate-XYZ` | Keep ≤10 chars. |
+| `version` | Hardcode `neo-rx-XYZ` | Keep ≤10 chars. |
 | `mode` | Always `2` (per rtlsdr-wsprd). | |
 
 ## 5. Implementation Steps
@@ -71,7 +71,7 @@ Implementation choices:
    - Surface first error message back to CLI for easier diagnostics.
 
 5. **CLI updates**
-   - Allow `neo-igate wspr --upload` to optionally force a `wsprstat` heartbeat when no spots were uploaded (mirrors rtlsdr-wsprd’s empty-report behavior).
+   - Allow `neo-rx wspr --upload` to optionally force a `wsprstat` heartbeat when no spots were uploaded (mirrors rtlsdr-wsprd’s empty-report behavior).
    - Support `--json` output containing success/failure counts plus a `last_error` string.
 
 6. **Testing**

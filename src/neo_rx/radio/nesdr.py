@@ -10,7 +10,7 @@ def _prepare_rtlsdr() -> None:
     """Ensure rtlsdr imports without triggering deprecation warnings."""
 
     try:
-        compat_pkg = importlib.import_module("neo_igate._compat")
+        compat_pkg = importlib.import_module("neo_rx._compat")
     except ModuleNotFoundError:  # pragma: no cover - shim missing only in broken envs
         return
 

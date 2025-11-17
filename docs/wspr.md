@@ -41,7 +41,7 @@ These settings allow reception of WSPR bands (80m, 40m, 30m, 10m) by shifting HF
 
 ## High-level Architecture
 
-- `src/neo_igate/wspr/`
+- `src/neo_rx/wspr/`
   - `capture.py` — capture orchestration and scheduler
   - `decoder.py` — wrapper for `wsprd` subprocess and parser
   - `uploader.py` — optional wsprnet uploader (opt-in)
@@ -102,16 +102,16 @@ Example usage:
 
 ```bash
 # Run calibration using saved spots (no apply):
-neo-igate wspr --calibrate
+neo-rx wspr --calibrate
 
 # Run calibration and apply correction to the radio (stub only):
-neo-igate wspr --calibrate --apply
+neo-rx wspr --calibrate --apply
 
 # Run calibration, apply correction, and persist to the config (safe-save)
-neo-igate wspr --calibrate --apply --write-config
+neo-rx wspr --calibrate --apply --write-config
 
 # Specify a custom config file or spots file when needed:
-neo-igate wspr --calibrate --apply --write-config --config /path/to/config.toml \
+neo-rx wspr --calibrate --apply --write-config --config /path/to/config.toml \
     --spots-file /path/to/wspr_spots.jsonl --expected-freq 14080000
 ```
 
@@ -119,7 +119,7 @@ neo-igate wspr --calibrate --apply --write-config --config /path/to/config.toml 
 
   ```bash
   # To inspect available backups:
-  ls "$(dirname $(neo-igate wspr --config 2>/dev/null || echo ~/.config/neo-igate))/backups/"
+  ls "$(dirname $(neo-rx wspr --config 2>/dev/null || echo ~/.config/neo-rx))/backups/"
 
   # To restore the most recent backup for the active config:
   cp /path/to/config/backups/config.toml.bak-YYYYMMDDTHHMMSSZ /path/to/config/config.toml
@@ -136,7 +136,7 @@ neo-igate wspr --calibrate --apply --write-config --config /path/to/config.toml 
 ## Reporting & Message Bus
 
 - Local JSON-lines log of spots.
-- MQTT publisher (topic `neo_igate/wspr/spots`) for dashboards.
+- MQTT publisher (topic `neo_rx/wspr/spots`) for dashboards.
 - **On-disk buffering**: Messages are persisted to disk when the broker is
   unavailable and automatically sent when connection is restored.
 - Buffer management with configurable size limits and automatic rotation.
@@ -158,7 +158,7 @@ to prevent corruption on unexpected shutdown.
 **Example usage:**
 
 ```python
-from neo_igate.wspr.uploader import WsprUploader
+from neo_rx.wspr.uploader import WsprUploader
 
 uploader = WsprUploader(queue_path="/path/to/queue.jsonl")
 uploader.enqueue_spot({"call": "K1ABC", "freq_hz": 14080000, "snr_db": -12})
@@ -170,10 +170,10 @@ print(f"Uploaded {result['succeeded']}/{result['attempted']} spots")
 
 ```bash
 # Drain the upload queue and attempt to submit all queued spots
-neo-igate wspr --upload
+neo-rx wspr --upload
 
 # Emit drain results in JSON (helpful for monitoring/scripting)
-neo-igate wspr --upload --json
+neo-rx wspr --upload --json
 ```
 
 ## Testing
@@ -262,7 +262,7 @@ These functions have CLI wiring and test infrastructure but require external dep
 
 4. **External dependency: `wsprd` binary** ✅ **RESOLVED**
    - Status: Binary bundled with the `wspr` extra (extracted from WSJT-X deb package); no external installation required.
-   - Implementation: `scripts/install_wsprd.sh` downloads and extracts the binary to `src/neo_igate/wspr/bin/wsprd`.
+   - Implementation: `scripts/install_wsprd.sh` downloads and extracts the binary to `src/neo_rx/wspr/bin/wsprd`.
 
 ### Future Enhancements (Blocking Production Deployment)
 
@@ -311,7 +311,7 @@ Based on the implementation status, here's a targeted plan to address the 4 rema
 
 ##### 1. **`apply_ppm_to_radio(ppm)` in `calibrate.py`** (RTL-SDR Driver Integration) ✅ **COMPLETED**
    - **Status**: Implemented with RTL-SDR integration, error handling, and unit tests. Applies PPM correction to tuner in real-time.
-   - **Code Changes**: Modified `src/neo_igate/wspr/calibrate.py` to import `pyrtlsdr` and implement the apply logic.
+   - **Code Changes**: Modified `src/neo_rx/wspr/calibrate.py` to import `pyrtlsdr` and implement the apply logic.
    - **Testing**: Added unit tests with mocked `pyrtlsdr` for success, no devices, import errors, and device failures.
    - **Effort**: 1–2 days; completed with low risk.
 
@@ -323,7 +323,7 @@ Based on the implementation status, here's a targeted plan to address the 4 rema
      - Implement HTTP POST in `upload_spot(spot)` using `requests` (add to dependencies).
      - Handle auth securely (e.g., store key in config or keyring); add retry logic for network failures.
      - Update CLI to prompt for credentials on first use (via `setup_io.py` helpers).
-   - **Code Changes**: Enhance `src/neo_igate/wspr/uploader.py` with HTTP client and auth handling. Update config schema for WSPRnet credentials.
+   - **Code Changes**: Enhance `src/neo_rx/wspr/uploader.py` with HTTP client and auth handling. Update config schema for WSPRnet credentials.
    - **Testing**: Mock HTTP responses for success/failure. Add tests for auth, retries, and malformed spots. Validate against WSPRnet sandbox if available.
    - **Effort**: 2–3 days; moderate risk due to external API dependency—test thoroughly to avoid rate limits or bans.
    - **Note**: ⚠️ **Critical for production**—do not deploy without real implementation.
@@ -336,7 +336,7 @@ Based on the implementation status, here's a targeted plan to address the 4 rema
 
 ##### 4. **External Dependency: `wsprd` Binary** (User Installation Guidance) ✅ **COMPLETED**
    - **Status**: Binary bundled with the `wspr` extra (extracted from WSJT-X deb package); no external installation required.
-   - **Implementation**: `scripts/install_wsprd.sh` downloads and extracts the binary to `src/neo_igate/wspr/bin/wsprd`.
+   - **Implementation**: `scripts/install_wsprd.sh` downloads and extracts the binary to `src/neo_rx/wspr/bin/wsprd`.
    - **Testing**: Graceful handling when binary is missing.
    - **Effort**: 0.5–1 day; documentation-focused.
 
@@ -348,7 +348,7 @@ Based on the implementation status, here's a targeted plan to address the 4 rema
      - Implement HTTP POST in `upload_spot(spot)` using `requests` (add to dependencies).
      - Handle auth securely (e.g., store key in config or keyring); add retry logic for network failures.
      - Update CLI to prompt for credentials on first use (via `setup_io.py` helpers).
-   - **Code Changes**: Enhance `src/neo_igate/wspr/uploader.py` with HTTP client and auth handling. Update config schema for WSPRnet credentials.
+   - **Code Changes**: Enhance `src/neo_rx/wspr/uploader.py` with HTTP client and auth handling. Update config schema for WSPRnet credentials.
    - **Testing**: Mock HTTP responses for success/failure. Add tests for auth, retries, and malformed spots. Validate against WSPRnet sandbox if available.
    - **Effort**: 2–3 days; moderate risk due to external API dependency—test thoroughly to avoid rate limits or bans.
    - **Note**: ⚠️ **Critical for production**—do not deploy without real implementation.

@@ -10,7 +10,7 @@ import time
 
 import pytest
 
-from neo_igate.aprs.aprsis_client import (  # type: ignore[import]
+from neo_rx.aprs.aprsis_client import (  # type: ignore[import]
     APRSISClient,
     APRSISClientError,
     APRSISConfig,
@@ -99,7 +99,7 @@ def test_aprsis_client_connect_failure(monkeypatch) -> None:
         raise OSError("boom")
 
     monkeypatch.setattr(
-        "neo_igate.aprs.aprsis_client.socket.create_connection",
+        "neo_rx.aprs.aprsis_client.socket.create_connection",
         fake_create_connection,
     )
 
@@ -256,7 +256,7 @@ def test_aprsis_client_logs_lifecycle(caplog) -> None:
 
     port, thread = _start_server(responder)
 
-    caplog.set_level(logging.DEBUG, logger="neo_igate.aprs.aprsis_client")
+    caplog.set_level(logging.DEBUG, logger="neo_rx.aprs.aprsis_client")
 
     client = APRSISClient(
         APRSISConfig(host="127.0.0.1", port=port, callsign="TEST", passcode="12345")

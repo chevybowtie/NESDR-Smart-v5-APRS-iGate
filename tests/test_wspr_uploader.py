@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from neo_igate.wspr.uploader import WsprUploader
+from neo_rx.wspr.uploader import WsprUploader
 
 
 def test_enqueue_spot_creates_queue_file(tmp_path: Path):

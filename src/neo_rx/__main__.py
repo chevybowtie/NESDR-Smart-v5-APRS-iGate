@@ -1,4 +1,4 @@
-"""Module entry point so `python -m neo_igate` dispatches to the CLI."""
+"""Module entry point so `python -m neo_rx` dispatches to the CLI."""
 
 from __future__ import annotations
 

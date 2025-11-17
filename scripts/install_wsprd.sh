@@ -1,6 +1,6 @@
 #!/bin/bash
 # Install script for wsprd binary from WSJT-X
-# Downloads, extracts, and installs wsprd binary for bundling with neo-igate
+# Downloads, extracts, and installs wsprd binary for bundling with neo-rx
 
 set -e
 
@@ -8,7 +8,7 @@ VERSION="2.7.0"
 REPO_URL="https://sourceforge.net/projects/wsjt/files/wsjtx-${VERSION}"
 TAR_URL="${REPO_URL}/wsjtx_${VERSION}_amd64.deb/download"
 TAR_FILE="wsjtx_${VERSION}_amd64.deb"
-INSTALL_DIR="$(pwd)/src/neo_igate/wspr/bin"
+INSTALL_DIR="$(pwd)/src/neo_rx/wspr/bin"
 
 echo "Downloading WSJT-X v${VERSION}..."
 

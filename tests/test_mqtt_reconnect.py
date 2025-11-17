@@ -5,7 +5,7 @@ from argparse import Namespace
 
 import pytest
 
-import neo_igate.telemetry.mqtt_publisher as mp
+import neo_rx.telemetry.mqtt_publisher as mp
 
 
 class MockClient:
@@ -78,19 +78,19 @@ def test_publish_retries_after_failure(monkeypatch, tmp_path):
     pub.connect()
     assert pub._connected is True
 
-    pub.publish("neo_igate/wspr/spots", {"call": "K1ABC"})
+    pub.publish("neo_rx/wspr/spots", {"call": "K1ABC"})
     assert len(pub._client._publish_calls) >= 2
 
 
 def test_cli_publisher_wiring(monkeypatch):
-    from neo_igate import config as config_module
-    from neo_igate.commands import wspr as wspr_cmd
+    from neo_rx import config as config_module
+    from neo_rx.commands import wspr as wspr_cmd
 
     cfg = config_module.StationConfig(
         callsign="N0TEST",
         passcode="P",
         mqtt_enabled=True,
-        mqtt_topic="neo_igate/wspr/spots",
+        mqtt_topic="neo_rx/wspr/spots",
         wspr_bands_hz=[14_080_000],
         wspr_capture_duration_s=1,
     )
@@ -116,11 +116,11 @@ def test_cli_publisher_wiring(monkeypatch):
 
         def start(self):
             # Simulate publishing spots
-            from neo_igate.wspr.decoder import WsprDecoder
+            from neo_rx.wspr.decoder import WsprDecoder
             decoder = WsprDecoder()
             for spot in decoder.run_wsprd_subprocess(b'', self.bands_hz[0]):
                 if self.publisher:
-                    topic = getattr(self.publisher, "topic", "neo_igate/wspr/spots")
+                    topic = getattr(self.publisher, "topic", "neo_rx/wspr/spots")
                     self.publisher.publish(topic, spot)
 
         def stop(self):
@@ -131,7 +131,7 @@ def test_cli_publisher_wiring(monkeypatch):
 
     monkeypatch.setattr(wspr_cmd, "WsprCapture", StubCapture)
 
-    import neo_igate.wspr.decoder as decoder_mod
+    import neo_rx.wspr.decoder as decoder_mod
 
     def fake_run(self, iq_data, band_hz):
         yield {"spot": 1}

@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
-from neo_igate import config as config_module
+from neo_rx import config as config_module
 
 LOG = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ def make_publisher_from_config(cfg: config_module.StationConfig):
         LOG.debug("MQTT disabled in config; no publisher created")
         return None
     try:
-        from neo_igate.telemetry.mqtt_publisher import MqttPublisher
+        from neo_rx.telemetry.mqtt_publisher import MqttPublisher
 
         host = cfg.mqtt_host or "127.0.0.1"
         port = int(cfg.mqtt_port or 1883)

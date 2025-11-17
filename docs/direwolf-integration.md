@@ -1,6 +1,6 @@
 # Direwolf Integration Plan
 
-This document outlines how the `neo-igate` CLI will interact with Direwolf for APRS packet decoding and uplink.
+This document outlines how the `neo-rx` CLI will interact with Direwolf for APRS packet decoding and uplink.
 
 ## Goals
 - Launch or connect to a Direwolf instance configured for the NESDR audio feed.
@@ -17,8 +17,8 @@ This document outlines how the `neo-igate` CLI will interact with Direwolf for A
    - Requires process supervision, log handling, and graceful shutdown.
 
 ## Configuration Template
--- The template includes a KISS port definition, IGate beacon entry, and logging directory pointing to `~/.local/share/neo-igate/logs`.
--- Onboarding copies the template to `$XDG_CONFIG_HOME/neo-igate/direwolf.conf`, substituting operator-specific values.
+-- The template includes a KISS port definition, IGate beacon entry, and logging directory pointing to `~/.local/share/neo-rx/logs`.
+-- Onboarding copies the template to `$XDG_CONFIG_HOME/neo-rx/direwolf.conf`, substituting operator-specific values.
 
 ## Audio Feed Strategy
 
@@ -34,6 +34,6 @@ The following health checks are performed:
 ## Error Handling
 
 ## Logging
-- `scripts/run_direwolf.sh` appends Direwolf output to `~/.local/share/neo-igate/logs/direwolf.log`.
+- `scripts/run_direwolf.sh` appends Direwolf output to `~/.local/share/neo-rx/logs/direwolf.log`.
 ## Open Questions
 - Should we standardize on ALSA loopback + managed Direwolf to simplify user setup?

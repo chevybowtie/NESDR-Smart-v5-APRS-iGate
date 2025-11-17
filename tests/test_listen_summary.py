@@ -3,11 +3,11 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from neo_igate.commands.listen import _summarize_recent_activity
+from neo_rx.commands.listen import _summarize_recent_activity
 
 
 def test_summarize_recent_activity_filters_recent(tmp_path) -> None:
-    log_path = tmp_path / "neo-igate.log"
+    log_path = tmp_path / "neo-rx.log"
     now = datetime(2025, 10, 30, 12, 0, tzinfo=timezone.utc)
 
     lines = [
@@ -27,13 +27,13 @@ def test_summarize_recent_activity_filters_recent(tmp_path) -> None:
 
 
 def test_summarize_recent_activity_missing_log(tmp_path) -> None:
-    log_path = tmp_path / "neo-igate.log"
+    log_path = tmp_path / "neo-rx.log"
     summary = _summarize_recent_activity(log_path, window=timedelta(hours=24))
     assert "No listener log file" in summary
 
 
 def test_summarize_recent_activity_handles_invalid_lines(tmp_path) -> None:
-    log_path = tmp_path / "neo-igate.log"
+    log_path = tmp_path / "neo-rx.log"
     now = datetime(2025, 10, 30, 12, 0, tzinfo=timezone.utc)
     contents = [
         "garbled",  # split failure
@@ -49,7 +49,7 @@ def test_summarize_recent_activity_handles_invalid_lines(tmp_path) -> None:
 
 
 def test_summarize_recent_activity_updates_existing_station(tmp_path) -> None:
-    log_path = tmp_path / "neo-igate.log"
+    log_path = tmp_path / "neo-rx.log"
     now = datetime(2025, 10, 30, 12, 0, tzinfo=timezone.utc)
 
     entries = [
@@ -66,7 +66,7 @@ def test_summarize_recent_activity_updates_existing_station(tmp_path) -> None:
 
 
 def test_summarize_recent_activity_handles_oserror(tmp_path, monkeypatch) -> None:
-    log_path = tmp_path / "neo-igate.log"
+    log_path = tmp_path / "neo-rx.log"
     log_path.write_text("", encoding="utf-8")
 
     original_open = Path.open
@@ -84,7 +84,7 @@ def test_summarize_recent_activity_handles_oserror(tmp_path, monkeypatch) -> Non
 
 
 def test_summarize_recent_activity_truncates_rows(tmp_path) -> None:
-    log_path = tmp_path / "neo-igate.log"
+    log_path = tmp_path / "neo-rx.log"
     now = datetime(2025, 10, 30, 12, 0, tzinfo=timezone.utc)
 
     lines = [

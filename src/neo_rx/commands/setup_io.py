@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from getpass import getpass as default_getpass
 from typing import Any, Callable
 
-from neo_igate.config import StationConfig
+from neo_rx.config import StationConfig
 
 InputFunc = Callable[[str], str]
 SecretFunc = Callable[[str], str]

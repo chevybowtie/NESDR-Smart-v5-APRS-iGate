@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 
-from neo_igate.radio.capture import (  # type: ignore[import]
+from neo_rx.radio.capture import (  # type: ignore[import]
     AudioCaptureError,
     RtlFmAudioCapture,
     RtlFmConfig,
@@ -20,11 +20,12 @@ class _FakeProcess:
         args: list[str],
         *,
         data: bytes = b"\x00" * 8,
+        stderr_data: bytes = b"",
         return_code: int | None = None,
     ) -> None:
         self.args = args
         self.stdout = io.BytesIO(data)
-        self.stderr = io.BytesIO()
+        self.stderr = io.BytesIO(stderr_data)
         self._return_code = return_code
         self.terminated = False
         self.killed = False
@@ -52,8 +53,8 @@ def test_rtl_fm_capture_builds_command(monkeypatch) -> None:
         launch_args.append(args)
         return _FakeProcess(args, data=b"abcdEFGH")
 
-    monkeypatch.setattr("neo_igate.radio.capture.shutil.which", fake_which)
-    monkeypatch.setattr("neo_igate.radio.capture.subprocess.Popen", fake_popen)
+    monkeypatch.setattr("neo_rx.radio.capture.shutil.which", fake_which)
+    monkeypatch.setattr("neo_rx.radio.capture.subprocess.Popen", fake_popen)
 
     config = RtlFmConfig(
         frequency_hz=144_390_000,
@@ -98,7 +99,7 @@ def test_rtl_fm_capture_builds_command(monkeypatch) -> None:
 
 
 def test_rtl_fm_missing_command(monkeypatch) -> None:
-    monkeypatch.setattr("neo_igate.radio.capture.shutil.which", lambda _: None)
+    monkeypatch.setattr("neo_rx.radio.capture.shutil.which", lambda _: None)
     capture = RtlFmAudioCapture(RtlFmConfig(frequency_hz=144_390_000))
 
     with pytest.raises(AudioCaptureError):
@@ -119,8 +120,8 @@ def test_rtl_fm_unexpected_exit(monkeypatch) -> None:
     def fake_popen(args: list[str], **_: Any) -> _FakeProcess:
         return _EmptyProcess(args)
 
-    monkeypatch.setattr("neo_igate.radio.capture.shutil.which", fake_which)
-    monkeypatch.setattr("neo_igate.radio.capture.subprocess.Popen", fake_popen)
+    monkeypatch.setattr("neo_rx.radio.capture.shutil.which", fake_which)
+    monkeypatch.setattr("neo_rx.radio.capture.subprocess.Popen", fake_popen)
 
     capture = RtlFmAudioCapture(RtlFmConfig(frequency_hz=144_390_000))
     capture.start()
@@ -128,4 +129,39 @@ def test_rtl_fm_unexpected_exit(monkeypatch) -> None:
     with pytest.raises(AudioCaptureError) as exc:
         capture.read(8)
     assert "exited unexpectedly" in str(exc.value)
+    capture.stop()
+
+
+def test_rtl_fm_exit_reports_stderr(monkeypatch) -> None:
+    def fake_which(cmd: str) -> str | None:
+        return "/usr/bin/rtl_fm" if cmd == "rtl_fm" else None
+
+    class _FailingProcess(_FakeProcess):
+        def __init__(self, args: list[str]) -> None:
+            super().__init__(
+                args,
+                data=b"",
+                stderr_data=b"usb_open error -3\nPlease fix permissions\n",
+                return_code=1,
+            )
+
+        def poll(self) -> int | None:
+            return 1
+
+    def fake_popen(args: list[str], **_: Any) -> _FakeProcess:
+        return _FailingProcess(args)
+
+    monkeypatch.setattr("neo_rx.radio.capture.shutil.which", fake_which)
+    monkeypatch.setattr("neo_rx.radio.capture.subprocess.Popen", fake_popen)
+
+    capture = RtlFmAudioCapture(RtlFmConfig(frequency_hz=144_390_000))
+    capture.start()
+
+    with pytest.raises(AudioCaptureError) as exc:
+        capture.read(8)
+    message = str(exc.value)
+    assert "stderr tail" in message
+    assert "usb_open error" in message
+    assert "Hint:" in message
+    assert "Ensure no other software" in message
     capture.stop()

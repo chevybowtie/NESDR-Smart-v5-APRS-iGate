@@ -9,8 +9,8 @@ from datetime import datetime, timezone
 from queue import Queue
 from typing import Any, cast
 
-from neo_igate.aprs.kiss_client import KISSClient, KISSClientError
-from neo_igate.commands import listen
+from neo_rx.aprs.kiss_client import KISSClient, KISSClientError
+from neo_rx.commands import listen
 
 
 def test_apply_software_tocall_rewrites_destination() -> None:
@@ -32,7 +32,7 @@ def test_extract_station_from_message() -> None:
 
 
 def test_handle_keyboard_commands_prints_summary(tmp_path, capsys) -> None:
-    log_path = tmp_path / "neo-igate.log"
+    log_path = tmp_path / "neo-rx.log"
     now = datetime.now(timezone.utc)
     log_path.write_text(
         f"{now.strftime('%Y-%m-%dT%H:%M:%SZ')} [000001] port=0 CALL>APRS:PAYLOAD\n",
@@ -49,7 +49,7 @@ def test_handle_keyboard_commands_prints_summary(tmp_path, capsys) -> None:
 
 
 def test_handle_keyboard_commands_ignores_other_keys(tmp_path, capsys) -> None:
-    log_path = tmp_path / "neo-igate.log"
+    log_path = tmp_path / "neo-rx.log"
     log_path.write_text("dummy", encoding="utf-8")
 
     queue: "Queue[str]" = Queue()
@@ -61,7 +61,7 @@ def test_handle_keyboard_commands_ignores_other_keys(tmp_path, capsys) -> None:
 
 
 def test_report_audio_error_logs(caplog) -> None:
-    caplog.set_level(logging.ERROR, logger="neo_igate.commands.listen")
+    caplog.set_level(logging.ERROR, logger="neo_rx.commands.listen")
     queue: "Queue[Exception]" = Queue()
     queue.put(RuntimeError("boom"))
 

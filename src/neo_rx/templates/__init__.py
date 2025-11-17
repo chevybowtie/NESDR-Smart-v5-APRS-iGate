@@ -1,4 +1,4 @@
-"""Embedded templates shipped with neo_igate."""
+"""Embedded templates shipped with neo_rx."""
 
 from importlib import resources
 

@@ -1,12 +1,12 @@
 from pathlib import Path
 
-from neo_igate.wspr.capture import WsprCapture
+from neo_rx.wspr.capture import WsprCapture
 
 
 class MockPublisher:
     def __init__(self):
         self.publishes = []
-        self.topic = "neo_igate/wspr/spots"
+        self.topic = "neo_rx/wspr/spots"
 
     def connect(self):
         pass
@@ -34,5 +34,5 @@ def test_capture_publishes(tmp_path: Path):
     assert len(spots) == 1
     assert len(publisher.publishes) == 1
     topic, payload = publisher.publishes[0]
-    assert topic == "neo_igate/wspr/spots"
+    assert topic == "neo_rx/wspr/spots"
     assert payload["call"] == "K1ABC"

@@ -8,7 +8,7 @@ import time
 
 import pytest
 
-from neo_igate.aprs.kiss_client import (
+from neo_rx.aprs.kiss_client import (
     FEND,
     FESC,
     KISSClient,

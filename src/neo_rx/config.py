@@ -24,11 +24,14 @@ except ImportError:  # pragma: no cover - keyring not installed
     KeyringError = Exception
 
 CONFIG_VERSION = 1
-CONFIG_ENV_VAR = "NEO_IGATE_CONFIG_PATH"
-CONFIG_DIR_NAME = "neo-igate"
+CONFIG_ENV_VAR = "NEO_RX_CONFIG_PATH"
+CONFIG_DIR_NAME = "neo-rx"
 CONFIG_FILENAME = "config.toml"
-KEYRING_SERVICE = "neo-igate"
+KEYRING_SERVICE = "neo-rx"
 KEYRING_SENTINEL = "__KEYRING__"
+LEGACY_CONFIG_ENV_VAR = "NEO_IGATE_CONFIG_PATH"
+LEGACY_CONFIG_DIR_NAME = "neo-igate"
+LEGACY_KEYRING_SERVICE = "neo-igate"
 
 
 def _xdg_path(env_var: str, default: Path) -> Path:
@@ -38,16 +41,42 @@ def _xdg_path(env_var: str, default: Path) -> Path:
     return default
 
 
-def get_config_dir() -> Path:
-    """Return the directory containing configuration files."""
+def _preferred_config_dir() -> Path:
     default = Path.home() / ".config"
     return _xdg_path("XDG_CONFIG_HOME", default) / CONFIG_DIR_NAME
 
 
-def get_data_dir() -> Path:
-    """Return the directory for runtime data/log files."""
+def _legacy_config_dir() -> Path:
+    default = Path.home() / ".config"
+    return _xdg_path("XDG_CONFIG_HOME", default) / LEGACY_CONFIG_DIR_NAME
+
+
+def get_config_dir() -> Path:
+    """Return the directory containing configuration files, preferring the new name."""
+    preferred = _preferred_config_dir()
+    legacy = _legacy_config_dir()
+    if preferred.exists() or not legacy.exists():
+        return preferred
+    return legacy
+
+
+def _preferred_data_dir() -> Path:
     default = Path.home() / ".local" / "share"
     return _xdg_path("XDG_DATA_HOME", default) / CONFIG_DIR_NAME
+
+
+def _legacy_data_dir() -> Path:
+    default = Path.home() / ".local" / "share"
+    return _xdg_path("XDG_DATA_HOME", default) / LEGACY_CONFIG_DIR_NAME
+
+
+def get_data_dir() -> Path:
+    """Return the directory for runtime data/log files, preferring the new name."""
+    preferred = _preferred_data_dir()
+    legacy = _legacy_data_dir()
+    if preferred.exists() or not legacy.exists():
+        return preferred
+    return legacy
 
 
 def resolve_config_path(path: str | Path | None = None) -> Path:
@@ -57,6 +86,9 @@ def resolve_config_path(path: str | Path | None = None) -> Path:
     env_path = os.environ.get(CONFIG_ENV_VAR)
     if env_path:
         return Path(env_path).expanduser()
+    legacy_env_path = os.environ.get(LEGACY_CONFIG_ENV_VAR)
+    if legacy_env_path:
+        return Path(legacy_env_path).expanduser()
     return get_config_dir() / CONFIG_FILENAME
 
 
@@ -279,6 +311,10 @@ def delete_passcode_from_keyring(callsign: str) -> None:
         _keyring.delete_password(KEYRING_SERVICE, callsign)
     except KeyringError:  # pragma: no cover - backend quirks
         pass
+    try:
+        _keyring.delete_password(LEGACY_KEYRING_SERVICE, callsign)
+    except KeyringError:  # pragma: no cover - backend quirks
+        pass
 
 
 def _store_passcode_in_keyring(callsign: str, passcode: str) -> None:
@@ -286,6 +322,10 @@ def _store_passcode_in_keyring(callsign: str, passcode: str) -> None:
         raise ValueError("Keyring backend not available; install 'keyring' package")
     try:
         _keyring.set_password(KEYRING_SERVICE, callsign, passcode)
+        try:
+            _keyring.delete_password(LEGACY_KEYRING_SERVICE, callsign)
+        except KeyringError:  # pragma: no cover - best-effort cleanup
+            pass
     except KeyringError as exc:  # pragma: no cover - backend dependent
         raise ValueError(f"Failed to store passcode in keyring: {exc}") from exc
 
@@ -293,10 +333,23 @@ def _store_passcode_in_keyring(callsign: str, passcode: str) -> None:
 def _retrieve_passcode_from_keyring(callsign: str) -> str:
     if _keyring is None:
         raise ValueError("Keyring backend not available for stored passcode")
-    try:
-        value = _keyring.get_password(KEYRING_SERVICE, callsign)
-    except KeyringError as exc:  # pragma: no cover - backend dependent
-        raise ValueError(f"Failed to read passcode from keyring: {exc}") from exc
-    if not value:
-        raise ValueError("No APRS-IS passcode stored in keyring; rerun setup")
-    return value
+    services_to_try: List[str] = [KEYRING_SERVICE]
+    if LEGACY_KEYRING_SERVICE not in services_to_try:
+        services_to_try.append(LEGACY_KEYRING_SERVICE)
+    last_error: Exception | None = None
+    for service in services_to_try:
+        try:
+            value = _keyring.get_password(service, callsign)
+        except KeyringError as exc:  # pragma: no cover - backend dependent
+            last_error = exc
+            continue
+        if value:
+            if service != KEYRING_SERVICE:
+                try:
+                    _keyring.set_password(KEYRING_SERVICE, callsign, value)
+                except KeyringError:  # pragma: no cover - best-effort migration
+                    pass
+            return value
+    if last_error:
+        raise ValueError(f"Failed to read passcode from keyring: {last_error}") from last_error
+    raise ValueError("No APRS-IS passcode stored in keyring; rerun setup")

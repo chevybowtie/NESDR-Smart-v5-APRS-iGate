@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-import neo_igate.telemetry.mqtt_publisher as mp
+import neo_rx.telemetry.mqtt_publisher as mp
 
 
 class MockClient:
@@ -52,8 +52,8 @@ def test_queue_persists_across_restart(monkeypatch, tmp_path):
     # Use a publisher to enqueue messages (no connect)
     monkeypatch.setattr(mp, "mqtt", types.SimpleNamespace(Client=lambda: MockClient()))
     pub = mp.MqttPublisher(host="fake", port=1883, buffer_dir=tmp_path)
-    pub.publish("neo_igate/wspr/spot", {"n": 1})
-    pub.publish("neo_igate/wspr/spot", {"n": 2})
+    pub.publish("neo_rx/wspr/spot", {"n": 1})
+    pub.publish("neo_rx/wspr/spot", {"n": 2})
 
     queue_dir = tmp_path / "queue"
     files = list(queue_dir.glob("*.json"))
@@ -78,7 +78,7 @@ def test_partial_delivery_on_restart_leaves_failed(monkeypatch, tmp_path):
     monkeypatch.setattr(mp, "mqtt", types.SimpleNamespace(Client=lambda: MockClient()))
     pub = mp.MqttPublisher(host="fake", port=1883, buffer_dir=tmp_path)
     for i in range(3):
-        pub.publish(f"neo_igate/test/{i}", {"msg": i})
+        pub.publish(f"neo_rx/test/{i}", {"msg": i})
 
     # Simulate restart with a client that will fail on the first publish only
     behavior = {"publish_fail_times": 1}

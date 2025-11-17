@@ -28,7 +28,7 @@ def compute_ppm_from_offset(freq_hz: float, offset_hz: float) -> float:
 
 def apply_ppm_to_radio(ppm: float) -> None:
     """Apply ppm correction to the radio driver (requires implementation)."""
-    from neo_igate._compat import prepare_rtlsdr
+    from neo_rx._compat import prepare_rtlsdr
 
     # Prepare RTL-SDR with compatibility patches
     prepare_rtlsdr()
@@ -65,7 +65,7 @@ def persist_ppm_to_config(ppm: float, config_path: str | None = None) -> None:
     location otherwise.
     """
     try:
-        from neo_igate import config as config_module
+        from neo_rx import config as config_module
     except Exception:
         LOG.error("Configuration module unavailable; cannot write ppm to config")
         raise RuntimeError("Configuration module not available")
@@ -83,7 +83,7 @@ def persist_ppm_to_config(ppm: float, config_path: str | None = None) -> None:
         # Create an automatic timestamped backup of existing config, if present
         try:
             import shutil
-            from neo_igate.timeutils import utc_timestamp
+            from neo_rx.timeutils import utc_timestamp
 
             if target_path is not None and target_path.exists():
                 # use a dedicated backups directory under the config dir

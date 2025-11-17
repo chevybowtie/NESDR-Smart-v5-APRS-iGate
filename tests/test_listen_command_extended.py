@@ -11,11 +11,11 @@ from typing import Any, cast
 
 import pytest
 
-from neo_igate.commands import listen
-from neo_igate.config import StationConfig
-from neo_igate.radio.capture import AudioCaptureError
-from neo_igate.aprs.aprsis_client import APRSISClientError
-from neo_igate.aprs.kiss_client import KISSClientError
+from neo_rx.commands import listen
+from neo_rx.config import StationConfig
+from neo_rx.radio.capture import AudioCaptureError
+from neo_rx.aprs.aprsis_client import APRSISClientError
+from neo_rx.aprs.kiss_client import KISSClientError
 
 
 def _patch_signal(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -85,7 +85,7 @@ def test_wait_for_kiss_exhausts_attempts() -> None:
 
 
 def test_display_frame_truncates_output(caplog) -> None:
-    caplog.set_level(logging.INFO, logger="neo_igate.commands.listen")
+    caplog.set_level(logging.INFO, logger="neo_rx.commands.listen")
     caplog.clear()
     payload = "A" * 200
     listen._display_frame(5, 1, payload)
@@ -95,7 +95,7 @@ def test_display_frame_truncates_output(caplog) -> None:
 
 
 def test_report_audio_error_logs_message(caplog) -> None:
-    caplog.set_level(logging.ERROR, logger="neo_igate.commands.listen")
+    caplog.set_level(logging.ERROR, logger="neo_rx.commands.listen")
     caplog.clear()
     queue: Queue[Exception] = Queue()
     queue.put(RuntimeError("oops"))
@@ -104,7 +104,7 @@ def test_report_audio_error_logs_message(caplog) -> None:
 
 
 def test_run_listen_config_missing(monkeypatch, tmp_path, caplog) -> None:
-    caplog.set_level(logging.INFO, logger="neo_igate.commands.listen")
+    caplog.set_level(logging.INFO, logger="neo_rx.commands.listen")
     caplog.clear()
     _patch_signal(monkeypatch)
     config_path = tmp_path / "config.toml"
@@ -125,7 +125,7 @@ def test_run_listen_config_missing(monkeypatch, tmp_path, caplog) -> None:
 
 
 def test_run_listen_config_invalid(monkeypatch, tmp_path, caplog) -> None:
-    caplog.set_level(logging.INFO, logger="neo_igate.commands.listen")
+    caplog.set_level(logging.INFO, logger="neo_rx.commands.listen")
     caplog.clear()
     _patch_signal(monkeypatch)
     config_path = tmp_path / "config.toml"
@@ -145,7 +145,7 @@ def test_run_listen_config_invalid(monkeypatch, tmp_path, caplog) -> None:
 
 
 def test_run_listen_missing_direwolf_config(monkeypatch, tmp_path, caplog) -> None:
-    caplog.set_level(logging.INFO, logger="neo_igate.commands.listen")
+    caplog.set_level(logging.INFO, logger="neo_rx.commands.listen")
     caplog.clear()
     _patch_signal(monkeypatch)
     config_path = tmp_path / "config.toml"
@@ -170,7 +170,7 @@ def test_run_listen_missing_direwolf_config(monkeypatch, tmp_path, caplog) -> No
 
 
 def test_run_listen_audio_capture_failure(monkeypatch, tmp_path, caplog) -> None:
-    caplog.set_level(logging.INFO, logger="neo_igate.commands.listen")
+    caplog.set_level(logging.INFO, logger="neo_rx.commands.listen")
     caplog.clear()
     _patch_signal(monkeypatch)
     config_path = tmp_path / "config.toml"
@@ -204,7 +204,7 @@ def test_run_listen_audio_capture_failure(monkeypatch, tmp_path, caplog) -> None
 
 
 def test_run_listen_direwolf_launch_failure(monkeypatch, tmp_path, caplog) -> None:
-    caplog.set_level(logging.INFO, logger="neo_igate.commands.listen")
+    caplog.set_level(logging.INFO, logger="neo_rx.commands.listen")
     caplog.clear()
     _patch_signal(monkeypatch)
     config_path = tmp_path / "config.toml"
@@ -243,7 +243,7 @@ def test_run_listen_direwolf_launch_failure(monkeypatch, tmp_path, caplog) -> No
 
 
 def test_run_listen_kiss_unreachable(monkeypatch, tmp_path, caplog) -> None:
-    caplog.set_level(logging.INFO, logger="neo_igate.commands.listen")
+    caplog.set_level(logging.INFO, logger="neo_rx.commands.listen")
     caplog.clear()
     _patch_signal(monkeypatch)
     config_path = tmp_path / "config.toml"
@@ -326,7 +326,7 @@ def test_run_listen_kiss_unreachable(monkeypatch, tmp_path, caplog) -> None:
 
 
 def test_run_listen_receive_only_once(monkeypatch, tmp_path, caplog) -> None:
-    caplog.set_level(logging.INFO, logger="neo_igate.commands.listen")
+    caplog.set_level(logging.INFO, logger="neo_rx.commands.listen")
     caplog.clear()
     _patch_signal(monkeypatch)
 
@@ -383,7 +383,7 @@ def test_run_listen_receive_only_once(monkeypatch, tmp_path, caplog) -> None:
         def kill(self) -> None:
             self.terminated = True
 
-    from neo_igate.aprs.kiss_client import KISSFrame, KISSCommand
+    from neo_rx.aprs.kiss_client import KISSFrame, KISSCommand
 
     class DummyKISSClient:
         def __init__(self, *_: object, **__: object) -> None:
@@ -426,7 +426,7 @@ def test_run_listen_receive_only_once(monkeypatch, tmp_path, caplog) -> None:
 
 
 def test_apply_software_tocall_before_send(monkeypatch, tmp_path, caplog) -> None:
-    caplog.set_level(logging.INFO, logger="neo_igate.commands.listen")
+    caplog.set_level(logging.INFO, logger="neo_rx.commands.listen")
     caplog.clear()
     _patch_signal(monkeypatch)
 
@@ -484,7 +484,7 @@ def test_apply_software_tocall_before_send(monkeypatch, tmp_path, caplog) -> Non
         def kill(self) -> None:
             self.terminated = True
 
-    from neo_igate.aprs.kiss_client import KISSFrame, KISSCommand
+    from neo_rx.aprs.kiss_client import KISSFrame, KISSCommand
 
     class DummyKISSClient:
         def __init__(self, *_: object, **__: object) -> None:
@@ -536,7 +536,7 @@ def test_apply_software_tocall_before_send(monkeypatch, tmp_path, caplog) -> Non
 
 
 def test_run_listen_aprs_connect_failure(monkeypatch, tmp_path, caplog) -> None:
-    caplog.set_level(logging.INFO, logger="neo_igate.commands.listen")
+    caplog.set_level(logging.INFO, logger="neo_rx.commands.listen")
     caplog.clear()
     _patch_signal(monkeypatch)
 
@@ -663,7 +663,7 @@ def test_run_listen_aprs_connect_failure(monkeypatch, tmp_path, caplog) -> None:
 
 
 def test_run_listen_timeout_triggers_polling(monkeypatch, tmp_path, caplog) -> None:
-    caplog.set_level(logging.INFO, logger="neo_igate.commands.listen")
+    caplog.set_level(logging.INFO, logger="neo_rx.commands.listen")
     caplog.clear()
     _patch_signal(monkeypatch)
 
@@ -748,7 +748,7 @@ def test_run_listen_timeout_triggers_polling(monkeypatch, tmp_path, caplog) -> N
 
 
 def test_run_listen_kiss_client_error(monkeypatch, tmp_path, caplog) -> None:
-    caplog.set_level(logging.DEBUG, logger="neo_igate.commands.listen")
+    caplog.set_level(logging.DEBUG, logger="neo_rx.commands.listen")
     caplog.clear()
     _patch_signal(monkeypatch)
 
@@ -832,7 +832,7 @@ def test_run_listen_kiss_client_error(monkeypatch, tmp_path, caplog) -> None:
 
 
 def test_run_listen_skips_bad_frame(monkeypatch, tmp_path, caplog) -> None:
-    caplog.set_level(logging.INFO, logger="neo_igate.commands.listen")
+    caplog.set_level(logging.INFO, logger="neo_rx.commands.listen")
     caplog.clear()
     _patch_signal(monkeypatch)
 
@@ -878,7 +878,7 @@ def test_run_listen_skips_bad_frame(monkeypatch, tmp_path, caplog) -> None:
         def kill(self) -> None:
             return None
 
-    from neo_igate.aprs.kiss_client import KISSCommand, KISSFrame
+    from neo_rx.aprs.kiss_client import KISSCommand, KISSFrame
 
     class DummyKISSClient:
         def __init__(self, *_: object, **__: object) -> None:

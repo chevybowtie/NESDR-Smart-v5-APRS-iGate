@@ -1,6 +1,6 @@
 """CLI command handler for WSPR operations (skeleton).
 
-Provides a single entrypoint `run_wspr` used by `neo-igate wspr`.
+Provides a single entrypoint `run_wspr` used by `neo-rx wspr`.
 """
 
 from __future__ import annotations
@@ -10,12 +10,12 @@ import time
 from argparse import Namespace
 from typing import Optional
 
-from neo_igate import config as config_module
-from neo_igate.wspr.capture import WsprCapture
-from neo_igate.wspr.decoder import WsprDecoder
-from neo_igate.wspr.publisher import make_publisher_from_config
-from neo_igate.wspr.uploader import WsprUploader
-from neo_igate.wspr import scan as wspr_scan
+from neo_rx import config as config_module
+from neo_rx.wspr.capture import WsprCapture
+from neo_rx.wspr.decoder import WsprDecoder
+from neo_rx.wspr.publisher import make_publisher_from_config
+from neo_rx.wspr.uploader import WsprUploader
+from neo_rx.wspr import scan as wspr_scan
 
 LOG = logging.getLogger(__name__)
 
@@ -57,7 +57,7 @@ def run_wspr(args: Namespace) -> int:
             try:
                 if cfg is None:
                     # No config available: construct a default MQTT publisher
-                    from neo_igate.telemetry.mqtt_publisher import MqttPublisher
+                    from neo_rx.telemetry.mqtt_publisher import MqttPublisher
 
                     publisher = MqttPublisher(host="127.0.0.1", port=1883)
                 else:
@@ -65,7 +65,7 @@ def run_wspr(args: Namespace) -> int:
 
                 if publisher is not None:
                     # prefer configured topic when present
-                    publisher.topic = cfg.mqtt_topic if (cfg and cfg.mqtt_topic) else "neo_igate/wspr/spots"
+                    publisher.topic = cfg.mqtt_topic if (cfg and cfg.mqtt_topic) else "neo_rx/wspr/spots"
                     publisher.connect()
             except Exception:
                 LOG.exception("Failed to create/connect publisher; continuing without it")
@@ -89,7 +89,7 @@ def run_wspr(args: Namespace) -> int:
 
         def _capture_fn(band_hz: int, dur: int):
             # Try to run `wsprd` and capture stdout lines for `dur` seconds.
-            from neo_igate.wspr.decoder import WsprDecoder
+            from neo_rx.wspr.decoder import WsprDecoder
             decoder = WsprDecoder()
             wsprd_path = decoder.wsprd_path
             if wsprd_path is None:
@@ -144,14 +144,14 @@ def run_wspr(args: Namespace) -> int:
     if getattr(args, "diagnostics", False):
         LOG.info("Requested WSPR diagnostics")
         from pathlib import Path
-        from neo_igate.wspr import diagnostics as wspr_diag
+        from neo_rx.wspr import diagnostics as wspr_diag
 
         # attempt to load recent spots from data dir (best-effort)
         data_dir = config_module.get_data_dir() / "wspr"
         spots_file = data_dir / "wspr_spots.jsonl"
         spots = []
         try:
-            from neo_igate.wspr.calibrate import load_spots_from_jsonl
+            from neo_rx.wspr.calibrate import load_spots_from_jsonl
 
             spots = load_spots_from_jsonl(spots_file)
         except Exception:
@@ -165,7 +165,7 @@ def run_wspr(args: Namespace) -> int:
     if getattr(args, "calibrate", False):
         LOG.info("Requested WSPR calibration")
         from pathlib import Path
-        from neo_igate.wspr.calibrate import load_spots_from_jsonl, estimate_offset_from_spots, apply_ppm_to_radio
+        from neo_rx.wspr.calibrate import load_spots_from_jsonl, estimate_offset_from_spots, apply_ppm_to_radio
 
         # Determine spots file: CLI override -> config data dir -> local data dir
         spots_path = None
@@ -206,7 +206,7 @@ def run_wspr(args: Namespace) -> int:
 
                 # optionally persist into config
                 if bool(getattr(args, "write_config", False)):
-                    from neo_igate.wspr.calibrate import persist_ppm_to_config
+                    from neo_rx.wspr.calibrate import persist_ppm_to_config
 
                     cfg_path = getattr(args, "config", None)
                     persist_ppm_to_config(ppm, config_path=cfg_path)

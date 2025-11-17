@@ -1,4 +1,4 @@
-from neo_igate.wspr.scan import scan_bands
+from neo_rx.wspr.scan import scan_bands
 
 
 def fake_capture_band1(band_hz: int, duration_s: int):

@@ -1,18 +1,18 @@
 ```markdown
 # Onboarding Flow Specification
 
-This document defines the interactive `neo-igate setup` command used to prepare a host for running the APRS iGate.
+This document defines the interactive `neo-rx setup` command used to prepare a host for running the APRS iGate.
 
 ## Goals
 - Verify hardware and software prerequisites without modifying system-level configuration.
 - Collect operator identity and station metadata needed for APRS-IS access.
-- Persist configuration to `~/.config/neo-igate/config.toml` while protecting sensitive data.
+- Persist configuration to `~/.config/neo-rx/config.toml` while protecting sensitive data.
 - Prime support services (Direwolf, logging directories) and provide clear success/failure feedback.
 - Support reruns (`--reset`, `--non-interactive`) for headless or scripted environments.
 
 ## Preconditions
 - Host has Python 3.11+ with project virtual environment activated.
-   - `neo-igate` CLI installed (`pip install -e '.[dev]'`).
+   - `neo-rx` CLI installed (`pip install -e '.[dev]'`).
 - `direwolf` installed via system package manager or manual build.
 
 > NOTE (Oct 2025): Packaging caveats
@@ -41,15 +41,15 @@ This document defines the interactive `neo-igate setup` command used to prepare 
    - Provide default APRS-IS server rotation (`noam.aprs2.net`) with option to override or specify fallback list.
 
 5. **Configuration Persistence**
-   - Store collected data in `~/.config/neo-igate/config.toml` with mode `0o600`.
+   - Store collected data in `~/.config/neo-rx/config.toml` with mode `0o600`.
    - Passcode handling:
      - Prefer local keyring (Secret Service) via `keyring` lib; fall back to base64-encoded storage with warning if keyring unavailable.
    - Include derived settings: detected tuner gain, sample rate, KISS host/port, timestamp of onboarding.
-   - Render Direwolf config from `docs/templates/direwolf.conf` into `~/.config/neo-igate/direwolf.conf` when user opts in to managed setup.
+   - Render Direwolf config from `docs/templates/direwolf.conf` into `~/.config/neo-rx/direwolf.conf` when user opts in to managed setup.
 
 6. **Telemetry & Logging Setup**
    - Ask user if they want local logs retained and whether anonymized metrics may be collected (default off).
-   - Ensure `~/.local/share/neo-igate/logs` exists with rotation policy notes.
+   - Ensure `~/.local/share/neo-rx/logs` exists with rotation policy notes.
 
 7. **Validation Run**
    - Optionally perform end-to-end dry run using bundled sample IQ:
@@ -62,13 +62,13 @@ This document defines the interactive `neo-igate setup` command used to prepare 
      - Direwolf connection status
      - APRS-IS server(s)
      - Config file path and sensitive data storage method
-   - Provide next command suggestions (`neo-igate listen`, `neo-igate diagnostics`).
+   - Provide next command suggestions (`neo-rx listen`, `neo-rx diagnostics`).
 
 ## CLI Options
-- `neo-igate setup`: interactive wizard (default).
-- `neo-igate setup --reset`: delete existing config (confirm first) and rerun wizard.
-- `neo-igate setup --non-interactive --config /path/to/file`: accept pre-filled TOML, only validate hardware/software.
-- `neo-igate setup --dry-run`: perform validation without writing config changes.
+- `neo-rx setup`: interactive wizard (default).
+- `neo-rx setup --reset`: delete existing config (confirm first) and rerun wizard.
+- `neo-rx setup --non-interactive --config /path/to/file`: accept pre-filled TOML, only validate hardware/software.
+- `neo-rx setup --dry-run`: perform validation without writing config changes.
 
 ## User Prompts & Validation Rules
 - Callsign must match regex `^[A-Z0-9]{1,6}-[0-9]{1,2}$`; offer uppercase normalization.
@@ -82,10 +82,10 @@ This document defines the interactive `neo-igate setup` command used to prepare 
 - Abort only when critical prerequisites fail after retries.
 
 ## Artifacts
-- `~/.config/neo-igate/config.toml`: primary config file.
-- `~/.config/neo-igate/direwolf.conf`: rendered Direwolf configuration (optional, managed flow).
-- Keyring entry (`neo-igate/callsign`): secure passcode storage when available.
-- `~/.local/share/neo-igate/logs/setup.log`: onboarding transcript for diagnostics.
+- `~/.config/neo-rx/config.toml`: primary config file.
+- `~/.config/neo-rx/direwolf.conf`: rendered Direwolf configuration (optional, managed flow).
+- Keyring entry (`neo-rx/callsign`): secure passcode storage when available.
+- `~/.local/share/neo-rx/logs/setup.log`: onboarding transcript for diagnostics.
 
 ## Open Questions
 - Should onboarding auto-generate a Direwolf config file tailored to device, or simply validate user-provided config?

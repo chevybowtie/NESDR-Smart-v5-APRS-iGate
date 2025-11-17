@@ -5,8 +5,8 @@ from argparse import Namespace
 
 import pytest
 
-from neo_igate.commands import wspr as wspr_cmd
-from neo_igate import config as config_module
+from neo_rx.commands import wspr as wspr_cmd
+from neo_rx import config as config_module
 
 
 def test_scan_json_output(monkeypatch, capsys):

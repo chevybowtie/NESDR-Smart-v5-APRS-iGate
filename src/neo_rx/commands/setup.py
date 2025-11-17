@@ -14,9 +14,9 @@ from getpass import getpass
 from pathlib import Path
 from typing import Callable
 
-from neo_igate import config as config_module
-from neo_igate.config import StationConfig
-from neo_igate.diagnostics_helpers import probe_tcp_endpoint
+from neo_rx import config as config_module
+from neo_rx.config import StationConfig
+from neo_rx.diagnostics_helpers import probe_tcp_endpoint
 
 CALLSIGN_PATTERN = re.compile(r"^[A-Z0-9]{1,6}-[0-9]{1,2}$")
 
@@ -362,7 +362,7 @@ def _maybe_render_direwolf_config(config: StationConfig, target_dir: Path) -> No
 def _load_direwolf_template() -> str | None:
     try:
         return (
-            resources.files("neo_igate.templates")
+            resources.files("neo_rx.templates")
             .joinpath("direwolf.conf")
             .read_text(encoding="utf-8")
         )
@@ -507,7 +507,7 @@ def _report_direwolf_log_summary() -> None:
     log_file = log_dir / "direwolf.log"
     if not log_file.exists():
         logger.warning(
-            "[WARNING] Direwolf log not found at %s. Run `neo-igate listen` to generate logs.",
+            "[WARNING] Direwolf log not found at %s. Run `neo-rx listen` to generate logs.",
             log_file,
         )
         return

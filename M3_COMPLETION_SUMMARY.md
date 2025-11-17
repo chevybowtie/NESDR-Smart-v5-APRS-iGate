@@ -5,7 +5,7 @@
 ### Completed Features
 
 #### 1. MQTT Publisher with On-Disk Buffering
-- **Location**: `src/neo_igate/telemetry/mqtt_publisher.py`
+- **Location**: `src/neo_rx/telemetry/mqtt_publisher.py`
 - **Features**:
   - Persistent message buffering when broker is unavailable
   - Automatic buffer drainage on connection establishment
@@ -39,7 +39,7 @@ All existing tests continue to pass (158 tests total).
 - WSPR capture pipeline uses `wspr/publisher.py` factory
 - Factory creates MqttPublisher with appropriate configuration
 - WSPR spots are automatically buffered if broker unavailable
-- Spots are published to `neo_igate/wspr/spots` topic
+- Spots are published to `neo_rx/wspr/spots` topic
 
 ### Documentation Updates
 - Updated `docs/wspr.md` with buffer feature description
@@ -49,7 +49,7 @@ All existing tests continue to pass (158 tests total).
 
 #### Buffer File Format
 ```jsonl
-{"topic": "neo_igate/wspr/spots", "body": "{\"call\":\"K1ABC\",\"freq\":14097100,...}", "ts": 1234567890.123}
+{"topic": "neo_rx/wspr/spots", "body": "{\"call\":\"K1ABC\",\"freq\":14097100,...}", "ts": 1234567890.123}
 ```
 
 #### Buffer Lifecycle

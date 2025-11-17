@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from typing import Callable, Optional
 
 import logging
-from neo_igate import __version__
+from neo_rx import __version__
 
 
 class APRSISClientError(RuntimeError):
@@ -24,7 +24,7 @@ class APRSISConfig:
     port: int
     callsign: str
     passcode: str
-    software_name: str = "neo-igate"
+    software_name: str = "neo-rx"
     software_version: str = __version__
     filter_string: str | None = None
     timeout: float = 5.0

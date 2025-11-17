@@ -13,9 +13,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable, cast, TYPE_CHECKING, Literal
 
-from neo_igate import config as config_module
-from neo_igate.config import StationConfig
-from neo_igate.diagnostics_helpers import probe_tcp_endpoint
+from neo_rx import config as config_module
+from neo_rx.config import StationConfig
+from neo_rx.diagnostics_helpers import probe_tcp_endpoint
 
 try:  # Python 3.10+ exposes metadata here
     from importlib import metadata as importlib_metadata
@@ -31,7 +31,7 @@ except ImportError:  # pragma: no cover - fallback for older runtimes
     if TYPE_CHECKING:
         # Give static analyzers an absolute import path for the terminal helpers.
         # This helps editors/linters (pyright, mypy) recognize the functions.
-        from neo_igate.term import supports_color, status_label  # type: ignore
+        from neo_rx.term import supports_color, status_label  # type: ignore
 
 SectionStatus = Literal["ok", "warning", "error", "info"]
 
@@ -42,7 +42,7 @@ logger.addHandler(logging.NullHandler())
 
 def _prepare_rtlsdr() -> None:
     try:
-        compat_pkg = importlib.import_module("neo_igate._compat")
+        compat_pkg = importlib.import_module("neo_rx._compat")
     except ModuleNotFoundError:  # pragma: no cover - shim missing only in broken envs
         return
 
@@ -56,12 +56,12 @@ def _package_version() -> str:
     # package at function time avoids import-order problems during static
     # analysis while still returning the centralized value at runtime.
     try:
-        from neo_igate import __version__ as ver
+        from neo_rx import __version__ as ver
 
         return ver
     except Exception:
         try:
-            return importlib_metadata.version("neo-igate")
+            return importlib_metadata.version("neo-rx")
         except importlib_metadata.PackageNotFoundError:
             return "0.0.0"
 
@@ -95,7 +95,7 @@ def run_diagnostics(args: Namespace) -> int:
     if getattr(args, "json", False):
         report = _sections_to_mapping(sections)
         report["meta"] = {
-            "tool": "neo-igate",
+            "tool": "neo-rx",
             "version": _package_version(),
             "generated_at": time.strftime(
                 "%Y-%m-%dT%H:%M:%SZ", time.gmtime(generated_at)
@@ -113,7 +113,7 @@ def run_diagnostics(args: Namespace) -> int:
         else:
             color_enabled = supports_color()
 
-        logger.info("neo-igate diagnostics v%s", _package_version())
+        logger.info("neo-rx diagnostics v%s", _package_version())
         _print_text_report(
             sections,
             verbose=getattr(args, "verbose", False),
@@ -316,7 +316,7 @@ def _check_direwolf(config: StationConfig | None) -> Section:
         )
 
     # Connection refused is expected when Direwolf is installed but not
-    # currently running (e.g., before `neo-igate listen` starts it).
+    # currently running (e.g., before `neo-rx listen` starts it).
     err = (result.error or "").lower()
     if ("connection" in err and "refused" in err) or ("errno 111" in err):
         message = f"Direwolf installed but not running locally; KISS endpoint unreachable at {host}:{port}"

@@ -90,7 +90,7 @@ class WsprCapture:
     def _capture_loop(self) -> None:
         """Background capture loop: cycle through bands, capture, decode, publish."""
         from .decoder import WsprDecoder
-        from neo_igate._compat import prepare_rtlsdr
+        from neo_rx._compat import prepare_rtlsdr
 
         # Prepare RTL-SDR with compatibility patches
         prepare_rtlsdr()
@@ -308,7 +308,7 @@ class WsprCapture:
         # publish if available
         if self._publisher is not None:
             try:
-                topic = getattr(self._publisher, "topic", "neo_igate/wspr/spots")
+                topic = getattr(self._publisher, "topic", "neo_rx/wspr/spots")
                 self._publisher.publish(topic, spot)  # type: ignore[attr-defined]
             except Exception:
                 LOG.exception("Publisher failed to publish spot; continuing")

@@ -2,7 +2,7 @@
 
 import pytest
 
-from neo_igate.wspr.diagnostics import detect_upconverter_hint
+from neo_rx.wspr.diagnostics import detect_upconverter_hint
 
 
 def test_detect_upconverter_hint_from_spots():
