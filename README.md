@@ -126,16 +126,18 @@ neo-rx wspr
 ```
 
 The WSPR monitor will:
-1. Cycle through WSPR bands (80m, 40m, 30m, 10m) with 2-minute intervals
+1. Cycle through WSPR bands (80m, 40m, 20m, 30m, 10m, 6m, 2m, 70cm) with 2-minute intervals (or lock to a specific band with `--band 20m`, `--band 2m`, etc.)
 2. Capture IQ samples from the RTL-SDR
 3. Decode signals using `wsprd`
 4. Log spots to JSON-lines and publish to MQTT (if configured)
+5. Enrich spots with reporter metadata and enqueue them for upload when `[wspr].uploader_enabled = true`
 
 Useful flags:
 - `--calibrate` to measure and apply frequency correction
 - `--scan` to scan bands without decoding
 - `--upload` to submit queued spots to WSPRnet
 - `--heartbeat` to send a wsprstat ping when `--upload` finds no successes
+- `--band {80m,40m,30m,20m,10m,6m,2m,70cm}` to monitor a single band
 - `--config PATH` to point at an alternate configuration file
 
 WSPR data is stored beneath `~/.local/share/neo-rx/wspr/` by default.
@@ -159,10 +161,11 @@ These fields complement existing options such as `wspr_enabled`, `wspr_auto_uplo
 
 When `uploader_enabled = true`, `neo-rx wspr` will also start writing an enriched upload queue to `~/.local/share/neo-rx/wspr/wspr_upload_queue.jsonl`. Each record now captures the tuned band (`dial_freq_hz`), the aligned 2-minute slot start, and your reporter metadata (`callsign`, `grid`, `power_dbm`) so subsequent `neo-rx wspr --upload` runs have everything needed to talk to WSPRnet.
 
-`neo-rx wspr --upload --json` now reports `attempted`, `succeeded`, `failed`, and a
-`last_error` string so automation can react to stalled queues. Pair it with
-`--heartbeat` to emit a `wsprstat` ping whenever a drain cycle produces no
-successful uploads (matching `rtlsdr-wsprd` parity).
+`neo-rx wspr --upload --json` drains the queue and reports `attempted`, `succeeded`,
+`failed`, and a `last_error` string so automation can react to stalled queues.
+Each upload uses the rtlsdr-wsprd HTTPS GET contract (same params as `function=wspr`).
+Pair it with `--heartbeat` to emit a `wsprstat` ping whenever a drain cycle
+produces no successful uploads.
 
 Uploader logs live under `~/.local/share/neo-rx/logs/neo-rx.log`; set
 `NEO_RX_LOG_LEVEL=DEBUG` to watch each attempt/heartbeat in real time, and see

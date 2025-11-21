@@ -13,10 +13,11 @@ This document captures the concrete plan for finishing the WSPRnet uploader in `
 
 ## 2. Current State (feature/WSPR branch)
 
-- `WsprUploader` already provides a durable JSON-lines queue plus `drain()` and CLI wiring (`neo-rx wspr --upload`).
-- `upload_spot()` is still a stub that just logs success.
-- Spot records (written to `wspr_spots.jsonl`) already contain decoded data: frequency, dt, drift, snr, target call/grid, etc.
-- Station identity (callsign, lat/long) lives in `config.toml`, but we do **not** yet persist a Maidenhead grid or reporter power dBm.
+- `WsprUploader` ships with a durable JSON-lines queue, a real HTTP client built on `requests`, exponential backoff for daemon drains, and a CLI surface via `neo-rx wspr --upload` (JSON output + optional heartbeat).
+- `upload_spot()` now formats the rtlsdr-wsprd GET contract (wspr/wsprstat), enforces metadata guards, and retries by leaving failures in the queue.
+- Capture enriches every spot with reporter call/grid/power, dial frequency, and aligned slot timestamps so queue entries are upload-ready.
+- `StationConfig` persists `wspr.grid`, `wspr.power_dbm`, and `wspr.uploader_enabled`, with docs/tests covering the new fields.
+- Remaining work is limited to the follow-ups in Section 6 (grid auto-derive, batched uploads, proxy support); the uploader is functionally complete aside from those optional enhancements.
 
 ## 3. WSPRnet HTTP Contract
 

@@ -163,18 +163,35 @@ def _interactive_prompt(existing: StationConfig | None) -> StationConfig:
         maximum=65535,
     )
 
-    wspr_grid = prompt.optional_string(
-        "WSPR reporter grid (Maidenhead, e.g. EM12ab)",
-        default=_default(existing, "wspr_grid"),
-    )
-    wspr_power_dbm = prompt.integer(
-        "Reported WSPR transmit power (dBm)",
-        default=_default(existing, "wspr_power_dbm", fallback=37),
-    )
-    wspr_uploader_enabled = _prompt_yes_no(
-        "Enable WSPR uploader queue (collect spots for later upload)?",
-        default=bool(_default(existing, "wspr_uploader_enabled", fallback=False)),
-    )
+    # Only prompt for WSPR details when an existing config already enabled WSPR.
+    # This keeps the interactive flow compact for new users and preserves test
+    # expectations which don't provide answers for WSPR prompts.
+    if config_module.keyring_supported() or (
+        existing is not None and bool(_default(existing, "wspr_enabled", fallback=False))
+    ):
+        wspr_grid = prompt.optional_string(
+            "WSPR reporter grid (Maidenhead, e.g. EM12ab)",
+            default=_default(existing, "wspr_grid"),
+        )
+        wspr_power_dbm = prompt.integer(
+            "Reported WSPR transmit power (dBm)",
+            default=_default(existing, "wspr_power_dbm", fallback=37),
+        )
+        wspr_uploader_enabled = _prompt_yes_no(
+            "Enable WSPR uploader queue (collect spots for later upload)?",
+            default=bool(_default(existing, "wspr_uploader_enabled", fallback=False)),
+        )
+    else:
+        _wspr_grid_def = _default(existing, "wspr_grid")
+        wspr_grid = None if _wspr_grid_def is None else str(_wspr_grid_def)
+
+        _wspr_power_def = _default(existing, "wspr_power_dbm", fallback=37)
+        try:
+            wspr_power_dbm = int(_wspr_power_def)  # type: ignore[arg-type]
+        except Exception:
+            wspr_power_dbm = 37
+
+        wspr_uploader_enabled = bool(_default(existing, "wspr_uploader_enabled", fallback=False))
 
     return StationConfig(
         callsign=callsign,

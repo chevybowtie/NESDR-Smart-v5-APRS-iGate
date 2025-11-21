@@ -237,7 +237,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     wspr_parser.add_argument(
         "--band",
-        choices=["80m", "40m", "30m", "20m", "10m"],
+        choices=["80m", "40m", "30m", "20m", "10m", "6m", "2m", "70cm"],
         help="Monitor only the specified WSPR band (default: all bands)",
     )
     wspr_parser.add_argument(

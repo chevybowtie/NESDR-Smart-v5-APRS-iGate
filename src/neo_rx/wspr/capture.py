@@ -56,6 +56,9 @@ class WsprCapture:
             14_095_600,  # 20m
             10_140_200,  # 30m
             28_124_600,  # 10m
+            50_294_800,  # 6m
+            144_489_000, # 2m
+            432_500_000, # 70cm
         ]
         self.capture_duration_s = capture_duration_s
         self._running = False

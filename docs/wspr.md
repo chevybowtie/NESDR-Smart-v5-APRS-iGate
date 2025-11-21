@@ -8,11 +8,8 @@ proposed development roadmap.
 ## Goal
 
 Add in-process WSPR receive/decoding and optional auto-reporting to
-WSPRnet, with band scanning, automated upconverter diagnostics, ppm
 calibration, structured logging, and MQTT publication of spots.
-
 ## Assumptions
-
 - Primary SDR: RTL-SDR (`pyrtlsdr`).
 - Upconverter: Nooelec Ham-It-Up V2 (passive RF converter) — not USB-visible.
 - Decoder: initial approach wraps `wsprd` (external, robust binary).
@@ -55,26 +52,17 @@ Automatic USB detection is not possible (passive converter). Proposed
 heuristics:
 - Spectrum-shift test against known beacons (WWV/CHU) to detect an LO
   offset.
-- Compare SNR with/without converter connected (guided user steps).
-- Produce confidence score and recommended LO offset.
-
 ## Time & Calibration
 
-- Require NTP/GPS/PPS for time accuracy.
-- Calibration options:
   - Measure ppm from strong time/frequency station and compute correction.
   - Use `wsprd` reported drift to derive ppm and apply correction.
-
-### Calibration & Backup Behavior
-
 - Computation: the tool computes parts-per-million (ppm) correction by
   comparing the median observed frequency of decoded spots against an
-  expected centre frequency for the configured band. The helper
-  function `estimate_offset_from_spots(spots, expected_freq_hz)` returns
-  the median observed frequency, the offset in Hz, the derived ppm,
   median SNR and observation count.
-- Apply vs persist: `--calibrate --apply` will run the local calibration
-  flow and call a stub that can apply the correction to the radio driver.
+-- Apply vs persist: `--calibrate --apply` will run the local calibration
+  flow and call ``apply_ppm_to_radio(ppm)`` in ``calibrate.py`` to apply the
+  correction to supported radios (RTL-SDR). Use ``--write-config`` to persist
+  the computed correction into ``config.toml`` (this performs a safe save).
   To persist the computed correction into the persistent `config.toml`,
   use `--write-config` alongside `--apply` (this performs a safe save).
 - Safe saves & backups: before writing a new `ppm_correction` value the
@@ -91,9 +79,10 @@ heuristics:
   occurred (and which backup was created if needed).
 
 Implementation notes:
-- The code exposes `persist_ppm_to_config(ppm, config_path=None)` to
-  perform the safe save and `apply_ppm_to_radio(ppm)` as a radio-driver
-  integration point (currently a logging stub).
+- The code exposes ``persist_ppm_to_config(ppm, config_path=None)`` to
+  perform the safe save and ``apply_ppm_to_radio(ppm)`` as a radio-driver
+  integration point. The function applies ppm corrections to RTL-SDR devices
+  and includes error handling; ensure hardware access when using ``--apply``.
 - Backups are automatically created; retention/rotation is left as an
   enhancement (could prune old backups after N days or keep only the
   last N backups).
@@ -169,7 +158,7 @@ With the flag enabled, the capture pipeline now writes enriched spot entries to 
 
 When you invoke `neo-rx wspr --upload`, the command enforces the same gate: it aborts with an actionable error until `[wspr].uploader_enabled = true`, guaranteeing that uploads remain opt-in.
 
-These fields complement the existing `wspr_bands_hz`, `wspr_capture_duration_s`, and MQTT options, and will be consumed by the uploader once the HTTP integration is implemented.
+These fields complement the existing `wspr_bands_hz`, `wspr_capture_duration_s`, and MQTT options. The uploader and queueing are implemented; however, HTTP submission requires credential/configuration and should be hardened for production use.
 
 ### WSPRnet Uploader
 
@@ -184,8 +173,10 @@ to prevent corruption on unexpected shutdown.
   the uploader enforces a simple exponential backoff window so repeated failures
   don't hammer WSPRnet, and it surfaces the first error message via `last_error`
   in the returned stats.
-- `upload_spot(spot)`: abstract method (currently a logging stub) for submitting
-  a single spot to WSPRnet.
+- `upload_spot(spot)`: implemented to perform an HTTP request; the queue
+  and drain logic are functional, but the uploader requires production-grade
+  API authentication, parameter validation, and rate-limit handling before
+  being used in a live deployment.
 - `send_heartbeat(...)`: issues a `wsprstat` heartbeat (matching `rtlsdr-wsprd`)
   so stations can publish a “no uploads this slot” beacon when desired.
 
@@ -343,33 +334,19 @@ These functions have CLI wiring and test infrastructure but require external dep
 
 
 
-### Remaining Stubs (Non-Production)
+### Remaining Work
 
-These functions have CLI wiring and test infrastructure but require external dependencies or driver integration:
+The project implements the core WSPR pipeline (capture, decoding, calibration,
+and a durable upload queue). The key remaining production items are:
 
-1. **`apply_ppm_to_radio(ppm)` in `calibrate.py`** ✅ **RESOLVED**
-   - Status: Implemented with RTL-SDR integration, error handling, and unit tests. Applies PPM correction to tuner in real-time.
+- WSPRnet HTTP integration: implement secure API authentication, parameter
+  validation, and rate-limit-aware retries in ``uploader.upload_spot()``.
+- Credential management: store uploader credentials securely (keyring or
+  encrypted config) and add CLI prompts to capture them.
+- Optional decoder and capture improvements: streaming input to the decoder
+  (avoid temporary IQ files) and richer stderr/drift parsing for diagnostics.
 
-2. **`upload_spot(spot)` in `uploader.py`**
-   - Currently: Logs the spot; returns success
-   - Required: WSPRnet HTTP client + API authentication + endpoint
-     - we should look at https://github.com/garymcm/wsprnet_api/blob/master/README.md for the API
-     - not sure this is useful, be we should examine real-time data access via the wspr.live service which provides a ClickHouse-based database with a public API for querying WSPR spots 
-   - Status: Queue management fully functional; HTTP submission is stubbed
-   - Blocking: ⚠️ **Production deployment requires real implementation**
-
-3. **`WsprCapture` real-time capture**
-   - Currently: Skeleton with testable sync interface (accepts mock `capture_fn`)
-   - Required: `pyrtlsdr` integration, threading/scheduler for multi-band cycles
-   - Status: Infrastructure present; RTL-SDR capture loop not implemented
-   - Note: `run_wsprd_subprocess()` decoder wrapper is complete; just needs capture source
-
-4. **External dependency: `wsprd` binary**
-   - Status: Decoder gracefully handles missing binary (logs warning, exits cleanly)
-   - Required: User must install `wsprd` separately for real WSPR decoding
-   - Testing: All tests use fixture data; no binary dependency in test suite
-
-#### Resolution Plan
+See the CI and tests for the current coverage of the queue and decoder.
 
 Based on the implementation status, here's a targeted plan to address the 4 remaining stubs for production deployment. Each includes steps, code changes, testing, and estimated effort. Total estimated time: 5–7 days, assuming access to RTL-SDR hardware and WSPRnet API docs.
 

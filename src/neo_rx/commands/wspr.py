@@ -1,6 +1,9 @@
-"""CLI command handler for WSPR operations (skeleton).
+"""CLI command handler for WSPR operations.
 
-Provides a single entrypoint `run_wspr` used by `neo-rx wspr`.
+Provides the entrypoint `run_wspr` used by `neo-rx wspr`. The command
+implements scanning, calibration, upload queue draining, and live
+monitoring wiring; some uploader/API integration points still require
+production credentials and hardening.
 """
 
 from __future__ import annotations
@@ -125,7 +128,7 @@ def run_wspr(args: Namespace) -> int:
         if cfg is not None and cfg.wspr_bands_hz:
             bands = cfg.wspr_bands_hz
         else:
-            bands = [14_080_000, 7_080_000, 3_572_000]
+            bands = [14_080_000, 7_080_000, 3_572_000, 50_294_800, 144_489_000, 432_500_000]
 
         duration = cfg.wspr_capture_duration_s if cfg is not None else 120
 
@@ -341,6 +344,9 @@ def run_wspr(args: Namespace) -> int:
         "30m": 10_140_200,
         "20m": 14_095_600,
         "10m": 28_124_600,
+        "6m": 50_294_800,
+        "2m": 144_489_000,
+        "70cm": 432_500_000,
     }
     
     selected_band = getattr(args, "band", None)
