@@ -176,7 +176,7 @@ Uploader logs live under `~/.local/share/neo-rx/logs/neo-rx.log`; set
 ## Troubleshooting
 - `neo-rx diagnostics` surfaces missing dependencies, SDR availability, and network reachability issues.
 - Ensure `rtl_fm`, `rtl_test`, `direwolf`, and `sox` (optional) are installed and executable.
-- Review Direwolf and listener logs under `~/.local/share/neo-rx/` for detailed errors.
+- Review Direwolf and listener logs under `~/.local/share/neo-rx/` for detailed errors. If you want on-disk logs to expire automatically, configure host-level rotation (for example a `logrotate` rule with `weekly` + `rotate 4` against `~/.local/share/neo-rx/logs/*.log`). See `docs/diagnostics.md` for the sample stanza and systemd notes.
 - Re-run `neo-rx setup --reset` if you need to regenerate configuration files or Direwolf templates.
 
 ## Onboarding and setup details

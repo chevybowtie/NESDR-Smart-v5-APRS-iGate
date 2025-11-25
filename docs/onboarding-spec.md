@@ -50,6 +50,7 @@ This document defines the interactive `neo-rx setup` command used to prepare a h
 6. **Telemetry & Logging Setup**
    - Ask user if they want local logs retained and whether anonymized metrics may be collected (default off).
    - Ensure `~/.local/share/neo-rx/logs` exists with rotation policy notes.
+   - Display guidance for host-managed rotation (recommend a weekly `logrotate` rule retaining four archives, with `copytruncate` for manual shells or `postrotate systemctl --user restart ...` for systemd services).
 
 7. **Validation Run**
    - Optionally perform end-to-end dry run using bundled sample IQ:

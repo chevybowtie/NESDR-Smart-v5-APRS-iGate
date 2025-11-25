@@ -127,6 +127,11 @@ systemctl --user daemon-reload
 systemctl --user enable --now nesdr-direwolf.service
 ```
 
+Log files still land in `~/.local/share/neo-rx/logs/`. Add a host-level `logrotate` rule (weekly, `rotate 4`, `compress`) targeting `~/.local/share/neo-rx/logs/*.log` so Direwolf and CLI logs expire after four weeks. When running under systemd you have two options:
+
+- Keep `copytruncate` in the `logrotate` stanza so Direwolf keeps writing uninterrupted.
+- Or omit `copytruncate` and add a `postrotate systemctl --user restart nesdr-direwolf.service` block so the service reopens a fresh file when rotation occurs.
+
 Check status with `systemctl --user status nesdr-direwolf.service`. Disable with `systemctl --user disable --now nesdr-direwolf.service`.
 
 ---

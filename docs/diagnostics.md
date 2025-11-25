@@ -83,3 +83,22 @@ Config:
 - Provide friendly remediation hints when status is warning/error.
 - Ensure diagnostics can run without SDR connected by flag `--skip-sdr` (future enhancement).
 - Add unit tests for formatting and error mapping.
+
+## Log retention
+`neo-rx` keeps each logfile open until the CLI exits, so retention is delegated to the host. A user-level `logrotate` stanza meets the weekly/4-week requirement without modifying the Python logging setup:
+
+```conf
+~/.local/share/neo-rx/logs/*.log {
+  weekly
+  rotate 4
+  compress
+  missingok
+  notifempty
+  copytruncate
+}
+```
+
+- Place the rule in `/etc/logrotate.d/neo-rx` (system-wide) or `~/.config/logrotate.d/` when running per-user.
+- Keep `copytruncate` unless you restart the `neo-rx` process during rotation; the CLI and helper scripts hold the file descriptor open.
+- Add `create 0640 <user> <group>` or `su <user> <group>` if root invokes `logrotate` for files owned by the service user.
+- For systemd units, replace `copytruncate` with a `postrotate systemctl --user restart neo-rx-listen.service` block when you prefer clean file handles over truncation.
