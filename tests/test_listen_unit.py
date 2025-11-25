@@ -107,6 +107,24 @@ def test_apply_software_tocall_handles_missing_header() -> None:
     assert listen._apply_software_tocall(tnc2_line, "NEO123") == tnc2_line
 
 
+def test_append_q_construct_adds_path() -> None:
+    original = "CALL1>DST1,PATH1:payload"
+    updated = listen._append_q_construct(original, "IGATE-10")
+    assert updated == "CALL1>DST1,PATH1,qAR,IGATE-10:payload"
+
+
+def test_append_q_construct_skips_existing_q() -> None:
+    original = "CALL1>DST1,PATH1,qAR,OTHER:payload"
+    updated = listen._append_q_construct(original, "IGATE-10")
+    assert updated == original
+
+
+def test_append_q_construct_handles_minimal_path() -> None:
+    original = "CALL1>DST1:payload"
+    updated = listen._append_q_construct(original, "igate")
+    assert updated == "CALL1>DST1,qAR,IGATE:payload"
+
+
 def test_start_keyboard_listener_reads_keys(monkeypatch) -> None:
     stop_event = threading.Event()
     command_queue: "Queue[str]" = Queue()

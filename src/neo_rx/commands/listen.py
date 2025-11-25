@@ -295,6 +295,9 @@ def run_listen(args: Namespace) -> int:
                     else:
                         tnc2_to_send = tnc2_packet
 
+                    tnc2_to_send = _append_q_construct(
+                        tnc2_to_send, station_config.callsign
+                    )
                     aprs_client.send_packet(tnc2_to_send)
                     aprs_forwarded += 1
                 except APRSISClientError as exc:
@@ -368,6 +371,43 @@ def _apply_software_tocall(tnc2_line: str, tocall: str) -> str:
     else:
         new_rest = tocall
     return f"{src}>{new_rest}:{info}"
+
+
+def _append_q_construct(
+    tnc2_line: str, igate_callsign: str, q_type: str = "qAR"
+) -> str:
+    """Append a q construct hop identifying this iGate.
+
+    Frames forwarded to APRS-IS must include a `q` hop describing how they
+    reached the Internet (`qAR,<igate>` for heard-via-RF traffic). This helper
+    injects the hop unless the frame already carries any q construct.
+    """
+
+    if not igate_callsign or ":" not in tnc2_line or ">" not in tnc2_line:
+        return tnc2_line
+
+    header, info = tnc2_line.split(":", 1)
+    try:
+        src, rest = header.split(">", 1)
+    except ValueError:
+        return tnc2_line
+
+    parts = rest.split(",") if rest else []
+    if not parts:
+        return tnc2_line
+
+    dest = parts[0]
+    path_parts = parts[1:]
+    has_q = any(
+        component.lower().startswith("q") and len(component) >= 3
+        for component in path_parts
+    )
+    if has_q:
+        return tnc2_line
+
+    new_path = path_parts + [q_type, igate_callsign.upper()]
+    combined = ",".join([dest] + new_path)
+    return f"{src}>{combined}:{info}"
 
 
 def _resolve_direwolf_config(config_dir: Path) -> Optional[Path]:
