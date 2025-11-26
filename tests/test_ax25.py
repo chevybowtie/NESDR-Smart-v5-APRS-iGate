@@ -65,3 +65,52 @@ def test_kiss_payload_to_tnc2_preserves_binary_info() -> None:
     # Verify it's bytes and preserves the exact binary sequence
     assert isinstance(result, bytes)
     assert b"\xff\xfe\xfd" in result
+
+
+def test_kiss_payload_to_tnc2_truncates_at_cr() -> None:
+    """Verify that info field is truncated at first CR character."""
+    payload = (
+        _encode_address("APRS", last=False)
+        + _encode_address("N0CALL", last=True)
+        + bytes([0x03, 0xF0])
+        # Info field with embedded CR - should be truncated here
+        + b"First line\rSecond line"
+    )
+
+    result = kiss_payload_to_tnc2(payload)
+    # Only the part before CR should be included
+    assert result == b"N0CALL>APRS:First line"
+    assert b"Second line" not in result
+
+
+def test_kiss_payload_to_tnc2_truncates_at_lf() -> None:
+    """Verify that info field is truncated at first LF character."""
+    payload = (
+        _encode_address("APRS", last=False)
+        + _encode_address("N0CALL", last=True)
+        + bytes([0x03, 0xF0])
+        # Info field with embedded LF - should be truncated here
+        + b"First line\nSecond line"
+    )
+
+    result = kiss_payload_to_tnc2(payload)
+    # Only the part before LF should be included
+    assert result == b"N0CALL>APRS:First line"
+    assert b"Second line" not in result
+
+
+def test_kiss_payload_to_tnc2_truncates_at_crlf() -> None:
+    """Verify that info field is truncated at first CR in CRLF sequence."""
+    payload = (
+        _encode_address("APRS", last=False)
+        + _encode_address("N0CALL", last=True)
+        + bytes([0x03, 0xF0])
+        # Info field with embedded CRLF - should truncate at CR
+        + b"First line\r\nSecond line"
+    )
+
+    result = kiss_payload_to_tnc2(payload)
+    # Only the part before CRLF should be included (truncates at first CR)
+    assert result == b"N0CALL>APRS:First line"
+    assert b"Second line" not in result
+    assert b"\r" not in result
