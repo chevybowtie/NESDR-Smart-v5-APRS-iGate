@@ -21,9 +21,17 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
 
-      - name: Install librtlsdr dependencies
-        run: sudo apt-get update && sudo apt-get install -y librtlsdr0 librtlsdr-dev
-
+      - name: Install librtlsdr and dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y librtlsdr0 librtlsdr-dev git cmake build-essential libusb-1.0-0-dev
+          git clone https://github.com/osmocom/rtl-sdr.git
+          cd rtl-sdr
+          mkdir build && cd build
+          cmake ..
+          make
+          sudo make install
+    
       - name: Cache pip
         uses: actions/cache@v4
         with:
