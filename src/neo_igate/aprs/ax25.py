@@ -72,6 +72,15 @@ def kiss_payload_to_tnc2(payload: bytes) -> bytes:
     header_text = f"{src_text}>{dest_text}{path_suffix}:"
     header_bytes = header_text.encode("ascii")
     
+    # Truncate info at first CR or LF to ensure only one line is sent to APRS-IS.
+    # APRS-IS expects single-line packets terminated by CR+LF. Any embedded CR/LF
+    # in the info field should be treated as the end of the packet line.
+    for sep in (b"\r", b"\n"):
+        idx = info.find(sep)
+        if idx >= 0:
+            info = info[:idx]
+            break
+    
     return header_bytes + info
 
 
