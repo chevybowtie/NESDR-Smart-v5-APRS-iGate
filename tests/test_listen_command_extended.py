@@ -737,7 +737,7 @@ def test_run_listen_timeout_triggers_polling(monkeypatch, tmp_path, caplog) -> N
     monkeypatch.setattr(
         listen,
         "_handle_keyboard_commands",
-        lambda queue, path: handle_calls.append("called"),
+        lambda queue, path, *_args, **_kwargs: handle_calls.append("called"),
     )
 
     exit_code = listen.run_listen(Namespace(config=None, no_aprsis=True))
