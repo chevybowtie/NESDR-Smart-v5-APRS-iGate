@@ -31,8 +31,12 @@ class AX25Address:
         return f"{self.callsign}{suffix}{indicator}"
 
 
-def kiss_payload_to_tnc2(payload: bytes) -> str:
-    """Convert a raw AX.25 frame (from a KISS payload) to TNC2 textual form."""
+def kiss_payload_to_tnc2(payload: bytes) -> bytes:
+    """Convert a raw AX.25 frame (from a KISS payload) to TNC2 textual form.
+    
+    Returns bytes to preserve binary info fields that may contain non-UTF-8 data.
+    The frame is: src>dest[,path]:info where info may be binary.
+    """
     if len(payload) < 16:
         raise AX25DecodeError("AX.25 frame too short")
 
@@ -63,9 +67,21 @@ def kiss_payload_to_tnc2(payload: bytes) -> str:
     dest_text = dest.to_tnc2()
     src_text = src.to_tnc2()
     path_suffix = f",{','.join(path_parts)}" if path_parts else ""
-    payload_text = info.decode("ascii", errors="replace")
-
-    return f"{src_text}>{dest_text}{path_suffix}:{payload_text}"
+    
+    # Preserve binary info field - convert text parts to bytes and concatenate
+    header_text = f"{src_text}>{dest_text}{path_suffix}:"
+    header_bytes = header_text.encode("ascii")
+    
+    # Truncate info at first CR or LF to ensure only one line is sent to APRS-IS.
+    # APRS-IS expects single-line packets terminated by CR+LF. Any embedded CR/LF
+    # in the info field should be treated as the end of the packet line.
+    for sep in (b"\r", b"\n"):
+        idx = info.find(sep)
+        if idx >= 0:
+            info = info[:idx]
+            break
+    
+    return header_bytes + info
 
 
 def _parse_address_fields(payload: bytes) -> tuple[list[AX25Address], int]:

@@ -150,12 +150,25 @@ class APRSISClient:
             self.close()
             raise
 
-    def send_packet(self, packet: str) -> None:
-        """Transmit an already encoded TNC2 packet line to APRS-IS."""
+    def send_packet(self, packet: str | bytes) -> None:
+        """Transmit an already encoded TNC2 packet line to APRS-IS.
+        
+        Accepts either str or bytes. Packets are sent as-is without re-encoding
+        to preserve binary payloads that may contain non-UTF-8 data.
+        """
         writer = self._require_writer()
-        line = packet.rstrip("\r\n") + "\n"
+        
+        # Convert packet to bytes if needed, preserving the original encoding
+        if isinstance(packet, str):
+            packet_bytes = packet.encode("ascii", errors="replace")
+        else:
+            packet_bytes = bytes(packet)
+        
+        # Strip any trailing newlines and add exactly one LF
+        packet_bytes = packet_bytes.rstrip(b"\r\n") + b"\n"
+        
         try:
-            writer.write(line.encode("utf-8", errors="replace"))
+            writer.write(packet_bytes)
             writer.flush()
         except OSError as exc:
             raise APRSISClientError(f"Failed to send packet to APRS-IS: {exc}") from exc

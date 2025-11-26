@@ -2,9 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [0.2.2] - 2025-11-25
 
-- No unreleased changes yet.
+### Fixed
+- **APRS packet handling**: Fixed critical issue where APRS packets were being re-encoded with UTF-8, which corrupted binary payloads and created modified duplicates. Packets are now treated as raw byte sequences throughout the iGate, preserving original packet content for correct duplicate suppression and loop prevention.
+- **APRS-IS packet truncation**: Implemented proper single-line packet truncation at the first CR or LF character in AX.25 info fields, as required by APRS-IS protocol. Prevents embedded newlines from being misinterpreted as commands or separate packets by APRS-IS servers.
+
+
+### Changed
+- `kiss_payload_to_tnc2()` now returns `bytes` instead of `str` to preserve binary packet content. Accepts binary control codes and non-UTF-8 sequences in packet info fields without modification.
+- `APRSISClient.send_packet()` now accepts both `str` and `bytes` packets, sending them as-is without UTF-8 re-encoding.
+
+### Testing & Tooling
+- Added comprehensive tests for binary packet preservation (non-UTF-8 data in info fields) and CR/LF truncation behavior.
+
+## [0.2.1] - 2025-11-08
+
+### Changed
+- The `listen` command now logs a startup banner that includes the packaged version, callsign, and APRS-IS endpoint, making it easy to confirm the running build from captured logs.
+- Text-mode `diagnostics` runs emit a matching `neo-igate diagnostics v…` banner so operators and support logs clearly identify the tool version without switching to JSON output.
+
+### Testing & Tooling
+- Extended CLI and diagnostics tests to assert the new version banners so future regressions are caught automatically.
+- Bumped the project version to 0.2.1 in `pyproject.toml` to publish the logging enhancements.
 
 ## [0.2.0] - 2025-11-01
 

@@ -15,23 +15,23 @@ from pathlib import Path
 from queue import Empty, Queue
 from typing import Optional
 
-from neo_igate import config as config_module
-from neo_igate.aprs.ax25 import AX25DecodeError, kiss_payload_to_tnc2  # type: ignore[import]
-from neo_igate.aprs.aprsis_client import (  # type: ignore[import]
+from neo_rx import config as config_module
+from neo_rx.aprs.ax25 import AX25DecodeError, kiss_payload_to_tnc2  # type: ignore[import]
+from neo_rx.aprs.aprsis_client import (  # type: ignore[import]
     APRSISClient,
     APRSISClientError,
     APRSISConfig,
     RetryBackoff,
 )
-from neo_igate.aprs.kiss_client import KISSClient, KISSClientConfig, KISSClientError  # type: ignore[import]
-from neo_igate.radio.capture import AudioCaptureError, RtlFmAudioCapture, RtlFmConfig  # type: ignore[import]
+from neo_rx.aprs.kiss_client import KISSClient, KISSClientConfig, KISSClientError  # type: ignore[import]
+from neo_rx.radio.capture import AudioCaptureError, RtlFmAudioCapture, RtlFmConfig  # type: ignore[import]
 
-from neo_igate import __version__ as _SOFTWARE_VERSION
+from neo_rx import __version__ as _SOFTWARE_VERSION
 
 
 AUDIO_SAMPLE_RATE = 22_050
 _AUDIO_CHUNK_BYTES = 4096
-_SOFTWARE_NAME = "neo-igate"
+_SOFTWARE_NAME = "neo-rx"
 
 # _SOFTWARE_VERSION is provided by the package-level __version__ value.
 
@@ -47,7 +47,7 @@ def run_listen(args: Namespace) -> int:
         station_config = config_module.load_config(config_path)
     except FileNotFoundError:
         logger.error(
-            "Config not found at %s; run `neo-igate setup` first.", config_path
+            "Config not found at %s; run `neo-rx setup` first.", config_path
         )
         return 1
     except ValueError as exc:
@@ -55,7 +55,7 @@ def run_listen(args: Namespace) -> int:
         return 1
 
     logger.info(
-        "neo-igate v%s — starting listener (callsign=%s, aprs_server=%s:%s)",
+        "neo-rx v%s — starting listener (callsign=%s, aprs_server=%s:%s)",
         _SOFTWARE_VERSION,
         station_config.callsign,
         station_config.aprs_server,
@@ -95,7 +95,7 @@ def run_listen(args: Namespace) -> int:
     stop_event = threading.Event()
     command_queue: "Queue[str]" = Queue()
     keyboard_thread = _start_keyboard_listener(stop_event, command_queue)
-    summary_log_path = config_module.get_data_dir() / "logs" / "neo-igate.log"
+    summary_log_path = config_module.get_data_dir() / "logs" / "neo-rx.log"
 
     def _pump_audio() -> None:
         try:
@@ -245,7 +245,7 @@ def run_listen(args: Namespace) -> int:
                 aprs_config.host,
                 aprs_config.port,
             )
-            logger.info("Press `s` at any time for a 24h station summary overlay, or `q` to quit.")
+            logger.info("Press `s` at any time for a 24h station summary.")
         except APRSISClientError as exc:
             delay = aprs_backoff.record_failure()
             logger.warning(
@@ -288,7 +288,8 @@ def run_listen(args: Namespace) -> int:
                     # rewriting DST for RF-forwarded traffic.
                     if (
                         getattr(station_config, "software_tocall", None)
-                        and _get_source_callsign(tnc2_packet) == station_config.callsign
+                        and tnc2_packet.split(":", 1)[0].split(">", 1)[0]
+                        == station_config.callsign
                     ):
                         tnc2_to_send = _apply_software_tocall(
                             tnc2_packet, station_config.software_tocall
@@ -296,6 +297,9 @@ def run_listen(args: Namespace) -> int:
                     else:
                         tnc2_to_send = tnc2_packet
 
+                    tnc2_to_send = _append_q_construct(
+                        tnc2_to_send, station_config.callsign
+                    )
                     aprs_client.send_packet(tnc2_to_send)
                     aprs_forwarded += 1
                 except APRSISClientError as exc:
@@ -349,61 +353,65 @@ def run_listen(args: Namespace) -> int:
     return 0
 
 
-def _apply_software_tocall(tnc2_line: str | bytes, tocall: str) -> str | bytes:
+def _apply_software_tocall(tnc2_line: str, tocall: str) -> str:
     """Return a modified TNC2 line where the DEST is replaced with tocall.
 
     Only operates on the textual TNC2 form: "SRC>DST[,PATH]:INFO". The
     function preserves any existing path suffix (",...") and the info field.
-    Preserves the input type (bytes or str) in the output.
     """
     if not tocall:
         return tnc2_line
-    
-    # Work with bytes internally for safety, convert back to original type at end
-    if isinstance(tnc2_line, bytes):
-        was_bytes = True
-        line_bytes = tnc2_line
-        tocall_bytes = tocall.encode("ascii")
-    else:
-        was_bytes = False
-        line_bytes = tnc2_line.encode("ascii", errors="replace")
-        tocall_bytes = tocall.encode("ascii")
-    
-    if b":" not in line_bytes or b">" not in line_bytes:
+    if ":" not in tnc2_line or ">" not in tnc2_line:
         return tnc2_line
-    
-    header, info = line_bytes.split(b":", 1)
+    header, info = tnc2_line.split(":", 1)
     try:
-        src, rest = header.split(b">", 1)
+        src, rest = header.split(">", 1)
     except ValueError:
         return tnc2_line
-    
     # rest may contain dest[,path]
-    if b"," in rest:
-        _, path = rest.split(b",", 1)
-        new_rest = tocall_bytes + b"," + path
+    if "," in rest:
+        _, path = rest.split(",", 1)
+        new_rest = f"{tocall},{path}"
     else:
-        new_rest = tocall_bytes
-    
-    result = src + b">" + new_rest + b":" + info
-    return result if was_bytes else result.decode("ascii", errors="replace")
+        new_rest = tocall
+    return f"{src}>{new_rest}:{info}"
 
 
-def _get_source_callsign(tnc2_packet: str | bytes) -> str | None:
-    """Extract the source callsign from a TNC2 packet (before the >).
-    
-    Handles both str and bytes input, returns str or None.
+def _append_q_construct(
+    tnc2_line: str, igate_callsign: str, q_type: str = "qAR"
+) -> str:
+    """Append a q construct hop identifying this iGate.
+
+    Frames forwarded to APRS-IS must include a `q` hop describing how they
+    reached the Internet (`qAR,<igate>` for heard-via-RF traffic). This helper
+    injects the hop unless the frame already carries any q construct.
     """
-    if isinstance(tnc2_packet, bytes):
-        tnc2_packet = tnc2_packet.decode("ascii", errors="replace")
-    
-    tokens = tnc2_packet.split(":")
-    if not tokens:
-        return None
-    header = tokens[0]
-    if ">" not in header:
-        return None
-    return header.split(">", 1)[0]
+
+    if not igate_callsign or ":" not in tnc2_line or ">" not in tnc2_line:
+        return tnc2_line
+
+    header, info = tnc2_line.split(":", 1)
+    try:
+        src, rest = header.split(">", 1)
+    except ValueError:
+        return tnc2_line
+
+    parts = rest.split(",") if rest else []
+    if not parts:
+        return tnc2_line
+
+    dest = parts[0]
+    path_parts = parts[1:]
+    has_q = any(
+        component.lower().startswith("q") and len(component) >= 3
+        for component in path_parts
+    )
+    if has_q:
+        return tnc2_line
+
+    new_path = path_parts + [q_type, igate_callsign.upper()]
+    combined = ",".join([dest] + new_path)
+    return f"{src}>{combined}:{info}"
 
 
 def _resolve_direwolf_config(config_dir: Path) -> Optional[Path]:
@@ -424,13 +432,8 @@ def _wait_for_kiss(client: KISSClient, *, attempts: int, delay: float) -> bool:
     return False
 
 
-def _display_frame(count: int, port: int, tnc2_line: str | bytes) -> None:
-    # Convert bytes to str for display with error handling
-    if isinstance(tnc2_line, bytes):
-        snippet = tnc2_line.decode("ascii", errors="replace")
-    else:
-        snippet = tnc2_line
-    
+def _display_frame(count: int, port: int, tnc2_line: str) -> None:
+    snippet = tnc2_line
     if len(snippet) > 120:
         snippet = snippet[:117] + "…"
     logger.info("[%06d] port=%s %s", count, port, snippet)
@@ -491,7 +494,7 @@ def _start_keyboard_listener(
             except termios.error:
                 pass
 
-    thread = threading.Thread(target=worker, name="neo-igate-keyboard", daemon=True)
+    thread = threading.Thread(target=worker, name="neo-rx-keyboard", daemon=True)
     thread.start()
     return thread
 

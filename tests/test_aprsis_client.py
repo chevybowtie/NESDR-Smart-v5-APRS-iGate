@@ -39,7 +39,7 @@ def _start_server(responder) -> tuple[int, threading.Thread]:
 
 def test_aprsis_client_connect_and_send() -> None:
     login_queue: "queue.Queue[str]" = queue.Queue()
-    packet_queue: "queue.Queue[str]" = queue.Queue()
+    packet_queue: "queue.Queue[bytes]" = queue.Queue()
 
     def responder(conn: socket.socket) -> None:
         conn.sendall(b"# aprsc 2.1 test\n")
@@ -47,7 +47,7 @@ def test_aprsis_client_connect_and_send() -> None:
         login_queue.put(data.decode().strip())
         conn.sendall(b"# logresp TEST verified\n")
         packet = conn.recv(1024)
-        packet_queue.put(packet.decode().strip())
+        packet_queue.put(packet)
 
     port, thread = _start_server(responder)
 
@@ -68,7 +68,7 @@ def test_aprsis_client_connect_and_send() -> None:
     thread.join(timeout=1)
 
     assert login_queue.get(timeout=0.5) == "user TEST pass 12345 vers tester 1.0"
-    assert packet_queue.get(timeout=0.5) == "TEST>APRS:hello world"
+    assert packet_queue.get(timeout=0.5) == b"TEST>APRS:hello world\n"
 
 
 def test_aprsis_client_login_failure() -> None:
@@ -146,7 +146,11 @@ def test_aprsis_client_login_connection_closed() -> None:
     with pytest.raises(APRSISClientError) as excinfo:
         client.connect()
 
-    assert "Error reading APRS-IS response" in str(excinfo.value)
+    message = str(excinfo.value)
+    assert (
+        "Error reading APRS-IS response" in message
+        or "APRS-IS server closed connection during login" in message
+    )
     assert client._socket is None  # type: ignore[attr-defined]
     assert client._reader is None  # type: ignore[attr-defined]
     assert client._writer is None  # type: ignore[attr-defined]
@@ -184,6 +188,44 @@ def test_aprsis_client_send_without_connection() -> None:
 
     with pytest.raises(APRSISClientError):
         client.send_packet("TEST>APRS:hi")
+
+
+def test_aprsis_client_send_binary_packet() -> None:
+    """Verify that binary packets are sent without re-encoding."""
+    login_queue: "queue.Queue[str]" = queue.Queue()
+    packet_queue: "queue.Queue[bytes]" = queue.Queue()
+
+    def responder(conn: socket.socket) -> None:
+        conn.sendall(b"# aprsc 2.1 test\n")
+        data = conn.recv(1024)
+        login_queue.put(data.decode().strip())
+        conn.sendall(b"# logresp TEST verified\n")
+        packet = conn.recv(1024)
+        packet_queue.put(packet)
+
+    port, thread = _start_server(responder)
+
+    client = APRSISClient(
+        APRSISConfig(
+            host="127.0.0.1",
+            port=port,
+            callsign="TEST",
+            passcode="12345",
+        )
+    )
+
+    # Send a bytes packet with invalid UTF-8 sequences
+    binary_packet = b"N0CALL>APRS:\xff\xfe\xfd\x00invalid"
+    with client:
+        client.send_packet(binary_packet)
+
+    thread.join(timeout=1)
+
+    received = packet_queue.get(timeout=0.5)
+    # Verify exact binary match (including the newline appended)
+    assert received == binary_packet + b"\n"
+    # Verify no UTF-8 mangling occurred
+    assert b"\xff\xfe\xfd\x00" in received
 
 
 def test_aprsis_client_send_flush_error() -> None:

@@ -13,6 +13,7 @@ import pytest
 from neo_igate.commands import listen
 from neo_igate.config import StationConfig
 from neo_igate.radio.capture import AudioCaptureError
+from neo_igate.aprs.aprsis_client import APRSISClientError
 from neo_igate.aprs.kiss_client import KISSClientError
 
 
@@ -531,3 +532,378 @@ def test_apply_software_tocall_before_send(monkeypatch, tmp_path, caplog) -> Non
     assert exit_code == 0
     # ensure we replaced the destination with configured software TOCALL
     assert sent_packets == ["N0CALL-10>APNEO1:TEST"]
+
+
+def test_run_listen_aprs_connect_failure(monkeypatch, tmp_path, caplog) -> None:
+    caplog.set_level(logging.INFO, logger="neo_igate.commands.listen")
+    caplog.clear()
+    _patch_signal(monkeypatch)
+
+    config_path = tmp_path / "config.toml"
+    config_dir = config_path.parent
+    config_dir.mkdir(parents=True, exist_ok=True)
+    (config_dir / "direwolf.conf").write_text("test", encoding="utf-8")
+
+    cfg = StationConfig(
+        callsign="N0CALL-10",
+        passcode="12345",
+        aprs_server="test.aprs.net",
+        aprs_port=14580,
+        kiss_host="127.0.0.1",
+        kiss_port=9001,
+    )
+
+    monkeypatch.setattr(
+        listen.config_module, "resolve_config_path", lambda *_: config_path
+    )
+    monkeypatch.setattr(listen.config_module, "load_config", lambda *_: cfg)
+    monkeypatch.setattr(listen.config_module, "get_data_dir", lambda: tmp_path)
+
+    created_events: list[Any] = []
+
+    class StubEvent:
+        def __init__(self) -> None:
+            self._flag = False
+            created_events.append(self)
+
+        def set(self) -> None:
+            self._flag = True
+
+        def is_set(self) -> bool:
+            return self._flag
+
+    monkeypatch.setattr(listen.threading, "Event", StubEvent)
+
+    class ImmediateThread:
+        def __init__(self, *, target: Any, name: str, daemon: bool) -> None:
+            self._target = target
+            self._alive = False
+
+        def start(self) -> None:
+            self._alive = True
+            try:
+                self._target()
+            finally:
+                self._alive = False
+
+        def is_alive(self) -> bool:
+            return self._alive
+
+        def join(self, timeout: float | None = None) -> None:
+            self._alive = False
+
+    monkeypatch.setattr(listen.threading, "Thread", ImmediateThread)
+
+    class DummyCapture:
+        def __init__(self, *_: object, **__: object) -> None:
+            self.calls = 0
+
+        def start(self) -> None:
+            return None
+
+        def read(self, _num_bytes: int) -> bytes:
+            self.calls += 1
+            if self.calls == 1:
+                return b""
+            if self.calls == 2:
+                return b"audio"
+            created_events[0].set()
+            return b""
+
+        def stop(self) -> None:
+            return None
+
+    class DummyProc:
+        def __init__(self, *_: object, **__: object) -> None:
+            self.pid = 999
+            self.stdin: Any = None
+
+        def terminate(self) -> None:
+            return None
+
+        def wait(self, *_: object, **__: object) -> int:
+            return 0
+
+        def kill(self) -> None:
+            return None
+
+    class DummyKISSClient:
+        def __init__(self, *_: object, **__: object) -> None:
+            self.closed = False
+
+        def connect(self) -> None:
+            return None
+
+        def read_frame(self, timeout: float | None = None):  # type: ignore[no-untyped-def]
+            raise KeyboardInterrupt
+
+        def close(self) -> None:
+            self.closed = True
+
+    class FailingAPRSClient:
+        def __init__(self, *_: object, **__: object) -> None:
+            self.closed = False
+
+        def connect(self) -> None:
+            raise APRSISClientError("unavailable")
+
+        def close(self) -> None:
+            self.closed = True
+
+    monkeypatch.setattr(listen, "RtlFmAudioCapture", DummyCapture)
+    monkeypatch.setattr(listen.subprocess, "Popen", lambda *_a, **_k: DummyProc())
+    monkeypatch.setattr(listen, "KISSClient", DummyKISSClient)
+    monkeypatch.setattr(listen, "APRSISClient", FailingAPRSClient)
+
+    exit_code = listen.run_listen(Namespace(config=None))
+
+    assert exit_code == 0
+    assert "APRS-IS connection failed" in caplog.text
+
+
+def test_run_listen_timeout_triggers_polling(monkeypatch, tmp_path, caplog) -> None:
+    caplog.set_level(logging.INFO, logger="neo_igate.commands.listen")
+    caplog.clear()
+    _patch_signal(monkeypatch)
+
+    config_path = tmp_path / "config.toml"
+    config_dir = config_path.parent
+    config_dir.mkdir(parents=True, exist_ok=True)
+    (config_dir / "direwolf.conf").write_text("test", encoding="utf-8")
+
+    cfg = StationConfig(callsign="N0CALL-10", passcode="12345")
+
+    monkeypatch.setattr(
+        listen.config_module, "resolve_config_path", lambda *_: config_path
+    )
+    monkeypatch.setattr(listen.config_module, "load_config", lambda *_: cfg)
+    monkeypatch.setattr(listen.config_module, "get_data_dir", lambda: tmp_path)
+
+    class DummyCapture:
+        def __init__(self, *_: object, **__: object) -> None:
+            pass
+
+        def start(self) -> None:
+            return None
+
+        def read(self, _num_bytes: int) -> bytes:
+            return b"audio"
+
+        def stop(self) -> None:
+            return None
+
+    class DummyProc:
+        def __init__(self, *_: object, **__: object) -> None:
+            self.pid = 123
+            import io
+
+            self.stdin = io.BytesIO()
+
+        def terminate(self) -> None:
+            return None
+
+        def wait(self, *_: object, **__: object) -> int:
+            return 0
+
+        def kill(self) -> None:
+            return None
+
+    class DummyKISSClient:
+        def __init__(self, *_: object, **__: object) -> None:
+            self.calls = 0
+
+        def connect(self) -> None:
+            return None
+
+        def read_frame(self, timeout: float | None = None):  # type: ignore[no-untyped-def]
+            if self.calls == 0:
+                self.calls += 1
+                raise TimeoutError
+            raise KeyboardInterrupt
+
+        def close(self) -> None:
+            return None
+
+    report_calls: list[str] = []
+    handle_calls: list[str] = []
+
+    monkeypatch.setattr(listen, "RtlFmAudioCapture", DummyCapture)
+    monkeypatch.setattr(listen.subprocess, "Popen", lambda *_a, **_k: DummyProc())
+    monkeypatch.setattr(listen, "KISSClient", DummyKISSClient)
+    monkeypatch.setattr(
+        listen, "_report_audio_error", lambda queue: report_calls.append("called")
+    )
+    monkeypatch.setattr(
+        listen,
+        "_handle_keyboard_commands",
+        lambda queue, path, *_args, **_kwargs: handle_calls.append("called"),
+    )
+
+    exit_code = listen.run_listen(Namespace(config=None, no_aprsis=True))
+
+    assert exit_code == 0
+    assert report_calls == ["called"]
+    assert handle_calls == ["called"]
+
+
+def test_run_listen_kiss_client_error(monkeypatch, tmp_path, caplog) -> None:
+    caplog.set_level(logging.DEBUG, logger="neo_igate.commands.listen")
+    caplog.clear()
+    _patch_signal(monkeypatch)
+
+    config_path = tmp_path / "config.toml"
+    config_dir = config_path.parent
+    config_dir.mkdir(parents=True, exist_ok=True)
+    (config_dir / "direwolf.conf").write_text("test", encoding="utf-8")
+
+    cfg = StationConfig(callsign="N0CALL-10", passcode="12345")
+
+    monkeypatch.setattr(
+        listen.config_module, "resolve_config_path", lambda *_: config_path
+    )
+    monkeypatch.setattr(listen.config_module, "load_config", lambda *_: cfg)
+
+    class DummyCapture:
+        def __init__(self, *_: object, **__: object) -> None:
+            pass
+
+        def start(self) -> None:
+            return None
+
+        def read(self, _num_bytes: int) -> bytes:
+            return b"audio"
+
+        def stop(self) -> None:
+            return None
+
+    class DummyProc:
+        def __init__(self, *_: object, **__: object) -> None:
+            self.pid = 321
+            import io
+
+            self.stdin = io.BytesIO()
+
+        def terminate(self) -> None:
+            return None
+
+        def wait(self, *_: object, **__: object) -> int:
+            return 0
+
+        def kill(self) -> None:
+            return None
+
+    class DummyKISSClient:
+        def __init__(self, *_: object, **__: object) -> None:
+            pass
+
+        def connect(self) -> None:
+            return None
+
+        def read_frame(self, timeout: float | None = None):  # type: ignore[no-untyped-def]
+            raise KISSClientError("direwolf connection lost")
+
+        def close(self) -> None:
+            return None
+
+    class PersistentThread:
+        def __init__(self, *, target: Any, name: str, daemon: bool) -> None:
+            self._target = target
+
+        def start(self) -> None:
+            return None
+
+        def is_alive(self) -> bool:
+            return True
+
+        def join(self, timeout: float | None = None) -> None:
+            return None
+
+    monkeypatch.setattr(listen.threading, "Thread", PersistentThread)
+    monkeypatch.setattr(listen, "RtlFmAudioCapture", DummyCapture)
+    monkeypatch.setattr(listen.subprocess, "Popen", lambda *_a, **_k: DummyProc())
+    monkeypatch.setattr(listen, "KISSClient", DummyKISSClient)
+
+    exit_code = listen.run_listen(Namespace(config=None, no_aprsis=True))
+
+    assert exit_code == 1
+    assert "KISS client error" in caplog.text
+    assert "Audio pump thread still running after timeout" in caplog.text
+
+
+def test_run_listen_skips_bad_frame(monkeypatch, tmp_path, caplog) -> None:
+    caplog.set_level(logging.INFO, logger="neo_igate.commands.listen")
+    caplog.clear()
+    _patch_signal(monkeypatch)
+
+    config_path = tmp_path / "config.toml"
+    config_dir = config_path.parent
+    config_dir.mkdir(parents=True, exist_ok=True)
+    (config_dir / "direwolf.conf").write_text("test", encoding="utf-8")
+
+    cfg = StationConfig(callsign="N0CALL-10", passcode="12345")
+
+    monkeypatch.setattr(
+        listen.config_module, "resolve_config_path", lambda *_: config_path
+    )
+    monkeypatch.setattr(listen.config_module, "load_config", lambda *_: cfg)
+    monkeypatch.setattr(listen.config_module, "get_data_dir", lambda: tmp_path)
+
+    class DummyCapture:
+        def __init__(self, *_: object, **__: object) -> None:
+            pass
+
+        def start(self) -> None:
+            return None
+
+        def read(self, _num_bytes: int) -> bytes:
+            return b"audio"
+
+        def stop(self) -> None:
+            return None
+
+    class DummyProc:
+        def __init__(self, *_: object, **__: object) -> None:
+            self.pid = 777
+            import io
+
+            self.stdin = io.BytesIO()
+
+        def terminate(self) -> None:
+            return None
+
+        def wait(self, *_: object, **__: object) -> int:
+            return 0
+
+        def kill(self) -> None:
+            return None
+
+    from neo_igate.aprs.kiss_client import KISSCommand, KISSFrame
+
+    class DummyKISSClient:
+        def __init__(self, *_: object, **__: object) -> None:
+            self.calls = 0
+
+        def connect(self) -> None:
+            return None
+
+        def read_frame(self, timeout: float | None = None) -> KISSFrame:
+            if self.calls == 0:
+                self.calls += 1
+                return KISSFrame(port=0, command=KISSCommand.DATA, payload=b"RAW")
+            raise KeyboardInterrupt
+
+        def close(self) -> None:
+            return None
+
+    def fake_payload_to_tnc2(_payload: bytes) -> str:
+        raise listen.AX25DecodeError("bad frame")
+
+    monkeypatch.setattr(listen, "RtlFmAudioCapture", DummyCapture)
+    monkeypatch.setattr(listen.subprocess, "Popen", lambda *_a, **_k: DummyProc())
+    monkeypatch.setattr(listen, "KISSClient", DummyKISSClient)
+    monkeypatch.setattr(listen, "kiss_payload_to_tnc2", fake_payload_to_tnc2)
+
+    exit_code = listen.run_listen(Namespace(config=None, no_aprsis=True))
+
+    assert exit_code == 0
+    assert "Skipping undecodable frame" in caplog.text
