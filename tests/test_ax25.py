@@ -34,7 +34,7 @@ def test_kiss_payload_to_tnc2_basic() -> None:
     )
 
     text = kiss_payload_to_tnc2(payload)
-    assert text == "N0CALL-10>APRS,WIDE1-1,WIDE2-2*:Hello APRS"
+    assert text == b"N0CALL-10>APRS,WIDE1-1,WIDE2-2*:Hello APRS"
 
 
 def test_kiss_payload_invalid_control() -> None:
@@ -48,3 +48,20 @@ def test_kiss_payload_invalid_control() -> None:
     with pytest.raises(AX25DecodeError) as exc:
         kiss_payload_to_tnc2(payload)
     assert "Unsupported" in str(exc.value)
+
+
+def test_kiss_payload_to_tnc2_preserves_binary_info() -> None:
+    """Verify that non-UTF-8 binary data in info field is preserved."""
+    payload = (
+        _encode_address("APRS", last=False)
+        + _encode_address("N0CALL", last=True)
+        + bytes([0x03, 0xF0])
+        # Info field with invalid UTF-8 sequence
+        + b"Binary\xff\xfe\xfddata"
+    )
+
+    result = kiss_payload_to_tnc2(payload)
+    assert result == b"N0CALL>APRS:Binary\xff\xfe\xfddata"
+    # Verify it's bytes and preserves the exact binary sequence
+    assert isinstance(result, bytes)
+    assert b"\xff\xfe\xfd" in result
