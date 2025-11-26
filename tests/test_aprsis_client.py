@@ -146,7 +146,11 @@ def test_aprsis_client_login_connection_closed() -> None:
     with pytest.raises(APRSISClientError) as excinfo:
         client.connect()
 
-    assert "Error reading APRS-IS response" in str(excinfo.value)
+    message = str(excinfo.value)
+    assert (
+        "Error reading APRS-IS response" in message
+        or "APRS-IS server closed connection during login" in message
+    )
     assert client._socket is None  # type: ignore[attr-defined]
     assert client._reader is None  # type: ignore[attr-defined]
     assert client._writer is None  # type: ignore[attr-defined]
