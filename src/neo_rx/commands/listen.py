@@ -286,8 +286,7 @@ def run_listen(args: Namespace) -> int:
                     # rewriting DST for RF-forwarded traffic.
                     if (
                         getattr(station_config, "software_tocall", None)
-                        and tnc2_packet.split(":", 1)[0].split(">", 1)[0]
-                        == station_config.callsign
+                        and _get_source_callsign(tnc2_packet) == station_config.callsign
                     ):
                         tnc2_to_send = _apply_software_tocall(
                             tnc2_packet, station_config.software_tocall
@@ -349,28 +348,61 @@ def run_listen(args: Namespace) -> int:
     return 0
 
 
-def _apply_software_tocall(tnc2_line: str, tocall: str) -> str:
+def _apply_software_tocall(tnc2_line: str | bytes, tocall: str) -> str | bytes:
     """Return a modified TNC2 line where the DEST is replaced with tocall.
 
     Only operates on the textual TNC2 form: "SRC>DST[,PATH]:INFO". The
     function preserves any existing path suffix (",...") and the info field.
+    Preserves the input type (bytes or str) in the output.
     """
     if not tocall:
         return tnc2_line
-    if ":" not in tnc2_line or ">" not in tnc2_line:
+    
+    # Work with bytes internally for safety, convert back to original type at end
+    if isinstance(tnc2_line, bytes):
+        was_bytes = True
+        line_bytes = tnc2_line
+        tocall_bytes = tocall.encode("ascii")
+    else:
+        was_bytes = False
+        line_bytes = tnc2_line.encode("ascii", errors="replace")
+        tocall_bytes = tocall.encode("ascii")
+    
+    if b":" not in line_bytes or b">" not in line_bytes:
         return tnc2_line
-    header, info = tnc2_line.split(":", 1)
+    
+    header, info = line_bytes.split(b":", 1)
     try:
-        src, rest = header.split(">", 1)
+        src, rest = header.split(b">", 1)
     except ValueError:
         return tnc2_line
+    
     # rest may contain dest[,path]
-    if "," in rest:
-        _, path = rest.split(",", 1)
-        new_rest = f"{tocall},{path}"
+    if b"," in rest:
+        _, path = rest.split(b",", 1)
+        new_rest = tocall_bytes + b"," + path
     else:
-        new_rest = tocall
-    return f"{src}>{new_rest}:{info}"
+        new_rest = tocall_bytes
+    
+    result = src + b">" + new_rest + b":" + info
+    return result if was_bytes else result.decode("ascii", errors="replace")
+
+
+def _get_source_callsign(tnc2_packet: str | bytes) -> str | None:
+    """Extract the source callsign from a TNC2 packet (before the >).
+    
+    Handles both str and bytes input, returns str or None.
+    """
+    if isinstance(tnc2_packet, bytes):
+        tnc2_packet = tnc2_packet.decode("ascii", errors="replace")
+    
+    tokens = tnc2_packet.split(":")
+    if not tokens:
+        return None
+    header = tokens[0]
+    if ">" not in header:
+        return None
+    return header.split(">", 1)[0]
 
 
 def _append_q_construct(
@@ -428,8 +460,13 @@ def _wait_for_kiss(client: KISSClient, *, attempts: int, delay: float) -> bool:
     return False
 
 
-def _display_frame(count: int, port: int, tnc2_line: str) -> None:
-    snippet = tnc2_line
+def _display_frame(count: int, port: int, tnc2_line: str | bytes) -> None:
+    # Convert bytes to str for display with error handling
+    if isinstance(tnc2_line, bytes):
+        snippet = tnc2_line.decode("ascii", errors="replace")
+    else:
+        snippet = tnc2_line
+    
     if len(snippet) > 120:
         snippet = snippet[:117] + "…"
     logger.info("[%06d] port=%s %s", count, port, snippet)

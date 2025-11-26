@@ -2,14 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [0.2.2] - 2025-11-25
 
 ### Fixed
-- Patched the third-party `rtlsdr` loader so importing `neo-rx` no longer emits the Setuptools `pkg_resources` deprecation warning.
+- **APRS packet handling**: Fixed critical issue where APRS packets were being re-encoded with UTF-8, which corrupted binary payloads and created modified duplicates. Packets are now treated as raw byte sequences throughout the iGate, preserving original packet content for correct duplicate suppression and loop prevention.
+- **APRS-IS packet truncation**: Implemented proper single-line packet truncation at the first CR or LF character in AX.25 info fields, as required by APRS-IS protocol. Prevents embedded newlines from being misinterpreted as commands or separate packets by APRS-IS servers.
+
+
+### Changed
+- `kiss_payload_to_tnc2()` now returns `bytes` instead of `str` to preserve binary packet content. Accepts binary control codes and non-UTF-8 sequences in packet info fields without modification.
+- `APRSISClient.send_packet()` now accepts both `str` and `bytes` packets, sending them as-is without UTF-8 re-encoding.
 
 ### Testing & Tooling
-- Ran the full pytest suite to confirm the compatibility shim leaves existing behaviour unchanged.
-- Added unit tests for the CLI log-level handling, listener helper utilities, and setup I/O prompts to raise coverage on critical paths.
+- Added comprehensive tests for binary packet preservation (non-UTF-8 data in info fields) and CR/LF truncation behavior.
 
 ## [0.2.1] - 2025-11-08
 
