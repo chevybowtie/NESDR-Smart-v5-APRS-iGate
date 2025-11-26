@@ -21,6 +21,9 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
 
+      - name: Install librtlsdr dependencies
+        run: sudo apt-get update && sudo apt-get install -y librtlsdr0 librtlsdr-dev
+
       - name: Cache pip
         uses: actions/cache@v4
         with:
