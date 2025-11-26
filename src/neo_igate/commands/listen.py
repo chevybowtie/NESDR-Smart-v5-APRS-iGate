@@ -245,7 +245,7 @@ def run_listen(args: Namespace) -> int:
                 aprs_config.host,
                 aprs_config.port,
             )
-            logger.info("Press `s` at any time for a 24h station summary overlay.")
+            logger.info("Press `s` at any time for a 24h station summary overlay, or `q` to quit.")
         except APRSISClientError as exc:
             delay = aprs_backoff.record_failure()
             logger.warning(
@@ -493,6 +493,8 @@ def _start_keyboard_listener(
 
 
 def _handle_keyboard_commands(command_queue: "Queue[str]", log_path: Path) -> None:
+    import threading
+    global_stop_event = globals().get("stop_event")
     while True:
         try:
             command = command_queue.get_nowait()
@@ -502,6 +504,11 @@ def _handle_keyboard_commands(command_queue: "Queue[str]", log_path: Path) -> No
             summary = _summarize_recent_activity(log_path)
             # Print summary directly to stdout to avoid duplicating it in the log file.
             print("\n" + summary + "\n", flush=True)
+        elif command.lower() == "q":
+            print("\nExiting iGate...\n", flush=True)
+            # Set the stop_event to signal shutdown
+            if global_stop_event and isinstance(global_stop_event, threading.Event):
+                global_stop_event.set()
 
 
 @dataclass
