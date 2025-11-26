@@ -5,6 +5,8 @@ from __future__ import annotations
 import importlib
 from typing import Iterable
 
+from .base import RadioBackend, RadioError, RadioSettings, RadioStatus
+
 
 def _prepare_rtlsdr() -> None:
     """Ensure rtlsdr imports without triggering deprecation warnings."""
@@ -28,8 +30,6 @@ except ImportError as import_error:  # pragma: no cover - handled via runtime er
     _RTLSDR_IMPORT_ERROR = import_error
 else:
     _RTLSDR_IMPORT_ERROR = None
-
-from .base import RadioBackend, RadioError, RadioSettings, RadioStatus
 
 
 class NESDRBackend(RadioBackend):

@@ -7,7 +7,7 @@ import threading
 import tty
 from datetime import datetime, timezone
 from queue import Queue
-from typing import Any, cast
+from typing import cast
 
 from neo_igate.aprs.kiss_client import KISSClient, KISSClientError
 from neo_igate.commands import listen
