@@ -40,12 +40,17 @@ Packaging:
 - Synchronized versions across all packages.
 
 Progress Checklist:
-- [ ] Create branch `feature/multi-tool`.
-- [ ] Extract `neo_core` and update imports.
-- [ ] Create `neo_telemetry` and update references.
-- [ ] Carve `neo_aprs` and per-mode setup/diagnostics.
+- [x] Create branch `feature/multi-tool`.
+- [x] Extract `neo_core` and update imports.
+	- Core helpers (`diagnostics_helpers`, `term`, `timeutils`) migrated; CLI moved to `neo_core.cli`.
+- [~] Create `neo_telemetry` and update references.
+	- Package scaffolded; migration pending.
+- [~] Carve `neo_aprs` and per-mode setup/diagnostics.
+	- Protocol stack moved to `neo_aprs.aprs` with shims; APRS wrappers added: `listen`, `setup`, `diagnostics`.
+	- Unified CLI now routes `neo-rx aprs listen/setup/diagnostics` through new wrappers (delegating to legacy during migration).
 - [ ] Carve `neo_wspr` and per-mode setup/diagnostics; package `wsprd`.
-- [ ] Implement unified CLI subcommands in `neo_core.cli`.
+- [x] Implement unified CLI subcommands in `neo_core.cli`.
+	- APRS and WSPR subcommands scaffolded; APRS verbs now use wrappers.
 - [ ] Config layering and validation (`defaults.toml`, `aprs.toml`, `wspr.toml`).
 - [ ] Namespace data/log paths per mode/instance.
 - [ ] Update tests by mode; add concurrency tests.

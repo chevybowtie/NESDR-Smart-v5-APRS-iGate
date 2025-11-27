@@ -1,14 +1,21 @@
-"""APRS utilities and client wrappers."""
+"""Back-compat shim re-exporting APRS protocol stack from neo_aprs.
 
-from .ax25 import AX25DecodeError, kiss_payload_to_tnc2  # type: ignore[import]
-from .kiss_client import (  # type: ignore[import]
+This module remains so existing imports (neo_rx.aprs.*) continue to work
+while the refactor progresses. New code should import from neo_aprs.aprs.
+"""
+
+from neo_aprs.aprs import (  # noqa: F401,F403
+    AX25DecodeError,
+    kiss_payload_to_tnc2,
     KISSClient,
     KISSClientConfig,
     KISSClientError,
     KISSFrame,
     KISSCommand,
+    APRSISClient,
+    APRSISClientError,
+    APRSISConfig,
 )
-from .aprsis_client import APRSISClient, APRSISClientError, APRSISConfig  # type: ignore[import]
 
 __all__ = [
     "AX25DecodeError",

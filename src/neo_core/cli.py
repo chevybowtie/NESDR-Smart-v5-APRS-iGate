@@ -26,6 +26,19 @@ def build_parser() -> argparse.ArgumentParser:
 
     aprs_setup = aprs_sub.add_parser("setup", help="Run APRS setup wizard")
     _add_common_flags(aprs_setup)
+    aprs_setup.add_argument(
+        "--reset", action="store_true", help="Delete existing configuration before starting"
+    )
+    aprs_setup.add_argument(
+        "--non-interactive",
+        action="store_true",
+        help="Load answers from a config file instead of prompting",
+    )
+    aprs_setup.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Run validation without writing any files",
+    )
 
     aprs_listen = aprs_sub.add_parser("listen", help="Run APRS iGate (KISS → APRS-IS)")
     _add_common_flags(aprs_listen)
@@ -36,6 +49,7 @@ def build_parser() -> argparse.ArgumentParser:
     _add_common_flags(aprs_diag)
     aprs_diag.add_argument("--kiss-host", help="Direwolf/KISS host", default="127.0.0.1")
     aprs_diag.add_argument("--kiss-port", type=int, help="Direwolf/KISS TCP port", default=8001)
+    aprs_diag.add_argument("--verbose", action="store_true", help="Show extended diagnostic information")
 
     # WSPR subcommands
     wspr = subparsers.add_parser("wspr", help="WSPR mode commands")
@@ -74,24 +88,19 @@ def main(argv: list[str] | None = None) -> int:
 
     # Delegate to existing neo_rx CLI until mode-specific refactor completes
     if args.mode == "aprs":
-        argv2: List[str] = []
-        if args.verb == "setup":
-            argv2 = ["setup"]
-            if args.config:
-                argv2 += ["--config", args.config]
-        elif args.verb == "listen":
-            argv2 = ["listen"]
-            if args.config:
-                argv2 += ["--config", args.config]
+        if args.verb == "listen":
+            from neo_aprs.commands.listen import run_listen as aprs_run_listen  # type: ignore[import]
+            return aprs_run_listen(args)
+        elif args.verb == "setup":
+            from neo_aprs.commands.setup import run_setup as aprs_run_setup  # type: ignore[import]
+            return aprs_run_setup(args)
         elif args.verb == "diagnostics":
-            argv2 = ["diagnostics"]
-            if args.config:
-                argv2 += ["--config", args.config]
-            if getattr(args, "json", False):
-                argv2.append("--json")
+            from neo_aprs.commands.diagnostics import (  # type: ignore[import]
+                run_diagnostics as aprs_run_diagnostics,
+            )
+            return aprs_run_diagnostics(args)
         else:
             parser.error("Unknown APRS verb")
-        return legacy_main(argv2)
     elif args.mode == "wspr":
         argv2: List[str] = ["wspr"]
         if args.verb == "setup":
