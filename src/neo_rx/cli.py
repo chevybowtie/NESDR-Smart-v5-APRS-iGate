@@ -17,7 +17,6 @@ from neo_rx.commands import (  # type: ignore[import]
     run_diagnostics,
     run_listen,
     run_setup,
-    run_wspr,
 )
 
 CommandHandler = Callable[[Namespace], int]
@@ -176,77 +175,6 @@ def build_parser() -> argparse.ArgumentParser:
     )
     subparser_map["diagnostics"] = diagnostics_parser
 
-    wspr_parser = subparsers.add_parser("wspr", help="WSPR utilities and worker")
-    wspr_parser.add_argument(
-        "--config",
-        help="Path to configuration file (overrides default location)",
-    )
-    wspr_parser.add_argument(
-        "--start",
-        action="store_true",
-        help="Start WSPR capture/worker (stub)",
-    )
-    wspr_parser.add_argument(
-        "--scan",
-        action="store_true",
-        help="Run a quick band-scan and report activity (stub)",
-    )
-    wspr_parser.add_argument(
-        "--json",
-        action="store_true",
-        help="Emit machine-readable JSON output for scan/report actions",
-    )
-    wspr_parser.add_argument(
-        "--diagnostics",
-        action="store_true",
-        help="Run WSPR-specific diagnostics (upconverter heuristics) (stub)",
-    )
-    wspr_parser.add_argument(
-        "--calibrate",
-        action="store_true",
-        help="Run WSPR calibration flow (stub)",
-    )
-    wspr_parser.add_argument(
-        "--expected-freq",
-        type=float,
-        help="Expected centre frequency for calibration (Hz). If omitted, config band will be used when available.",
-    )
-    wspr_parser.add_argument(
-        "--apply",
-        action="store_true",
-        help="Apply computed ppm correction to the radio (use with care).",
-    )
-    wspr_parser.add_argument(
-        "--write-config",
-        action="store_true",
-        help="Persist computed ppm into the persistent configuration (safe-save).",
-    )
-    wspr_parser.add_argument(
-        "--spots-file",
-        help="Path to JSON-lines spots file (overrides default data dir)",
-    )
-    wspr_parser.add_argument(
-        "--upload",
-        action="store_true",
-        help="Upload queued spots to WSPRNet (stub)",
-    )
-    wspr_parser.add_argument(
-        "--heartbeat",
-        action="store_true",
-        help="Send a wsprstat heartbeat if --upload finds no successful submissions",
-    )
-    wspr_parser.add_argument(
-        "--band",
-        choices=["80m", "40m", "30m", "20m", "10m", "6m", "2m", "70cm"],
-        help="Monitor only the specified WSPR band (default: all bands)",
-    )
-    wspr_parser.add_argument(
-        "--keep-temp",
-        action="store_true",
-        help="Preserve temporary wsprd input files for debugging",
-    )
-    subparser_map["wspr"] = wspr_parser
-
     setattr(parser, "_nesdr_subparser_map", subparser_map)
 
     return parser
@@ -270,7 +198,6 @@ def main(argv: list[str] | None = None) -> int:
         "listen": run_listen,
         "setup": run_setup,
         "diagnostics": run_diagnostics,
-        "wspr": run_wspr,
     }
 
     if args.command is None:

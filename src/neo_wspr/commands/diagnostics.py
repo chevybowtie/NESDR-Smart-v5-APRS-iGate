@@ -1,21 +1,55 @@
-"""WSPR diagnostics command wrapper.
+"""WSPR diagnostics command implementation.
 
-Delegates to legacy neo_rx wspr --diagnostics.
+Runs upconverter detection heuristics.
 """
 
 from __future__ import annotations
 
+import logging
 from argparse import Namespace
-from typing import List
+
+from neo_core import config as config_module
+
+LOG = logging.getLogger(__name__)
 
 
 def run_diagnostics(args: Namespace) -> int:
-    from neo_rx.cli import main as legacy_main  # type: ignore[import]
+    """Run WSPR-specific diagnostics (upconverter detection)."""
+    cfg_path = getattr(args, "config", None)
+    cfg = None
+    try:
+        if cfg_path:
+            cfg = config_module.load_config(cfg_path)
+        else:
+            cfg = config_module.load_config()
+    except Exception:
+        LOG.debug("No configuration available")
 
-    argv: List[str] = ["wspr", "--diagnostics"]
+    LOG.info("Requested WSPR diagnostics")
+    data_dir = config_module.get_data_dir() / "wspr"
+
+    from neo_wspr.wspr import diagnostics as wspr_diag
+    from neo_wspr.wspr.calibrate import load_spots_from_jsonl
+
+    # Attempt to load recent spots from data dir (best-effort)
+    spots_file = data_dir / "wspr_spots.jsonl"
+    spots = []
+    try:
+        spots = load_spots_from_jsonl(spots_file)
+    except Exception:
+        LOG.debug("Failed to load spots for diagnostics; proceeding without spot data")
+
+    hint = wspr_diag.detect_upconverter_hint(spots)
+    LOG.info("Upconverter diagnostic: %s", hint)
+
+    # Emit JSON if requested
     if getattr(args, "json", False):
-        argv.append("--json")
-    band = getattr(args, "band", None)
-    if band:
-        argv += ["--band", str(band)]
-    return legacy_main(argv)
+        import json
+        result = {
+            "upconverter_hint": hint,
+            "spots_analyzed": len(spots),
+        }
+        print(json.dumps(result, indent=2))
+
+    return 0
+

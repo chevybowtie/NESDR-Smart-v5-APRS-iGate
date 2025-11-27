@@ -14,10 +14,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Iterable, Optional, TYPE_CHECKING
 
-from neo_core.config import StationConfig
-
 if TYPE_CHECKING:  # pragma: no cover - type-checking only
     from neo_wspr.wspr.uploader import WsprUploader
+    from neo_core.config import StationConfig
 
 LOG = logging.getLogger(__name__)
 
@@ -46,7 +45,7 @@ class WsprCapture:
         upconverter_enabled: bool = False,
         upconverter_offset_hz: int | None = None,
         keep_temp: bool = False,
-        station_config: StationConfig | None = None,
+        station_config: Optional[object] = None,
         uploader: "WsprUploader | None" = None,
     ) -> None:
         # Default to primary WSPR bands (Hz)
