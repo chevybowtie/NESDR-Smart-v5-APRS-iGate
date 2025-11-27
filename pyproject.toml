@@ -31,7 +31,8 @@ dependencies = [
 Homepage = "https://github.com/chevybowtie/NESDR-Smart-v5-APRS-iGate"
 
 [project.scripts]
-neo-rx = "neo_rx.cli:main"
+neo-rx = "neo_core.cli:main"
+neo-rx-next = "neo_core.cli:main"
 
 [project.optional-dependencies]
 dev = [

@@ -1,7 +1,10 @@
 import argparse
 import sys
+from typing import List
 
-# Stubs will be wired to neo_aprs and neo_wspr commands during refactor
+# Temporary imports to delegate to existing implementation during refactor
+from neo_rx.cli import main as legacy_main
+
 
 def _add_common_flags(p: argparse.ArgumentParser) -> None:
     p.add_argument("--device-id", help="Select SDR device by serial or index")
@@ -69,31 +72,57 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
-    # Dispatch stubs: real implementations will be imported from neo_aprs/neo_wspr
+    # Delegate to existing neo_rx CLI until mode-specific refactor completes
     if args.mode == "aprs":
+        argv2: List[str] = []
         if args.verb == "setup":
-            print("aprs setup (stub)")
+            argv2 = ["setup"]
+            if args.config:
+                argv2 += ["--config", args.config]
         elif args.verb == "listen":
-            print("aprs listen (stub)")
+            argv2 = ["listen"]
+            if args.config:
+                argv2 += ["--config", args.config]
         elif args.verb == "diagnostics":
-            print("aprs diagnostics (stub)")
+            argv2 = ["diagnostics"]
+            if args.config:
+                argv2 += ["--config", args.config]
+            if getattr(args, "json", False):
+                argv2.append("--json")
         else:
             parser.error("Unknown APRS verb")
+        return legacy_main(argv2)
     elif args.mode == "wspr":
+        argv2: List[str] = ["wspr"]
         if args.verb == "setup":
-            print("wspr setup (stub)")
+            # Legacy CLI does not have a dedicated wspr setup; run diagnostics for now
+            if getattr(args, "json", False):
+                argv2.append("--json")
+            argv2.append("--diagnostics")
         elif args.verb == "worker":
-            print("wspr worker (stub)")
+            argv2.append("--start")
+            if args.band:
+                argv2 += ["--band", args.band]
+            if args.duration:
+                # no direct mapping in legacy CLI; ignore
+                pass
         elif args.verb == "scan":
-            print("wspr scan (stub)")
+            argv2.append("--scan")
         elif args.verb == "calibrate":
-            print("wspr calibrate (stub)")
+            argv2.append("--calibrate")
         elif args.verb == "upload":
-            print("wspr upload (stub)")
+            argv2.append("--upload")
+            if args.input:
+                argv2 += ["--spots-file", args.input]
         elif args.verb == "diagnostics":
-            print("wspr diagnostics (stub)")
+            argv2.append("--diagnostics")
+            if getattr(args, "json", False):
+                argv2.append("--json")
+            if args.band:
+                argv2 += ["--band", args.band]
         else:
             parser.error("Unknown WSPR verb")
+        return legacy_main(argv2)
     else:
         parser.error("Unknown mode")
 
