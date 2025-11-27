@@ -9,7 +9,11 @@ import time
 from dataclasses import dataclass
 from typing import Callable, Optional
 import logging
-from neo_rx import __version__
+
+try:
+    from neo_rx import __version__
+except ImportError:
+    __version__ = "0.2.2"
 
 class APRSISClientError(RuntimeError):
     pass

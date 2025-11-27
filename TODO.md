@@ -47,12 +47,12 @@ Progress Checklist:
 	- **Radio capture module migrated to neo_core.radio**; neo_rx.radio.capture is now a shim.
 - [x] Create `neo_telemetry` and update references.
 	- **MQTT publisher and ondisk_queue migrated to neo_telemetry**; neo_rx.telemetry modules are now shims.
-	- All dependency extractions complete; WSPR uses neo_telemetry directly.
+	- All dependency extractions complete; both APRS and WSPR use new packages directly.
 - [x] Carve `neo_aprs` and per-mode setup/diagnostics.
 	- Protocol stack moved to `neo_aprs.aprs` (AX.25, KISS, APRS-IS) with backward-compat shims.
-	- APRS command wrappers added: `listen`, `setup`, `diagnostics` (currently delegate to legacy handlers).
-	- Unified CLI routes `neo-rx aprs <verb>` through new wrappers with full flag support.
-	- **Ready for full implementation migration** (all dependencies now in neo_core/neo_telemetry).
+	- **APRS command implementations migrated**: `listen` (638 lines), `setup` (488 lines), `diagnostics` (383 lines).
+	- **Real implementations now in neo_aprs.commands**; neo_rx.commands are shims.
+	- Unified CLI routes `neo-rx aprs <verb>` through neo_aprs implementations.
 - [x] Carve `neo_wspr` and per-mode setup/diagnostics; package `wsprd`.
 	- WSPR modules migrated to `neo_wspr.wspr` (capture, decoder, uploader, calibrate, diagnostics, scan, publisher) with backward-compat shims.
 	- WSPR command wrappers implemented: `worker`, `scan`, `calibrate`, `upload`, `diagnostics` with real logic.
