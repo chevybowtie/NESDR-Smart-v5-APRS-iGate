@@ -40,19 +40,29 @@ Packaging:
 - Synchronized versions across all packages.
 
 Progress Checklist:
-- [x] Create branch `feature/multi-tool`.
+- [ ] Create branch `feature/multi-tool`.
 - [x] Extract `neo_core` and update imports.
 	- Core helpers (`diagnostics_helpers`, `term`, `timeutils`) migrated; CLI moved to `neo_core.cli`.
-- [~] Create `neo_telemetry` and update references.
-	- Package scaffolded; migration pending.
-- [~] Carve `neo_aprs` and per-mode setup/diagnostics.
-	- Protocol stack moved to `neo_aprs.aprs` with shims; APRS wrappers added: `listen`, `setup`, `diagnostics`.
-	- Unified CLI now routes `neo-rx aprs listen/setup/diagnostics` through new wrappers (delegating to legacy during migration).
-- [ ] Carve `neo_wspr` and per-mode setup/diagnostics; package `wsprd`.
-	- [~] WSPR command wrappers added (worker, scan, calibrate, upload, diagnostics) and CLI routed; logic migration pending.
+	- **Config migrated from neo_rx to neo_core**; neo_rx.config is now a shim re-exporting from neo_core.
+	- **Radio capture module migrated to neo_core.radio**; neo_rx.radio.capture is now a shim.
+- [x] Create `neo_telemetry` and update references.
+	- **MQTT publisher and ondisk_queue migrated to neo_telemetry**; neo_rx.telemetry modules are now shims.
+	- All dependency extractions complete; WSPR uses neo_telemetry directly.
+- [x] Carve `neo_aprs` and per-mode setup/diagnostics.
+	- Protocol stack moved to `neo_aprs.aprs` (AX.25, KISS, APRS-IS) with backward-compat shims.
+	- APRS command wrappers added: `listen`, `setup`, `diagnostics` (currently delegate to legacy handlers).
+	- Unified CLI routes `neo-rx aprs <verb>` through new wrappers with full flag support.
+	- **Ready for full implementation migration** (all dependencies now in neo_core/neo_telemetry).
+- [x] Carve `neo_wspr` and per-mode setup/diagnostics; package `wsprd`.
+	- WSPR modules migrated to `neo_wspr.wspr` (capture, decoder, uploader, calibrate, diagnostics, scan, publisher) with backward-compat shims.
+	- WSPR command wrappers implemented: `worker`, `scan`, `calibrate`, `upload`, `diagnostics` with real logic.
+	- Unified CLI routes `neo-rx wspr <verb>` through new implementations; legacy handler removed.
+	- `wsprd` binary packaged with `neo_wspr`.
 - [x] Implement unified CLI subcommands in `neo_core.cli`.
-	- APRS and WSPR subcommands scaffolded; APRS verbs now use wrappers.
+	- APRS and WSPR subcommands fully implemented; all verbs route to new packages.
+	- Flag parity maintained: APRS (--reset, --dry-run, --non-interactive, --verbose), WSPR (--band, --json, etc.).
 - [ ] Config layering and validation (`defaults.toml`, `aprs.toml`, `wspr.toml`).
+	- Config module migrated to neo_core; multi-file layering deferred to future iteration.
 - [ ] Namespace data/log paths per mode/instance.
 - [ ] Update tests by mode; add concurrency tests.
 - [ ] Update docs (README, onboarding, diagnostics, radio-layer, direwolf, wspr).

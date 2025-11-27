@@ -1,7 +1,8 @@
 """APRS listen command wrapper.
 
-For now, this delegates to the legacy neo_rx CLI entry so that logging
-and config behavior remain identical during the migration.
+During migration, this delegates to the legacy neo_rx CLI implementation.
+Once all neo_core.radio dependencies are fully migrated, this can be replaced
+with the real implementation.
 """
 
 from __future__ import annotations

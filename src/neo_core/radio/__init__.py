@@ -1,3 +1,13 @@
-"""SDR radio abstractions (interfaces and NESDR backend)."""
+"""SDR radio abstractions and audio capture utilities."""
 
-# Placeholder: implementations will be migrated from neo_rx.radio
+from neo_core.radio.capture import (
+    AudioCaptureError,
+    RtlFmAudioCapture,
+    RtlFmConfig,
+)
+
+__all__ = [
+    "AudioCaptureError",
+    "RtlFmAudioCapture",
+    "RtlFmConfig",
+]
