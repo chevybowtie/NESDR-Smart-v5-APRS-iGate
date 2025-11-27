@@ -102,36 +102,29 @@ def main(argv: list[str] | None = None) -> int:
         else:
             parser.error("Unknown APRS verb")
     elif args.mode == "wspr":
-        argv2: List[str] = ["wspr"]
         if args.verb == "setup":
-            # Legacy CLI does not have a dedicated wspr setup; run diagnostics for now
+            # No dedicated legacy setup; keep existing diagnostics mapping
+            argv2: List[str] = ["wspr", "--diagnostics"]
             if getattr(args, "json", False):
                 argv2.append("--json")
-            argv2.append("--diagnostics")
+            return legacy_main(argv2)
         elif args.verb == "worker":
-            argv2.append("--start")
-            if args.band:
-                argv2 += ["--band", args.band]
-            if args.duration:
-                # no direct mapping in legacy CLI; ignore
-                pass
+            from neo_wspr.commands.worker import run_worker  # type: ignore[import]
+            return run_worker(args)
         elif args.verb == "scan":
-            argv2.append("--scan")
+            from neo_wspr.commands.scan import run_scan  # type: ignore[import]
+            return run_scan(args)
         elif args.verb == "calibrate":
-            argv2.append("--calibrate")
+            from neo_wspr.commands.calibrate import run_calibrate  # type: ignore[import]
+            return run_calibrate(args)
         elif args.verb == "upload":
-            argv2.append("--upload")
-            if args.input:
-                argv2 += ["--spots-file", args.input]
+            from neo_wspr.commands.upload import run_upload  # type: ignore[import]
+            return run_upload(args)
         elif args.verb == "diagnostics":
-            argv2.append("--diagnostics")
-            if getattr(args, "json", False):
-                argv2.append("--json")
-            if args.band:
-                argv2 += ["--band", args.band]
+            from neo_wspr.commands.diagnostics import run_diagnostics  # type: ignore[import]
+            return run_diagnostics(args)
         else:
             parser.error("Unknown WSPR verb")
-        return legacy_main(argv2)
     else:
         parser.error("Unknown mode")
 

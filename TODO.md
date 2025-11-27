@@ -49,6 +49,7 @@ Progress Checklist:
 	- Protocol stack moved to `neo_aprs.aprs` with shims; APRS wrappers added: `listen`, `setup`, `diagnostics`.
 	- Unified CLI now routes `neo-rx aprs listen/setup/diagnostics` through new wrappers (delegating to legacy during migration).
 - [ ] Carve `neo_wspr` and per-mode setup/diagnostics; package `wsprd`.
+	- [~] WSPR command wrappers added (worker, scan, calibrate, upload, diagnostics) and CLI routed; logic migration pending.
 - [x] Implement unified CLI subcommands in `neo_core.cli`.
 	- APRS and WSPR subcommands scaffolded; APRS verbs now use wrappers.
 - [ ] Config layering and validation (`defaults.toml`, `aprs.toml`, `wspr.toml`).
