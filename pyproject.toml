@@ -61,7 +61,8 @@ mqtt = [
 package-dir = {"" = "src"}
 
 [tool.setuptools.package-data]
-neo_rx = ["templates/direwolf.conf", "wspr/bin/wsprd"]
+neo_rx = ["templates/direwolf.conf"]
+neo_wspr = ["wspr/bin/wsprd"]
 
 [tool.pytest.ini_options]
 addopts = "-ra"

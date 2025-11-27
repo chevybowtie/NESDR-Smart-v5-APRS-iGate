@@ -1,7 +1,6 @@
-"""Back-compat shim re-exporting from neo_wspr.wspr.uploader."""
+"""WSPRNet uploader with durable on-disk queue and HTTP client."""
 
-from neo_wspr.wspr.uploader import *  # noqa: F401,F403
-
+from __future__ import annotations
 
 import json
 import logging
@@ -12,7 +11,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Optional, cast
 
-from neo_rx import __version__
+# Import version from neo_rx package to maintain compatibility during migration
+try:
+    from neo_rx import __version__
+except ImportError:
+    __version__ = "0.2.2"  # Fallback during development
 
 LOG = logging.getLogger(__name__)
 

@@ -1,7 +1,11 @@
-"""Back-compat shim re-exporting from neo_wspr.wspr.scan."""
+"""Band-scan and scoring utilities for WSPR.
 
-from neo_wspr.wspr.scan import *  # noqa: F401,F403
+Provides a simple synchronous scanner that runs short captures per band,
+parses spots using the existing decoder, and computes basic metrics used
+to rank bands: decodes per minute, median SNR, max SNR, and unique callers.
+"""
 
+from __future__ import annotations
 
 import logging
 from statistics import median

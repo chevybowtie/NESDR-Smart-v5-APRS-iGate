@@ -1,7 +1,10 @@
-"""Back-compat shim re-exporting from neo_wspr.wspr.capture."""
+"""Capture orchestration for WSPR.
 
-from neo_wspr.wspr.capture import *  # noqa: F401,F403
+This module coordinates SDR captures, scheduling, and hand-off to the
+decoder. It provides real-time multi-band WSPR capture using RTL-SDR.
+"""
 
+from __future__ import annotations
 
 import json
 import logging
@@ -11,10 +14,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Iterable, Optional, TYPE_CHECKING
 
-from neo_rx.config import StationConfig
+from neo_core.config import StationConfig
 
 if TYPE_CHECKING:  # pragma: no cover - type-checking only
-    from neo_rx.wspr.uploader import WsprUploader
+    from neo_wspr.wspr.uploader import WsprUploader
 
 LOG = logging.getLogger(__name__)
 
@@ -100,7 +103,7 @@ class WsprCapture:
     def _capture_loop(self) -> None:
         """Background capture loop: cycle through bands, capture, decode, publish."""
         from .decoder import WsprDecoder
-        from neo_rx._compat import prepare_rtlsdr
+        from neo_core._compat.rtlsdr import prepare_rtlsdr
 
         # Prepare RTL-SDR with compatibility patches
         prepare_rtlsdr()

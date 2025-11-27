@@ -1,11 +1,13 @@
-"""WSPR feature package.
+"""Back-compat shim re-exporting from neo_wspr.wspr."""
 
-This package contains modules responsible for capturing, decoding,
-diagnostics, calibration, and reporting of WSPR spots. Core pipeline
-components (capture, decoding, calibration, queueing) are implemented
-in a minimal, testable form and can be extended for tighter hardware or
-API integrations.
-"""
+# Import explicitly to avoid circular imports during transition
+from neo_wspr.wspr.capture import *  # noqa: F401,F403
+from neo_wspr.wspr.decoder import *  # noqa: F401,F403
+from neo_wspr.wspr.uploader import *  # noqa: F401,F403
+from neo_wspr.wspr.calibrate import *  # noqa: F401,F403
+from neo_wspr.wspr.diagnostics import *  # noqa: F401,F403
+from neo_wspr.wspr.scan import *  # noqa: F401,F403
+from neo_wspr.wspr.publisher import *  # noqa: F401,F403
 
 __all__ = [
     "capture",
@@ -14,4 +16,7 @@ __all__ = [
     "uploader",
     "calibrate",
     "publisher",
+    "scan",
 ]
+
+

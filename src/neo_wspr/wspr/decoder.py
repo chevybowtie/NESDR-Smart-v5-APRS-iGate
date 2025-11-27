@@ -1,7 +1,13 @@
-"""Back-compat shim re-exporting from neo_wspr.wspr.decoder."""
+"""WSPR decoder wrapper.
 
-from neo_wspr.wspr.decoder import *  # noqa: F401,F403
+This module wraps an external decoder (eg. ``wsprd``) and emits parsed
+spot dictionaries. It provides a lightweight, well-tested subprocess
+wrapper and text parser used by the CLI and unit tests. The implementation
+is intentionally minimal to keep the decoding contract stable; it can be
+extended for streaming input or native bindings in the future.
+"""
 
+from __future__ import annotations
 
 import io
 import logging

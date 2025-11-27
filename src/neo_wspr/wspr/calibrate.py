@@ -1,7 +1,12 @@
-"""Back-compat shim re-exporting from neo_wspr.wspr.calibrate."""
+"""Calibration helpers for WSPR.
 
-from neo_wspr.wspr.calibrate import *  # noqa: F401,F403
+Helpers to estimate frequency offset from observed decoded spots and
+convert that offset into parts-per-million (ppm) which can be applied
+to the radio driver. Includes a small JSON-lines loader useful for
+post-processing captured spot files.
+"""
 
+from __future__ import annotations
 
 import logging
 from typing import Optional, Iterable
@@ -23,7 +28,7 @@ def compute_ppm_from_offset(freq_hz: float, offset_hz: float) -> float:
 
 def apply_ppm_to_radio(ppm: float) -> None:
     """Apply ppm correction to the radio driver (requires implementation)."""
-    from neo_rx._compat import prepare_rtlsdr
+    from neo_core._compat.rtlsdr import prepare_rtlsdr
 
     # Prepare RTL-SDR with compatibility patches
     prepare_rtlsdr()
@@ -78,7 +83,7 @@ def persist_ppm_to_config(ppm: float, config_path: str | None = None) -> None:
         # Create an automatic timestamped backup of existing config, if present
         try:
             import shutil
-            from neo_rx.timeutils import utc_timestamp
+            from neo_core.timeutils import utc_timestamp
 
             if target_path is not None and target_path.exists():
                 # use a dedicated backups directory under the config dir

@@ -1,7 +1,11 @@
-"""Back-compat shim re-exporting from neo_wspr.wspr.diagnostics."""
+"""Upconverter and SDR diagnostics for WSPR.
 
-from neo_wspr.wspr.diagnostics import *  # noqa: F401,F403
+Provides heuristics for detecting an upconverter and recommending an LO
+offset. Since passive upconverters aren't USB devices, heuristics rely
+on spectral analysis, SNR patterns, and frequency shift detection.
+"""
 
+from __future__ import annotations
 
 import logging
 from typing import Dict, Iterable

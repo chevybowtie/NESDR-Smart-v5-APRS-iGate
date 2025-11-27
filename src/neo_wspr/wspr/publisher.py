@@ -1,7 +1,11 @@
-"""Back-compat shim re-exporting from neo_wspr.wspr.publisher."""
+"""WSPR publisher helpers — bridge to project's telemetry publisher.
 
-from neo_wspr.wspr.publisher import *  # noqa: F401,F403
+This module provides a convenience function to create a publisher based on
+the project's configuration. It intentionally avoids hard import of optional
+MQTT dependency until actually constructing an MQTT publisher.
+"""
 
+from __future__ import annotations
 
 import logging
 
@@ -21,7 +25,7 @@ def make_publisher_from_config(cfg: config_module.StationConfig):
         LOG.debug("MQTT disabled in config; no publisher created")
         return None
     try:
-        from neo_rx.telemetry.mqtt_publisher import MqttPublisher
+        from neo_telemetry.mqtt_publisher import MqttPublisher
 
         host = cfg.mqtt_host or "127.0.0.1"
         port = int(cfg.mqtt_port or 1883)
