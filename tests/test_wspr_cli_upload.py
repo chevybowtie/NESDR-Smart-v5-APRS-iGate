@@ -6,8 +6,9 @@ import logging
 
 import pytest
 
-from neo_rx.commands import wspr as wspr_cmd
-from neo_rx.config import StationConfig
+from neo_wspr.commands import run_upload
+from neo_core.config import StationConfig
+from neo_core import config as config_module
 
 
 @pytest.fixture(name="base_args")
@@ -28,10 +29,10 @@ def _base_args():
 
 
 def test_upload_requires_configuration(monkeypatch, caplog, base_args):
-    monkeypatch.setattr(wspr_cmd, "_load_config_if_present", lambda _path: None)
+    monkeypatch.setattr(config_module, "load_config", lambda path=None: (_ for _ in ()).throw(Exception("No config")))
     caplog.set_level(logging.ERROR)
 
-    exit_code = wspr_cmd.run_wspr(base_args)
+    exit_code = run_upload(base_args)
 
     assert exit_code == 1
     assert "Cannot upload WSPR spots without a configuration" in caplog.text
@@ -39,11 +40,11 @@ def test_upload_requires_configuration(monkeypatch, caplog, base_args):
 
 def test_upload_requires_uploader_enabled(monkeypatch, caplog, tmp_path, base_args):
     cfg = StationConfig(callsign="TEST", passcode="12345", wspr_uploader_enabled=False)
-    monkeypatch.setattr(wspr_cmd, "_load_config_if_present", lambda _path: cfg)
-    monkeypatch.setattr(wspr_cmd.config_module, "get_data_dir", lambda: tmp_path)
+    monkeypatch.setattr(config_module, "load_config", lambda path=None: cfg)
+    monkeypatch.setattr(config_module, "get_data_dir", lambda: tmp_path)
     caplog.set_level(logging.ERROR)
 
-    exit_code = wspr_cmd.run_wspr(base_args)
+    exit_code = run_upload(base_args)
 
     assert exit_code == 1
     assert "WSPR uploader is disabled" in caplog.text

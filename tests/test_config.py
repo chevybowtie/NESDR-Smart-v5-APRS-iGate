@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from neo_rx import config as config_module
-from neo_rx.config import StationConfig
+from neo_core import config as config_module
+from neo_core.config import StationConfig
 
 
 def test_save_and_load_roundtrip(tmp_path) -> None:

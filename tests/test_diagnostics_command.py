@@ -10,8 +10,8 @@ import types
 from pathlib import Path
 from argparse import Namespace
 
-from neo_rx.commands import diagnostics
-from neo_rx.config import StationConfig, save_config
+from neo_aprs.commands import diagnostics
+from neo_core.config import StationConfig, save_config
 
 
 class _ProbeResult:

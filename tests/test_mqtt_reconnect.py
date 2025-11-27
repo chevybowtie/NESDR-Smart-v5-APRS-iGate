@@ -83,8 +83,8 @@ def test_publish_retries_after_failure(monkeypatch, tmp_path):
 
 
 def test_cli_publisher_wiring(monkeypatch):
-    from neo_rx import config as config_module
-    from neo_rx.commands import wspr as wspr_cmd
+    from neo_core import config as config_module
+    from neo_wspr.commands.worker import run_worker
 
     cfg = config_module.StationConfig(
         callsign="N0TEST",
@@ -116,7 +116,7 @@ def test_cli_publisher_wiring(monkeypatch):
 
         def start(self):
             # Simulate publishing spots
-            from neo_rx.wspr.decoder import WsprDecoder
+            from neo_wspr.wspr.decoder import WsprDecoder
             decoder = WsprDecoder()
             for spot in decoder.run_wsprd_subprocess(b'', self.bands_hz[0]):
                 if self.publisher:

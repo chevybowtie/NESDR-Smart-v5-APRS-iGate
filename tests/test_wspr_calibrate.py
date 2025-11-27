@@ -4,7 +4,7 @@ from pathlib import Path
 import json
 import tempfile
 
-from neo_rx.wspr.calibrate import (
+from neo_wspr.wspr.calibrate import (
     compute_ppm_from_offset,
     apply_ppm_to_radio,
     persist_ppm_to_config,

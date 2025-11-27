@@ -1,8 +1,8 @@
 import json
 from pathlib import Path
 
-from neo_rx.config import StationConfig
-from neo_rx.wspr.capture import WsprCapture
+from neo_core.config import StationConfig
+from neo_wspr.wspr.capture import WsprCapture
 
 
 def fake_capture_fn(band_hz: int, duration_s: int):

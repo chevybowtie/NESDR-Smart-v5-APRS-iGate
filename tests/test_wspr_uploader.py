@@ -8,7 +8,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 
-from neo_rx.wspr.uploader import (
+from neo_wspr.wspr.uploader import (
     DAEMON_BACKOFF_BASE_S,
     WsprUploader,
 )

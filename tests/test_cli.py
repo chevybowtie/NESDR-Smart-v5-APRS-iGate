@@ -11,9 +11,9 @@ from collections.abc import Iterator
 import pytest
 
 from neo_rx.aprs.aprsis_client import APRSISClientError
-from neo_rx.cli import main
+from neo_core.cli import main
 from neo_rx.aprs.kiss_client import KISSCommand
-from neo_rx.config import CONFIG_ENV_VAR, StationConfig, save_config
+from neo_core.config import CONFIG_ENV_VAR, StationConfig, save_config
 import neo_rx.cli as cli
 
 
@@ -131,10 +131,10 @@ def test_setup_dry_run_interactive(tmp_path, monkeypatch, capsys) -> None:
     config_path = tmp_path / "config.toml"
     monkeypatch.setenv(CONFIG_ENV_VAR, str(config_path))
     monkeypatch.setattr(
-        "neo_rx.commands.setup.config_module.keyring_supported", lambda: False
+        "neo_aprs.commands.setup.config_module.keyring_supported", lambda: False
     )
     monkeypatch.setattr(
-        "neo_rx.commands.setup._offer_hardware_validation", lambda *_: None
+        "neo_aprs.commands.setup._offer_hardware_validation", lambda *_: None
     )
 
     inputs: Iterator[str] = iter(
@@ -152,7 +152,7 @@ def test_setup_dry_run_interactive(tmp_path, monkeypatch, capsys) -> None:
     passwords: Iterator[str] = iter(["12345", "12345"])
 
     monkeypatch.setattr("builtins.input", lambda _: next(inputs))
-    monkeypatch.setattr("neo_rx.commands.setup.getpass", lambda _: next(passwords))
+    monkeypatch.setattr("neo_aprs.commands.setup.getpass", lambda _: next(passwords))
 
     exit_code = main(["setup", "--dry-run"])
     captured = capsys.readouterr()
@@ -168,10 +168,10 @@ def test_setup_writes_direwolf_config(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "xdg_data"))
     monkeypatch.setattr(
-        "neo_rx.commands.setup.config_module.keyring_supported", lambda: False
+        "neo_aprs.commands.setup.config_module.keyring_supported", lambda: False
     )
     monkeypatch.setattr(
-        "neo_rx.commands.setup._offer_hardware_validation", lambda *_: None
+        "neo_aprs.commands.setup._offer_hardware_validation", lambda *_: None
     )
 
     inputs: Iterator[str] = iter(
@@ -190,7 +190,7 @@ def test_setup_writes_direwolf_config(tmp_path, monkeypatch) -> None:
     passwords: Iterator[str] = iter(["s3cret", "s3cret"])
 
     monkeypatch.setattr("builtins.input", lambda _: next(inputs))
-    monkeypatch.setattr("neo_rx.commands.setup.getpass", lambda _: next(passwords))
+    monkeypatch.setattr("neo_aprs.commands.setup.getpass", lambda _: next(passwords))
 
     exit_code = main(["setup"])
 
@@ -303,14 +303,14 @@ def test_listen_command_once(tmp_path, monkeypatch, capsys) -> None:
         def close(self) -> None:
             self.closed = True
 
-    monkeypatch.setattr("neo_rx.commands.listen.RtlFmAudioCapture", DummyCapture)
+    monkeypatch.setattr("neo_aprs.commands.listen.RtlFmAudioCapture", DummyCapture)
     monkeypatch.setattr(
-        "neo_rx.commands.listen.subprocess.Popen", lambda *a, **k: DummyProcess()
+        "neo_aprs.commands.listen.subprocess.Popen", lambda *a, **k: DummyProcess()
     )
-    monkeypatch.setattr("neo_rx.commands.listen.KISSClient", DummyKISSClient)
-    monkeypatch.setattr("neo_rx.commands.listen.APRSISClient", DummyAPRSClient)
+    monkeypatch.setattr("neo_aprs.commands.listen.KISSClient", DummyKISSClient)
+    monkeypatch.setattr("neo_aprs.commands.listen.APRSISClient", DummyAPRSClient)
     monkeypatch.setattr(
-        "neo_rx.commands.listen.kiss_payload_to_tnc2",
+        "neo_aprs.commands.listen.kiss_payload_to_tnc2",
         lambda *_: "N0CALL-10>APRS:TEST",
     )
 
@@ -356,7 +356,7 @@ def test_listen_reconnect_and_stats(tmp_path, monkeypatch, capsys) -> None:
             self.current += seconds
 
     time_stub = TimeStub()
-    monkeypatch.setattr("neo_rx.commands.listen.time", time_stub)
+    monkeypatch.setattr("neo_aprs.commands.listen.time", time_stub)
 
     class DummyCapture:
         def __init__(self, *_: object, **__: object) -> None:
@@ -437,14 +437,14 @@ def test_listen_reconnect_and_stats(tmp_path, monkeypatch, capsys) -> None:
         def close(self) -> None:
             self.closed = True
 
-    monkeypatch.setattr("neo_rx.commands.listen.RtlFmAudioCapture", DummyCapture)
+    monkeypatch.setattr("neo_aprs.commands.listen.RtlFmAudioCapture", DummyCapture)
     monkeypatch.setattr(
-        "neo_rx.commands.listen.subprocess.Popen", lambda *a, **k: DummyProcess()
+        "neo_aprs.commands.listen.subprocess.Popen", lambda *a, **k: DummyProcess()
     )
-    monkeypatch.setattr("neo_rx.commands.listen.KISSClient", DummyKISSClient)
-    monkeypatch.setattr("neo_rx.commands.listen.APRSISClient", DummyAPRSClient)
+    monkeypatch.setattr("neo_aprs.commands.listen.KISSClient", DummyKISSClient)
+    monkeypatch.setattr("neo_aprs.commands.listen.APRSISClient", DummyAPRSClient)
     monkeypatch.setattr(
-        "neo_rx.commands.listen.kiss_payload_to_tnc2",
+        "neo_aprs.commands.listen.kiss_payload_to_tnc2",
         lambda payload: f"N0CALL-10>APRS:{payload.decode()}",
     )
 

@@ -4,8 +4,8 @@ from typing import Iterator
 
 import pytest
 
-from neo_rx.commands import setup_io
-from neo_rx.config import StationConfig
+from neo_aprs.commands import setup
+from neo_core.config import StationConfig
 
 
 def test_prompt_string_validates_and_transforms() -> None:
@@ -19,7 +19,7 @@ def test_prompt_string_validates_and_transforms() -> None:
         if value != "GOOD":
             raise ValueError("Must be GOOD")
 
-    prompt = setup_io.Prompt(
+    prompt = setup._Prompt(
         None,
         input_func=fake_input,
         echo=lambda message: echoes.append(message),
@@ -33,7 +33,7 @@ def test_prompt_string_validates_and_transforms() -> None:
 
 
 def test_prompt_optional_string_returns_default() -> None:
-    prompt = setup_io.Prompt(None, input_func=lambda _: "", echo=lambda _: None)
+    prompt = setup._Prompt(None, input_func=lambda _: "", echo=lambda _: None)
     assert prompt.optional_string("Label", default="existing") == "existing"
 
 
@@ -41,7 +41,7 @@ def test_prompt_integer_enforces_bounds() -> None:
     responses = iter(["abc", "3", "150"])
     echoes: list[str] = []
 
-    prompt = setup_io.Prompt(
+    prompt = setup._Prompt(
         None,
         input_func=lambda _: next(responses),
         echo=lambda message: echoes.append(message),
@@ -58,7 +58,7 @@ def test_prompt_optional_float_handles_invalid() -> None:
     responses = iter(["", "oops", "1.23"])
     echoes: list[str] = []
 
-    prompt = setup_io.Prompt(
+    prompt = setup._Prompt(
         None,
         input_func=lambda _: next(responses),
         echo=lambda message: echoes.append(message),
@@ -78,7 +78,7 @@ def test_prompt_secret_handles_defaults_and_mismatch() -> None:
     secrets = iter(["", "first", "second", "second", "second"])
     echoes: list[str] = []
 
-    prompt = setup_io.Prompt(
+    prompt = setup._Prompt(
         StationConfig(callsign="N0CALL", passcode="secret"),
         secret_func=lambda _: next(secrets),
         echo=lambda message: echoes.append(message),
@@ -96,7 +96,7 @@ def test_prompt_session_ask_yes_no_uses_injected_functions() -> None:
     responses = iter(["yes"])
     echoed: list[str] = []
 
-    session = setup_io.PromptSession(
+    session = setup._PromptSession(
         None,
         input_func=lambda _: next(responses),
         echo=lambda message: echoed.append(message),
@@ -115,7 +115,7 @@ def test_prompt_yes_no_invalid_then_default(monkeypatch, capsys) -> None:
 
     echo_messages: list[str] = []
 
-    result = setup_io.prompt_yes_no(
+    result = setup.prompt_yes_no(
         "Proceed?",
         default=True,
         input_func=fake_input,
@@ -127,9 +127,9 @@ def test_prompt_yes_no_invalid_then_default(monkeypatch, capsys) -> None:
 
 
 def test_format_prompt_and_parse_helpers() -> None:
-    assert setup_io._format_prompt("Label", "default") == "Label [default]: "
-    assert setup_io._format_prompt("Label", None) == "Label: "
-    assert setup_io._parse_int("10") == 10
-    assert setup_io._parse_int("oops") is None
-    assert setup_io._parse_float("1.5") == pytest.approx(1.5)
-    assert setup_io._parse_float("oops") is None
+    assert setup._format_prompt("Label", "default") == "Label [default]: "
+    assert setup._format_prompt("Label", None) == "Label: "
+    assert setup._parse_int("10") == 10
+    assert setup._parse_int("oops") is None
+    assert setup._parse_float("1.5") == pytest.approx(1.5)
+    assert setup._parse_float("oops") is None

@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from neo_rx.wspr.capture import WsprCapture
+from neo_wspr.wspr.capture import WsprCapture
 
 
 class MockPublisher:

@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from neo_rx import config as config_module
-from neo_rx.wspr.calibrate import persist_ppm_to_config
+from neo_core import config as config_module
+from neo_wspr.wspr.calibrate import persist_ppm_to_config
 
 
 def make_sample_config(tmp_path: Path) -> Path:

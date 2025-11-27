@@ -10,7 +10,7 @@ from queue import Queue
 from typing import cast
 
 from neo_rx.aprs.kiss_client import KISSClient, KISSClientError
-from neo_rx.commands import listen
+from neo_aprs.commands import listen
 
 
 def test_apply_software_tocall_rewrites_destination() -> None:
@@ -61,7 +61,7 @@ def test_handle_keyboard_commands_ignores_other_keys(tmp_path, capsys) -> None:
 
 
 def test_report_audio_error_logs(caplog) -> None:
-    caplog.set_level(logging.ERROR, logger="neo_rx.commands.listen")
+    caplog.set_level(logging.ERROR, logger="neo_aprs.commands.listen")
     queue: "Queue[Exception]" = Queue()
     queue.put(RuntimeError("boom"))
 

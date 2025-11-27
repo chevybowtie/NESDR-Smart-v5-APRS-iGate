@@ -8,13 +8,13 @@ from pathlib import Path
 
 import pytest
 
-from neo_rx import config as config_module
-from neo_rx.commands import setup
-from neo_rx.config import StationConfig, save_config
+from neo_core import config as config_module
+from neo_aprs.commands import setup
+from neo_core.config import StationConfig, save_config
 
 
 def _setup_caplog(caplog, level=logging.INFO) -> None:
-    caplog.set_level(level, logger="neo_rx.commands.setup")
+    caplog.set_level(level, logger="neo_aprs.commands.setup")
     caplog.clear()
 
 

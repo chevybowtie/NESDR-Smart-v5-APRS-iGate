@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from neo_rx.commands.listen import _summarize_recent_activity
+from neo_aprs.commands.listen import _summarize_recent_activity
 
 
 def test_summarize_recent_activity_filters_recent(tmp_path) -> None:

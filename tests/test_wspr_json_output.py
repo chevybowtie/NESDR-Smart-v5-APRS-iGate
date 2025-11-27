@@ -4,8 +4,11 @@ import json
 from argparse import Namespace
 
 
-from neo_rx.commands import wspr as wspr_cmd
-from neo_rx import config as config_module
+from neo_core import config as config_module
+from neo_wspr.commands.scan import run_scan
+from neo_wspr.commands.upload import run_upload
+from neo_wspr.wspr import scan as wspr_scan
+from neo_wspr.wspr.uploader import WsprUploader
 
 
 def test_scan_json_output(monkeypatch, capsys, tmp_path):
@@ -40,7 +43,7 @@ def test_scan_json_output(monkeypatch, capsys, tmp_path):
             },
         ]
 
-    monkeypatch.setattr(wspr_cmd.wspr_scan, "scan_bands", fake_scan_bands)
+    monkeypatch.setattr(wspr_scan, "scan_bands", fake_scan_bands)
 
     args = Namespace(
         scan=True,
@@ -53,7 +56,7 @@ def test_scan_json_output(monkeypatch, capsys, tmp_path):
         mqtt=None,
     )
 
-    result = wspr_cmd.run_wspr(args)
+    result = run_scan(args)
     assert result == 0
 
     captured = capsys.readouterr()
@@ -94,8 +97,8 @@ def test_upload_json_output(monkeypatch, capsys, tmp_path):
         self.base_url = "https://example.com"
         self._timeout = (5, 10)
 
-    monkeypatch.setattr(wspr_cmd.WsprUploader, "__init__", mock_init)
-    monkeypatch.setattr(wspr_cmd.WsprUploader, "upload_spot", lambda self, spot: True)
+    monkeypatch.setattr(WsprUploader, "__init__", mock_init)
+    monkeypatch.setattr(WsprUploader, "upload_spot", lambda self, spot: True)
 
     args = Namespace(
         upload=True,
@@ -108,7 +111,7 @@ def test_upload_json_output(monkeypatch, capsys, tmp_path):
         mqtt=None,
     )
 
-    result = wspr_cmd.run_wspr(args)
+    result = run_upload(args)
     assert result == 0
 
     captured = capsys.readouterr()
@@ -141,9 +144,9 @@ def test_upload_json_includes_last_error(monkeypatch, capsys, tmp_path):
         self._timeout = (5, 10)
         self._last_upload_error = None
 
-    monkeypatch.setattr(wspr_cmd.WsprUploader, "__init__", mock_init)
+    monkeypatch.setattr(WsprUploader, "__init__", mock_init)
     monkeypatch.setattr(
-        wspr_cmd.WsprUploader,
+        WsprUploader,
         "drain",
         lambda self: {"attempted": 1, "succeeded": 0, "failed": 1, "last_error": "boom"},
     )
@@ -160,7 +163,7 @@ def test_upload_json_includes_last_error(monkeypatch, capsys, tmp_path):
         mqtt=None,
     )
 
-    result = wspr_cmd.run_wspr(args)
+    result = run_upload(args)
     assert result == 0
 
     captured = capsys.readouterr()
@@ -188,9 +191,9 @@ def test_upload_sends_heartbeat_when_requested(monkeypatch, capsys, tmp_path):
         self._timeout = (5, 10)
         self._last_upload_error = None
 
-    monkeypatch.setattr(wspr_cmd.WsprUploader, "__init__", mock_init)
+    monkeypatch.setattr(WsprUploader, "__init__", mock_init)
     monkeypatch.setattr(
-        wspr_cmd.WsprUploader,
+        WsprUploader,
         "drain",
         lambda self: {"attempted": 0, "succeeded": 0, "failed": 0},
     )
@@ -201,7 +204,7 @@ def test_upload_sends_heartbeat_when_requested(monkeypatch, capsys, tmp_path):
         heartbeat_calls.append(kwargs)
         return True
 
-    monkeypatch.setattr(wspr_cmd.WsprUploader, "send_heartbeat", mock_send)
+    monkeypatch.setattr(WsprUploader, "send_heartbeat", mock_send)
 
     args = Namespace(
         upload=True,
@@ -215,7 +218,7 @@ def test_upload_sends_heartbeat_when_requested(monkeypatch, capsys, tmp_path):
         mqtt=None,
     )
 
-    result = wspr_cmd.run_wspr(args)
+    result = run_upload(args)
     assert result == 0
     assert len(heartbeat_calls) == 1
 
