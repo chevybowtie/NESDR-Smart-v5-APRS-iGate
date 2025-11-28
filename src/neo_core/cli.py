@@ -18,6 +18,11 @@ def _add_common_flags(p: argparse.ArgumentParser) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="neo-rx", description="Unified CLI for APRS and WSPR tools")
+    try:
+        from neo_rx import __version__
+    except ImportError:
+        __version__ = "0.2.3"
+    parser.add_argument("--version", action="version", version=f"neo-rx {__version__}")
     subparsers = parser.add_subparsers(dest="mode", required=True)
 
     # APRS subcommands
@@ -44,6 +49,7 @@ def build_parser() -> argparse.ArgumentParser:
     _add_common_flags(aprs_listen)
     aprs_listen.add_argument("--kiss-host", help="Direwolf/KISS host", default="127.0.0.1")
     aprs_listen.add_argument("--kiss-port", type=int, help="Direwolf/KISS TCP port", default=8001)
+    aprs_listen.add_argument("--once", action="store_true", help="Process a single frame and exit")
 
     aprs_diag = aprs_sub.add_parser("diagnostics", help="Run APRS diagnostics")
     _add_common_flags(aprs_diag)
@@ -85,6 +91,15 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+
+    # Propagate instance/data directory overrides via environment so that
+    # downstream modules use the same namespacing without signature changes.
+    if getattr(args, "instance_id", None):
+        import os
+        os.environ.setdefault("NEO_RX_INSTANCE_ID", str(args.instance_id))
+    if getattr(args, "data_dir", None):
+        import os
+        os.environ.setdefault("NEO_RX_DATA_DIR", str(args.data_dir))
 
     # Delegate to existing neo_rx CLI until mode-specific refactor completes
     if args.mode == "aprs":

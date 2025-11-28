@@ -58,7 +58,10 @@ def _configure_logging(level_name: str | None) -> None:
     handlers: list[logging.Handler] = [stream_handler]
 
     try:
-        log_dir = config_module.get_data_dir() / "logs"
+        # Legacy CLI primarily serves APRS flow; build logs path relative to
+        # get_data_dir so monkeypatching in tests affects behavior.
+        base = config_module.get_data_dir()
+        log_dir = base / "logs" / "aprs"
         log_dir.mkdir(parents=True, exist_ok=True)
         log_file = log_dir / "neo-rx.log"
         file_handler = logging.FileHandler(log_file, encoding="utf-8")

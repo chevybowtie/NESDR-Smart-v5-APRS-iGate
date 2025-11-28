@@ -226,8 +226,18 @@ def _validate_callsign(value: str) -> None:
 class _Prompt:
     """Utility helpers for prompting user input with validation."""
 
-    def __init__(self, existing: StationConfig | None) -> None:
+    def __init__(
+        self,
+        existing: StationConfig | None,
+        *,
+        input_func: Callable[[str], str] | None = None,
+        echo: Callable[[str], None] | None = None,
+        secret_func: Callable[[str], str] | None = None,
+    ) -> None:
         self._existing = existing
+        self._input = input_func or input
+        self._echo = echo or (lambda msg: logger.warning("%s", msg))
+        self._secret = secret_func or getpass
 
     def string(
         self,
@@ -239,13 +249,13 @@ class _Prompt:
     ) -> str:
         while True:
             prompt = _format_prompt(label, default)
-            raw = input(prompt).strip()
+            raw = self._input(prompt).strip()
             if not raw and default is not None:
                 value = str(default)
             else:
                 value = raw
             if not value:
-                logger.warning("Value required")
+                self._echo("Value required")
                 continue
             if transform is not None:
                 value = transform(value)
@@ -253,13 +263,13 @@ class _Prompt:
                 try:
                     validator(value)
                 except ValueError as exc:
-                    logger.warning("%s", exc)
+                    self._echo(str(exc))
                     continue
             return value
 
     def optional_string(self, label: str, default: object | None = None) -> str | None:
         prompt = _format_prompt(label, default)
-        raw = input(prompt).strip()
+        raw = self._input(prompt).strip()
         if not raw:
             return None if default is None else str(default)
         return raw
@@ -274,31 +284,31 @@ class _Prompt:
     ) -> int:
         while True:
             prompt = _format_prompt(label, default)
-            raw = input(prompt).strip()
+            raw = self._input(prompt).strip()
             if not raw and default is not None:
                 value = _parse_int(default)
             else:
                 value = _parse_int(raw)
             if value is None:
-                logger.warning("Enter a valid integer")
+                self._echo("Enter a valid integer")
                 continue
             if minimum is not None and value < minimum:
-                logger.warning("Value must be >= %s", minimum)
+                self._echo(f"Value must be >= {minimum}")
                 continue
             if maximum is not None and value > maximum:
-                logger.warning("Value must be <= %s", maximum)
+                self._echo(f"Value must be <= {maximum}")
                 continue
             return value
 
     def optional_float(self, label: str, default: object | None = None) -> float | None:
         while True:
             prompt = _format_prompt(label, default)
-            raw = input(prompt).strip()
+            raw = self._input(prompt).strip()
             if not raw:
                 return None if default is None else _parse_float(default)
             parsed = _parse_float(raw)
             if parsed is None:
-                logger.warning("Enter a numeric value or leave blank")
+                self._echo("Enter a numeric value or leave blank")
                 continue
             return parsed
 
@@ -308,15 +318,15 @@ class _Prompt:
                 prompt = f"{label} [leave blank to keep existing]: "
             else:
                 prompt = f"{label}: "
-            value = getpass(prompt)
+            value = self._secret(prompt)
             if not value and default is not None:
                 return str(default)
             if not value:
-                logger.warning("Value required")
+                self._echo("Value required")
                 continue
-            confirm = getpass("Confirm passcode: ")
+            confirm = self._secret("Confirm passcode: ")
             if value != confirm:
-                logger.warning("Passcodes do not match; try again")
+                self._echo("Passcodes do not match; try again")
                 continue
             return value
 
@@ -362,7 +372,7 @@ def _maybe_render_direwolf_config(config: StationConfig, target_dir: Path) -> No
             logger.info("Skipping Direwolf configuration rendering")
             return
 
-    log_dir = config_module.get_data_dir() / "logs"
+    log_dir = config_module.get_logs_dir("aprs")
     log_dir.mkdir(parents=True, exist_ok=True)
 
     replacements = {
@@ -424,6 +434,55 @@ def _prompt_yes_no(message: str, *, default: bool) -> bool:
         if response in {"n", "no"}:
             return False
         logger.warning("Please answer 'y' or 'n'")
+
+
+# Backward-compatible public alias for tests
+def prompt_yes_no(
+    message: str,
+    *,
+    default: bool,
+    input_func: Callable[[str], str] | None = None,
+    echo: Callable[[str], None] | None = None,
+) -> bool:
+    # Use injected input/echo if provided
+    if input_func is None and echo is None:
+        return _prompt_yes_no(message, default=default)
+    # Minimal reimplementation using injected functions
+    inp = input_func or input
+    log = echo or (lambda msg: logger.warning("%s", msg))
+    suffix = " [Y/n]" if default else " [y/N]"
+    while True:
+        response = inp(f"{message}{suffix}: ").strip().lower()
+        if not response:
+            return default
+        if response in {"y", "yes"}:
+            return True
+        if response in {"n", "no"}:
+            return False
+        log("Please answer 'y' or 'n'")
+
+
+class _PromptSession:
+    def __init__(
+        self,
+        existing: StationConfig | None,
+        *,
+        input_func: Callable[[str], str] | None = None,
+        echo: Callable[[str], None] | None = None,
+        secret_func: Callable[[str], str] | None = None,
+    ) -> None:
+        self.prompt = _Prompt(
+            existing, input_func=input_func, echo=echo, secret_func=secret_func
+        )
+
+    def ask_yes_no(self, message: str, default: bool) -> bool:
+        # Delegate to public prompt_yes_no with injected functions
+        return prompt_yes_no(
+            message,
+            default=default,
+            input_func=self.prompt._input,
+            echo=self.prompt._echo,
+        )
 
 
 def _offer_hardware_validation(config: StationConfig) -> None:
@@ -536,12 +595,22 @@ def _extract_ppm_from_output(output: str) -> str | None:
 
 
 def _report_direwolf_log_summary() -> None:
-    log_dir = config_module.get_data_dir() / "logs"
-    log_file = log_dir / "direwolf.log"
-    if not log_file.exists():
+    # Prefer mode-specific logs dir, but fall back to legacy location to keep
+    # backward compatibility with existing setups and tests.
+    primary_dir = config_module.get_logs_dir("aprs")
+    legacy_dir = config_module.get_data_dir() / "logs"
+    primary_file = primary_dir / "direwolf.log"
+    legacy_file = legacy_dir / "direwolf.log"
+
+    if primary_file.exists():
+        log_file = primary_file
+    elif legacy_file.exists():
+        log_file = legacy_file
+    else:
+        # Report primary path for guidance
         logger.warning(
             "[WARNING] Direwolf log not found at %s. Run `neo-rx listen` to generate logs.",
-            log_file,
+            primary_file,
         )
         return
 
@@ -569,7 +638,7 @@ def _can_launch_direwolf() -> bool:
 
 
 def _launch_direwolf_probe(config: StationConfig) -> None:
-    log_dir = config_module.get_data_dir() / "logs"
+    log_dir = config_module.get_logs_dir("aprs")
     log_dir.mkdir(parents=True, exist_ok=True)
     temp_log = log_dir / "direwolf_probe.log"
 

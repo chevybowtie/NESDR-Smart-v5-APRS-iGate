@@ -14,12 +14,34 @@ try:
 except Exception:  # pragma: no cover - defensive for very old runtimes
     import importlib_metadata as _importlib_metadata  # type: ignore
 
-try:
-    __version__ = _importlib_metadata.version("neo-rx")
-except Exception:
-    # When running from source (not installed) metadata may be absent;
-    # fall back to a sensible dev placeholder.
-    __version__ = "0.0.0"
+from pathlib import Path as _Path
+_pkg_path = _Path(__file__).resolve()
+_in_site = ("site-packages" in str(_pkg_path)) or ("dist-packages" in str(_pkg_path))
+
+def _version_from_pyproject() -> str:
+    try:
+        import sys as _sys
+        if _sys.version_info >= (3, 11):
+            import tomllib as _toml
+        else:  # pragma: no cover
+            import tomli as _toml  # type: ignore
+        _root = _pkg_path.parents[2]
+        _pyproj = _root / "pyproject.toml"
+        if _pyproj.exists():
+            with _pyproj.open("rb") as _f:
+                _data = _toml.load(_f)
+            return _data.get("project", {}).get("version", "0.0.0")
+    except Exception:
+        pass
+    return "0.0.0"
+
+if not _in_site:
+    __version__ = _version_from_pyproject()
+else:
+    try:
+        __version__ = _importlib_metadata.version("neo-rx")
+    except Exception:
+        __version__ = _version_from_pyproject()
 
 # Suppress pkg_resources deprecation warning
 import warnings

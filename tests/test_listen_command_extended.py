@@ -13,7 +13,7 @@ import pytest
 from neo_aprs.commands import listen
 from neo_core.config import StationConfig
 from neo_rx.radio.capture import AudioCaptureError
-from neo_rx.aprs.aprsis_client import APRSISClientError
+from neo_aprs.aprs.aprsis_client import APRSISClientError
 from neo_rx.aprs.kiss_client import KISSClientError
 
 
@@ -531,7 +531,7 @@ def test_apply_software_tocall_before_send(monkeypatch, tmp_path, caplog) -> Non
 
     assert exit_code == 0
     # ensure we replaced the destination with configured software TOCALL
-    assert sent_packets == ["N0CALL-10>APNEO1:TEST"]
+    assert sent_packets == ["N0CALL-10>APNEO1,qAR,N0CALL-10:TEST"]
 
 
 def test_run_listen_aprs_connect_failure(monkeypatch, tmp_path, caplog) -> None:

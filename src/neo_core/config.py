@@ -1,10 +1,21 @@
-"""Configuration loading and persistence helpers."""
+"""Configuration loading and persistence helpers.
+
+This module also resolves XDG-style data/config directories. At runtime,
+two environment variables can influence data directory resolution:
+
+- ``NEO_RX_DATA_DIR``: Absolute path to the base data directory. If set,
+  it overrides XDG defaults.
+- ``NEO_RX_INSTANCE_ID``: When set to a short identifier (e.g. "rig1",
+  "test-a"), all data paths will be namespaced under an ``instances/<id>``
+  directory. This enables concurrent runs with separate state/log trees.
+"""
 
 from __future__ import annotations
 
 import os
 import stat
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from typing import List
@@ -32,6 +43,8 @@ KEYRING_SENTINEL = "__KEYRING__"
 LEGACY_CONFIG_ENV_VAR = "NEO_IGATE_CONFIG_PATH"
 LEGACY_CONFIG_DIR_NAME = "neo-igate"
 LEGACY_KEYRING_SERVICE = "neo-igate"
+DATA_DIR_ENV_VAR = "NEO_RX_DATA_DIR"
+INSTANCE_ENV_VAR = "NEO_RX_INSTANCE_ID"
 
 
 def _xdg_path(env_var: str, default: Path) -> Path:
@@ -70,13 +83,97 @@ def _legacy_data_dir() -> Path:
     return _xdg_path("XDG_DATA_HOME", default) / LEGACY_CONFIG_DIR_NAME
 
 
+def _sanitize_instance_id(value: str) -> str:
+    """Return a filesystem-friendly instance id (letters, digits, . _ -).
+
+    Invalid characters are stripped. Returns an empty string if nothing valid
+    remains. This prevents path traversal or accidental directory nesting.
+    """
+    allowed = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-")
+    cleaned = "".join(ch for ch in value if ch in allowed)
+    # Keep ids reasonably short to avoid deep/long paths
+    return cleaned[:64]
+
+
 def get_data_dir() -> Path:
-    """Return the directory for runtime data/log files, preferring the new name."""
-    preferred = _preferred_data_dir()
-    legacy = _legacy_data_dir()
-    if preferred.exists() or not legacy.exists():
-        return preferred
-    return legacy
+    """Return the directory for runtime data/log files.
+
+    Resolution order:
+    1) If ``NEO_RX_DATA_DIR`` is set, use it (expanded) as the base.
+    2) Else prefer the new XDG path (``~/.local/share/neo-rx``) unless only the
+       legacy path exists.
+    3) If ``NEO_RX_INSTANCE_ID`` is set to a non-empty, sanitized value, append
+       ``instances/<id>`` to the selected base directory.
+    """
+    # 1) Explicit override via env var
+    env_data = os.environ.get(DATA_DIR_ENV_VAR)
+    if env_data:
+        base = Path(env_data).expanduser()
+    else:
+        # 2) Prefer new path when available
+        preferred = _preferred_data_dir()
+        legacy = _legacy_data_dir()
+        base = preferred if (preferred.exists() or not legacy.exists()) else legacy
+
+    # 3) Optional per-instance namespacing
+    instance_raw = os.environ.get(INSTANCE_ENV_VAR)
+    if instance_raw:
+        instance_id = _sanitize_instance_id(instance_raw)
+        if instance_id:
+            base = base / "instances" / instance_id
+
+    return base
+
+
+def get_mode_data_dir(mode: str | None = None) -> Path:
+    """Return the data directory for a specific mode.
+
+    When ``mode`` is provided (e.g. "aprs" or "wspr"), the mode is appended to
+    the base data directory. The base already includes any instance namespacing
+    when ``NEO_RX_INSTANCE_ID`` is set, so the resulting layout becomes:
+
+    ``<base>/[instances/<id>/]<mode>``
+
+    This preserves backward compatibility with tests that monkeypatch
+    ``get_data_dir`` while introducing per-mode organization.
+    """
+    root = get_data_dir()
+    return root / mode if mode else root
+
+
+def get_logs_dir(mode: str | None = None) -> Path:
+    """Return the logs directory, optionally namespaced by mode.
+
+    The logs directory is derived from the resolved data directory to honor
+    overrides and instance namespacing. The structure is:
+
+    ``<base>/[instances/<id>/]logs[/<mode>]``
+
+    where ``<base>`` follows ``get_data_dir()`` rules.
+    """
+    base = get_data_dir() / "logs"
+    return base / mode if mode else base
+
+
+def get_wspr_runs_dir(run_label: str | None = None) -> Path:
+    """Return the WSPR runs directory path.
+
+    Layout: ``get_mode_data_dir("wspr") / "runs" / <label>``
+
+    - If ``run_label`` is provided, it is used directly (not sanitized).
+    - Else if ``NEO_RX_INSTANCE_ID`` is set, the sanitized instance id is used.
+    - Otherwise a UTC timestamp label ``YYYYMMDD-HHMMSS`` is generated.
+    """
+    base = get_mode_data_dir("wspr") / "runs"
+    if run_label:
+        return base / run_label
+    instance_raw = os.environ.get(INSTANCE_ENV_VAR)
+    if instance_raw:
+        instance_id = _sanitize_instance_id(instance_raw)
+        if instance_id:
+            return base / instance_id
+    ts = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    return base / ts
 
 
 def resolve_config_path(path: str | Path | None = None) -> Path:

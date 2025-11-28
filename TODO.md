@@ -24,8 +24,8 @@ Config Precedence:
 - WSPR keys: `wspr.bands[]`, `wspr.decoder.bin_path`, `wspr.uploader.enabled|api_url`.
 
 Paths:
-- Data: `~/.local/share/neo-rx/{aprs,wspr}/instances/{instance_id}/…`.
-- Logs: `~/.local/share/neo-rx/logs/{aprs,wspr}/instances/{instance_id}/app.log`.
+- Data: `~/.local/share/neo-rx/instances/{instance_id}/{aprs,wspr}/…`.
+- Logs: `~/.local/share/neo-rx/instances/{instance_id}/logs/{aprs,wspr}/app.log`.
 - WSPR runs: `~/.local/share/neo-rx/wspr/runs/{timestamp or instance_id}/`.
 - Templates: `neo_core.templates/direwolf.conf`.
 
@@ -40,31 +40,33 @@ Packaging:
 - Synchronized versions across all packages.
 
 Progress Checklist:
-- [ ] Create branch `feature/multi-tool`.
+- [x] Create branch `feature/multi-tool`.
 - [x] Extract `neo_core` and update imports.
 	- Core helpers (`diagnostics_helpers`, `term`, `timeutils`) migrated; CLI moved to `neo_core.cli`.
-	- **Config migrated from neo_rx to neo_core**; neo_rx.config is now a shim re-exporting from neo_core.
-	- **Radio capture module migrated to neo_core.radio**; neo_rx.radio.capture is now a shim.
+	- Config migrated from `neo_rx` to `neo_core`; `neo_rx.config` is now a shim.
+	- Radio capture migrated to `neo_core.radio`; `neo_rx.radio.capture` is now a shim.
 - [x] Create `neo_telemetry` and update references.
-	- **MQTT publisher and ondisk_queue migrated to neo_telemetry**; neo_rx.telemetry modules are now shims.
-	- All dependency extractions complete; both APRS and WSPR use new packages directly.
+	- MQTT publisher and ondisk queue migrated; `neo_rx.telemetry` modules are shims.
+	- Tests now monkeypatch via `neo_rx.telemetry.mqtt_publisher` and are supported.
 - [x] Carve `neo_aprs` and per-mode setup/diagnostics.
-	- Protocol stack moved to `neo_aprs.aprs` (AX.25, KISS, APRS-IS) with backward-compat shims.
-	- **APRS command implementations migrated**: `listen` (638 lines), `setup` (488 lines), `diagnostics` (383 lines).
-	- **Real implementations now in neo_aprs.commands**; neo_rx.commands are shims.
-	- Unified CLI routes `neo-rx aprs <verb>` through neo_aprs implementations.
+	- Protocol stack moved to `neo_aprs.aprs` with shims.
+	- APRS commands migrated: `listen`, `setup`, `diagnostics`.
+	- Unified CLI routes `neo-rx aprs <verb>` through `neo_aprs`.
 - [x] Carve `neo_wspr` and per-mode setup/diagnostics; package `wsprd`.
-	- WSPR modules migrated to `neo_wspr.wspr` (capture, decoder, uploader, calibrate, diagnostics, scan, publisher) with backward-compat shims.
-	- WSPR command wrappers implemented: `worker`, `scan`, `calibrate`, `upload`, `diagnostics` with real logic.
-	- Unified CLI routes `neo-rx wspr <verb>` through new implementations; legacy handler removed.
+	- WSPR modules migrated under `neo_wspr.wspr` with shims.
+	- Commands implemented: `worker`, `scan`, `calibrate`, `upload`, `diagnostics`.
 	- `wsprd` binary packaged with `neo_wspr`.
 - [x] Implement unified CLI subcommands in `neo_core.cli`.
-	- APRS and WSPR subcommands fully implemented; all verbs route to new packages.
-	- Flag parity maintained: APRS (--reset, --dry-run, --non-interactive, --verbose), WSPR (--band, --json, etc.).
-- [ ] Config layering and validation (`defaults.toml`, `aprs.toml`, `wspr.toml`).
-	- Config module migrated to neo_core; multi-file layering deferred to future iteration.
-- [ ] Namespace data/log paths per mode/instance.
-- [ ] Update tests by mode; add concurrency tests.
+	- APRS/WSPR subcommands implemented; flag parity maintained.
+- [x] Update and validate tests.
+	- All tests now pass: 228/228.
+	- Legacy private-API tests updated with compatible shims (`_PromptSession`, `prompt_yes_no`).
+- [x] Config layering and validation (`defaults.toml`, `aprs.toml`, `wspr.toml`).
+	- Multi-file layering implemented with precedence defaults < mode < env < CLI.
+- [x] Namespace data/log paths per mode/instance.
+	- [x] Implement per-instance directories under XDG paths.
+- [ ] Add concurrency tests.
+	- Verify simultaneous APRS/WSPR on different SDRs via `--device-id` and `--instance-id`.
 - [ ] Update docs (README, onboarding, diagnostics, radio-layer, direwolf, wspr).
 - [ ] Update CI/release scripts for multi-package synchronized release.
 

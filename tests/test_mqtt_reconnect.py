@@ -6,6 +6,7 @@ from argparse import Namespace
 import pytest
 
 import neo_rx.telemetry.mqtt_publisher as mp
+import neo_wspr.commands as wspr_cmd
 
 
 class MockClient:
@@ -107,7 +108,8 @@ def test_cli_publisher_wiring(monkeypatch):
         close=lambda: None,
         topic=None,
     )
-    monkeypatch.setattr(wspr_cmd, "make_publisher_from_config", lambda _cfg: mock_pub)
+    import neo_wspr.wspr.publisher as wspr_publisher
+    monkeypatch.setattr(wspr_publisher, "make_publisher_from_config", lambda _cfg: mock_pub)
 
     class StubCapture:
         def __init__(self, *args, **kwargs):
@@ -129,9 +131,10 @@ def test_cli_publisher_wiring(monkeypatch):
         def is_running(self):
             return False  # Return False so the loop exits immediately
 
-    monkeypatch.setattr(wspr_cmd, "WsprCapture", StubCapture)
+    import neo_wspr.wspr.capture as wspr_capture
+    monkeypatch.setattr(wspr_capture, "WsprCapture", StubCapture)
 
-    import neo_rx.wspr.decoder as decoder_mod
+    import neo_wspr.wspr.decoder as decoder_mod
 
     def fake_run(self, iq_data, band_hz):
         yield {"spot": 1}
@@ -154,7 +157,7 @@ def test_cli_publisher_wiring(monkeypatch):
         mqtt=None,
     )
 
-    result = wspr_cmd.run_wspr(args)
+    result = run_worker(args)
 
     assert result == 0
     assert len(published) == 2

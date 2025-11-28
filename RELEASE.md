@@ -13,11 +13,12 @@ bash scripts/verify_release.sh
 
 ```bash
 # create a release branch from the branch you're preparing (e.g. develop)
-git checkout -b release/0.1.0
+git checkout -b release/0.2.3
 ```
 
 3. Bump version in `pyproject.toml` (if not already set to release version).
    - Update `version = "X.Y.Z"` and commit with message `chore(release): X.Y.Z`.
+   - Ensure `neo_rx.__version__` returns the new version when run from source (it reads from `pyproject.toml`).
 
 4. Run verification again to ensure package metadata matches and artifacts build:
 
@@ -30,7 +31,7 @@ bash scripts/verify_release.sh
 ```bash
 # add remote (only if not already configured)
 git remote add origin https://github.com/chevybowtie/NESDR-Smart-v5-APRS-iGate.git
-git push -u origin release/0.1.0
+git push -u origin release/0.2.3
 ```
 
 6. After review & merge into `master`, tag the release and push tag:
@@ -38,8 +39,8 @@ git push -u origin release/0.1.0
 ```bash
 git checkout master
 git pull origin master
-git tag -s v0.1.0 -m "Release v0.1.0"
-git push origin v0.1.0
+git tag -s v0.2.3 -m "Release v0.2.3"
+git push origin v0.2.3
 ```
 
 7. Publish artifacts (two options):

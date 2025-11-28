@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.3] - 2025-11-27
+
+### Changed
+- Modularization: Completed split into `neo_core`, `neo_aprs`, `neo_wspr`, and `neo_telemetry` with shims for backward compatibility under `neo_rx`.
+- CLI version: `neo-rx --version` now reads from local `pyproject.toml` when running from source, ensuring accurate version reporting during development.
+
+### Fixed
+- APRS listen tests aligned with q-construct placement in TNC2 frames.
+- Diagnostics logging captured via `neo_aprs.commands.diagnostics` for text mode output checks.
+- MQTT testability: telemetry shim exposes `time` and `mqtt`; implementation prefers shim-injected namespaces for deterministic tests.
+- WSPR uploader JSON: when `--heartbeat` is requested, JSON includes `"heartbeat_sent": true`.
+- RTL-SDR compatibility: added lightweight `rtlsdr` stub and `_compat.prepare_rtlsdr()` to avoid external import failures in tests.
+
+### Testing
+- All tests pass (228/228) after updating imports to new package layout and adjusting CLI/APRS expectations.
+
 ## [0.2.2] - 2025-11-25
 
 ### Fixed

@@ -27,7 +27,7 @@ def run_calibrate(args: Namespace) -> int:
         LOG.debug("No configuration available")
 
     LOG.info("Requested WSPR calibration")
-    data_dir = config_module.get_data_dir() / "wspr"
+    data_dir = config_module.get_mode_data_dir("wspr")
 
     from neo_wspr.wspr.calibrate import (
         load_spots_from_jsonl,

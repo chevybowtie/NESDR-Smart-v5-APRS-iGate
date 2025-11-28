@@ -98,7 +98,7 @@ def run_listen(args: Namespace) -> int:
     stop_event = threading.Event()
     command_queue: "Queue[str]" = Queue()
     keyboard_thread = _start_keyboard_listener(stop_event, command_queue)
-    summary_log_path = config_module.get_data_dir() / "logs" / "neo-rx.log"
+    summary_log_path = config_module.get_logs_dir("aprs") / "neo-rx.log"
 
     def _pump_audio() -> None:
         try:

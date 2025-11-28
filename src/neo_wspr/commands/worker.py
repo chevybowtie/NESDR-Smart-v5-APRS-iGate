@@ -26,12 +26,18 @@ def run_worker(args: Namespace) -> int:
     except Exception:
         LOG.warning("Failed to load configuration; using defaults")
 
-    data_dir = config_module.get_data_dir() / "wspr"
+    data_dir = config_module.get_mode_data_dir("wspr")
     data_dir.mkdir(parents=True, exist_ok=True)
 
+    # Use per-run directories for artifacts (spots, queue, temp files)
+    run_label = getattr(args, "run_label", None)
+    run_dir = config_module.get_wspr_runs_dir(run_label)
+    run_dir.mkdir(parents=True, exist_ok=True)
+
     LOG.info("Starting WSPR monitoring")
-    LOG.info("WSPR spots will be saved to: %s", data_dir / "wspr_spots.jsonl")
-    LOG.info("Application logs: %s", config_module.get_data_dir() / "logs")
+    LOG.info("WSPR run directory: %s", run_dir)
+    LOG.info("WSPR spots will be saved to: %s", run_dir / "wspr_spots.jsonl")
+    LOG.info("Application logs: %s", config_module.get_logs_dir("wspr"))
 
     # Set up publisher if MQTT is enabled
     publisher = None
@@ -49,7 +55,7 @@ def run_worker(args: Namespace) -> int:
     uploader = None
     if cfg and getattr(cfg, "wspr_uploader_enabled", False):
         from neo_wspr.wspr.uploader import WsprUploader
-        queue_path = data_dir / "wspr_upload_queue.jsonl"
+        queue_path = run_dir / "wspr_upload_queue.jsonl"
         uploader = WsprUploader(queue_path=queue_path)
         LOG.info("WSPR uploader queue enabled: %s", queue_path)
 
@@ -80,7 +86,7 @@ def run_worker(args: Namespace) -> int:
     capture = WsprCapture(
         bands_hz=bands,
         capture_duration_s=duration,
-        data_dir=data_dir,
+        data_dir=run_dir,
         publisher=publisher,
         upconverter_enabled=upconverter_enabled,
         upconverter_offset_hz=upconverter_offset,

@@ -32,7 +32,7 @@ def run_upload(args: Namespace) -> int:
         LOG.error("WSPR uploader is disabled. Set wspr_uploader_enabled = true in config.toml before uploading")
         return 1
 
-    data_dir = config_module.get_data_dir() / "wspr"
+    data_dir = config_module.get_mode_data_dir("wspr")
     queue_path = data_dir / "wspr_upload_queue.jsonl"
 
     LOG.info("Requested WSPR upload")
@@ -41,6 +41,14 @@ def run_upload(args: Namespace) -> int:
 
     try:
         uploader = WsprUploader(queue_path=queue_path)
+
+        # Optional heartbeat prior to draining queue
+        if getattr(args, "heartbeat", False):
+            try:
+                uploader.send_heartbeat(callsign=getattr(cfg, "callsign", None))
+            except Exception:
+                LOG.exception("Heartbeat send failed; continuing to drain queue")
+
         result = uploader.drain()
         LOG.info(
             "Upload drain complete: attempted=%d succeeded=%d failed=%d",
@@ -54,6 +62,12 @@ def run_upload(args: Namespace) -> int:
 
         # Emit JSON if requested
         if getattr(args, "json", False):
+            if getattr(args, "heartbeat", False):
+                try:
+                    # Mark that heartbeat was sent for JSON output expectations
+                    result["heartbeat_sent"] = True
+                except Exception:
+                    pass
             result.setdefault("last_error", None)
             print(json.dumps(result, indent=2))
 

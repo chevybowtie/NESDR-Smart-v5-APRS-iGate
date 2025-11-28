@@ -14,7 +14,7 @@ import logging
 from typing import Any, Optional
 from pathlib import Path
 import random
-import time
+import time as _time
 
 from .ondisk_queue import OnDiskQueue
 
@@ -22,6 +22,13 @@ try:
     import paho.mqtt.client as mqtt  # type: ignore[import]
 except Exception:  # pragma: no cover - optional dependency
     mqtt = None  # type: ignore[assignment]
+
+# Allow tests to monkeypatch via neo_rx.telemetry.mqtt_publisher
+try:  # pragma: no cover - shim may not be present
+    from neo_rx.telemetry import mqtt_publisher as shim
+except Exception:
+    shim = None  # type: ignore[assignment]
+
 
 LOG = logging.getLogger(__name__)
 
@@ -34,11 +41,14 @@ class MqttPublisher:
         buffer_dir: Optional[Path] = None,
         max_buffer_size: int = 10000,
     ) -> None:
-        if mqtt is None:
+        client_ns = getattr(shim, "mqtt", None) or mqtt
+        time_ns = getattr(shim, "time", None) or _time
+        if client_ns is None:
             raise ImportError("paho-mqtt is required for MqttPublisher")
         self._host = host
         self._port = port
-        self._client = mqtt.Client()
+        self._client = client_ns.Client()
+        self._time = time_ns
         self._connected = False
         self.topic: Optional[str] = None  # Default topic for publishing
         # wire basic callbacks to track connection state
@@ -119,11 +129,11 @@ class MqttPublisher:
                 self._client.connect(self._host, self._port)
                 # give a short moment for on_connect to be called via loop
                 # if loop isn't started yet, perform a small sleep
-                time.sleep(0.1)
+                self._time.sleep(0.1)
                 if self._connected:
                     return
                 # if not yet connected, wait a bit and check
-                time.sleep(min(backoff, self._max_backoff))
+                self._time.sleep(min(backoff, self._max_backoff))
                 if self._connected:
                     return
                 raise RuntimeError("Connect did not complete yet")
@@ -135,7 +145,7 @@ class MqttPublisher:
                 # jittered backoff
                 jitter = random.uniform(0, backoff * 0.1)
                 sleep_for = min(self._max_backoff, backoff + jitter)
-                time.sleep(sleep_for)
+                self._time.sleep(sleep_for)
                 backoff = min(self._max_backoff, backoff * 2)
 
     def _default_buffer_dir(self) -> Path:
@@ -167,7 +177,7 @@ class MqttPublisher:
                         self._queue.remove(files[0])
                     except Exception:
                         LOG.exception("Failed to drop oldest queued message")
-            record = {"topic": topic, "body": body, "ts": time.time()}
+            record = {"topic": topic, "body": body, "ts": self._time.time()}
             self._queue.enqueue(record)
         except Exception:
             LOG.exception("Failed to enqueue message to on-disk queue")
