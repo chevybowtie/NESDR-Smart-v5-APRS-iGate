@@ -8,6 +8,7 @@ Features:
 - **Concurrent operation**: Run APRS and WSPR simultaneously on different SDRs
 - **Config layering**: Multi-file configuration with precedence (defaults < mode < env < CLI)
 - **Per-instance isolation**: Independent data/log directories via `--instance-id`
+- **Multi-package architecture**: Modular design with separate packages for core, telemetry, APRS, and WSPR functionality
 
 ## Prerequisites
 - Linux host with Python 3.11 or newer
@@ -39,15 +40,49 @@ python -m pip install --upgrade pip
 ```
 
 ## 2. Install project dependencies
-Install the project in editable mode along with the Direwolf helper extra:
+
+### For end users (from PyPI or local wheels)
+Install the `neo-rx` metapackage, which pulls in all subpackages:
 ```bash
-pip install -e '.[direwolf]'
+pip install neo-rx
 ```
-For WSPR support, add the WSPR extra (includes the bundled `wsprd` binary):
+
+To install specific functionality only:
 ```bash
-pip install -e '.[direwolf,wspr]'
+# Core + APRS only
+pip install neo-aprs
+
+# Core + WSPR only
+pip install neo-wspr
+
+# Core + telemetry (MQTT publishing)
+pip install neo-telemetry
 ```
-Add `.[dev]` if you also want formatting, linting, and test tooling.
+
+### For developers (editable install from source)
+Install in dependency order for development:
+```bash
+# Install core package first
+pip install -e ./src/neo_core[dev]
+
+# Install feature packages
+pip install -e ./src/neo_telemetry[dev]
+pip install -e ./src/neo_aprs[dev,direwolf]
+pip install -e ./src/neo_wspr[dev]
+
+# Install metapackage CLI
+pip install -e .[dev,all]
+```
+
+Or use the automated setup:
+```bash
+make setup
+```
+
+### Optional extras
+- `direwolf`: Adds `sox` for Direwolf audio helpers (APRS only)
+- `dev`: Formatting, linting, and test tooling
+- `all`: All optional dependencies for full functionality
 
 Note about APRS library: the project pins a relaxed constraint for `aprslib` in `pyproject.toml` (for example `aprslib>=0.7.2,<0.9`) because `aprslib>=0.8` is not available on PyPI as of Oct 2025. If you need a newer upstream release, pin to a VCS URL or wait for the official PyPI release. See `DEVELOPER_NOTES.md` for more details.
 
