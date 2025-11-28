@@ -19,6 +19,7 @@ Examples:
 """
 
 import argparse
+import importlib.util
 import re
 import subprocess
 import sys
@@ -165,9 +166,7 @@ def build_packages(root: Path, dry_run: bool) -> None:
     """Build wheels for all packages."""
     print("\nBuilding packages...")
     # Ensure required build tooling is available in the active interpreter
-    try:
-        import build  # type: ignore
-    except ImportError:
+    if importlib.util.find_spec("build") is None:
         if not dry_run:
             print("  Installing build tooling (build, wheel)")
             run_command(
@@ -212,9 +211,7 @@ def upload_to_pypi(root: Path, dry_run: bool) -> None:
         return
 
     # Ensure twine is available
-    try:
-        import twine  # type: ignore
-    except ImportError:
+    if importlib.util.find_spec("twine") is None:
         print("  Installing upload tooling (twine)")
         run_command(
             [sys.executable, "-m", "pip", "install", "-q", "twine"],

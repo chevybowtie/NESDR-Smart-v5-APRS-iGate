@@ -24,7 +24,8 @@ try:
 except ImportError:
     CONFIG_ENV_VAR = "NEO_RX_CONFIG_PATH"  # type: ignore
     StationConfig = object  # type: ignore
-    save_config = lambda *args, **kwargs: None  # type: ignore
+    def save_config(*args, **kwargs):  # type: ignore
+        return None
 
 import neo_rx.cli as cli
 
