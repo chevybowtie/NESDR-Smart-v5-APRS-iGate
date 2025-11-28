@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "neo-core"
-version = "0.2.4"
+version = "0.2.5"
 description = "Neo-RX core radio and configuration utilities"
 authors = [{ name = "Paul Sturm" }]
 requires-python = ">=3.11"
