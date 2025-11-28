@@ -66,17 +66,6 @@ def test_cli_wspr_listen_help(capsys) -> None:
     assert "--band" in captured.out
 
 
-def test_cli_wspr_worker_help(capsys) -> None:
-    """Verify neo-rx wspr worker --help works."""
-    with pytest.raises(SystemExit) as excinfo:
-        cli.main(["wspr", "worker", "--help"])
-    
-    assert excinfo.value.code == 0
-    captured = capsys.readouterr()
-    assert "neo-rx wspr worker" in captured.out
-    assert "--band" in captured.out
-
-
 def test_cli_aprs_diagnostics_help(capsys) -> None:
     """Verify neo-rx aprs diagnostics --help works."""
     with pytest.raises(SystemExit) as excinfo:
@@ -153,7 +142,7 @@ def test_configure_logging_handles_oserror(monkeypatch) -> None:
 
 def test_main_errors_on_unknown_args(capsys) -> None:
     with pytest.raises(SystemExit) as excinfo:
-        main(["aprs", "listen", "--bogus"])
+        cli.main(["aprs", "listen", "--bogus"])
 
     assert excinfo.value.code == 2
     captured = capsys.readouterr()
@@ -163,7 +152,7 @@ def test_main_errors_on_unknown_args(capsys) -> None:
 def test_main_defaults_to_listen_when_no_command() -> None:
     # New CLI requires mode - no default behavior
     with pytest.raises(SystemExit) as excinfo:
-        main([])
+        cli.main([])
 
     assert excinfo.value.code == 2  # argparse error code
 
@@ -171,7 +160,7 @@ def test_main_defaults_to_listen_when_no_command() -> None:
 def test_main_injects_listen_for_flag_only_invocation() -> None:
     # New CLI requires mode - flags alone don't default to listen
     with pytest.raises(SystemExit) as excinfo:
-        main(["--no-color"])
+        cli.main(["--no-color"])
 
     assert excinfo.value.code == 2  # argparse error code
 
@@ -184,7 +173,7 @@ def test_setup_non_interactive(tmp_path, monkeypatch, capsys) -> None:
     save_config(cfg, path=config_path)
     monkeypatch.setenv(CONFIG_ENV_VAR, str(config_path))
 
-    exit_code = main(["aprs", "setup", "--non-interactive"])
+    exit_code = cli.main(["aprs", "setup", "--non-interactive"])
     capsys.readouterr()
 
     assert exit_code == 0
@@ -219,7 +208,7 @@ def test_setup_dry_run_interactive(tmp_path, monkeypatch, capsys) -> None:
     monkeypatch.setattr("builtins.input", lambda _: next(inputs))
     monkeypatch.setattr("neo_aprs.commands.setup.getpass", lambda _: next(passwords))
 
-    exit_code = main(["aprs", "setup", "--dry-run"])
+    exit_code = cli.main(["aprs", "setup", "--dry-run"])
     capsys.readouterr()
 
     assert exit_code == 0
@@ -257,7 +246,7 @@ def test_setup_writes_direwolf_config(tmp_path, monkeypatch) -> None:
     monkeypatch.setattr("builtins.input", lambda _: next(inputs))
     monkeypatch.setattr("neo_aprs.commands.setup.getpass", lambda _: next(passwords))
 
-    exit_code = main(["aprs", "setup"])
+    exit_code = cli.main(["aprs", "setup"])
 
     assert exit_code == 0
     assert config_path.exists()
@@ -379,7 +368,7 @@ def test_listen_command_once(tmp_path, monkeypatch, capsys) -> None:
         lambda *_: "N0CALL-10>APRS:TEST",
     )
 
-    exit_code = main(["aprs", "listen", "--once", "--config", str(config_path)])
+    exit_code = cli.main(["aprs", "listen", "--once", "--config", str(config_path)])
     capsys.readouterr()
 
     assert exit_code == 0
@@ -512,7 +501,7 @@ def test_listen_reconnect_and_stats(tmp_path, monkeypatch, capsys) -> None:
         lambda payload: f"N0CALL-10>APRS:{payload.decode()}",
     )
 
-    exit_code = main(["aprs", "listen", "--config", str(config_path)])
+    exit_code = cli.main(["aprs", "listen", "--config", str(config_path)])
     capsys.readouterr()
 
     assert exit_code == 0
@@ -554,7 +543,7 @@ def test_diagnostics_command_json(tmp_path, monkeypatch, capsys) -> None:
         lambda *_: diag.Section("APRS-IS", "warning", "mock", {}),
     )
 
-    exit_code = main(["aprs", "diagnostics", "--json"])
+    exit_code = cli.main(["aprs", "diagnostics", "--json"])
     captured = capsys.readouterr()
 
     assert exit_code == 0

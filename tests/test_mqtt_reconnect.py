@@ -86,7 +86,7 @@ def test_publish_retries_after_failure(monkeypatch, tmp_path):
 
 def test_cli_publisher_wiring(monkeypatch):
     from neo_core import config as config_module
-    from neo_wspr.commands.worker import run_worker
+    from neo_wspr.commands.listen import run_listen
 
     cfg = config_module.StationConfig(
         callsign="N0TEST",
@@ -163,7 +163,7 @@ def test_cli_publisher_wiring(monkeypatch):
         mqtt=None,
     )
 
-    result = run_worker(args)
+    result = run_listen(args)
 
     assert result == 0
     assert len(published) == 2

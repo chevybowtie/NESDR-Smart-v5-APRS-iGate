@@ -180,7 +180,7 @@ def test_cli_propagates_data_dir_to_env(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.delenv("NEO_RX_DATA_DIR", raising=False)
 
     args = Namespace(
-        instance_id=None, data_dir=str(tmp_path), mode="wspr", verb="worker"
+        instance_id=None, data_dir=str(tmp_path), mode="wspr", verb="listen"
     )
 
     # Simulate the env propagation logic from cli.main

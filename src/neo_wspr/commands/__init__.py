@@ -1,13 +1,13 @@
-"""WSPR commands (worker, scan, calibrate, upload, diagnostics)."""
+"""WSPR commands (listen, scan, calibrate, upload, diagnostics)."""
 
-from .worker import run_worker
+from .listen import run_listen
 from .scan import run_scan
 from .calibrate import run_calibrate
 from .upload import run_upload
 from .diagnostics import run_diagnostics
 
 __all__ = [
-    "run_worker",
+    "run_listen",
     "run_scan",
     "run_calibrate",
     "run_upload",

@@ -33,14 +33,14 @@ except ImportError:
 
 try:
     from neo_wspr.commands import (
-        run_worker as wspr_worker,
+        run_listen as wspr_listen,
         run_scan as wspr_scan,
         run_calibrate as wspr_calibrate,
         run_upload as wspr_upload,
         run_diagnostics as wspr_diagnostics,
     )
 except ImportError:
-    wspr_worker = None  # type: ignore
+    wspr_listen = None  # type: ignore
     wspr_scan = None  # type: ignore
     wspr_calibrate = None  # type: ignore
     wspr_upload = None  # type: ignore
@@ -139,7 +139,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--version",
-        action="store_true",
+        action="version",
+        version=f"neo-rx {_package_version()}",
         help="Show package version and exit",
     )
     subparsers = parser.add_subparsers(dest="command", required=False)
@@ -284,36 +285,14 @@ def build_parser() -> argparse.ArgumentParser:
         subparser_map["aprs:diagnostics"] = aprs_diagnostics_parser
 
     # WSPR namespaced commands
-    if wspr_worker is not None:
+    if wspr_listen is not None:
         wspr_parser = subparsers.add_parser(
             "wspr", help="WSPR monitoring commands"
         )
         wspr_subparsers = wspr_parser.add_subparsers(dest="wspr_command", required=True)
         
-        wspr_worker_parser = wspr_subparsers.add_parser(
-            "worker", help="Run WSPR monitoring worker"
-        )
-        wspr_worker_parser.add_argument(
-            "--config",
-            help="Path to configuration file (overrides default location)",
-        )
-        wspr_worker_parser.add_argument(
-            "--band",
-            help="Monitor a single band (80m, 40m, 30m, 20m, 10m, 6m, 2m, 70cm)",
-        )
-        wspr_worker_parser.add_argument(
-            "--instance-id",
-            help="Instance identifier for isolated data/log directories",
-        )
-        wspr_worker_parser.add_argument(
-            "--device-id",
-            help="RTL-SDR device serial number or index",
-        )
-        subparser_map["wspr:worker"] = wspr_worker_parser
-
-        # Add wspr listen as an alias to worker
         wspr_listen_parser = wspr_subparsers.add_parser(
-            "listen", help="Run WSPR monitoring worker (alias for worker)"
+            "listen", help="Run WSPR monitoring listener"
         )
         wspr_listen_parser.add_argument(
             "--config",
@@ -450,10 +429,9 @@ def main(argv: list[str] | None = None) -> int:
 
     # Namespaced WSPR handlers
     wspr_handlers: dict[str, CommandHandler] = {}
-    if wspr_worker is not None:
+    if wspr_listen is not None:
         wspr_handlers = {
-            "worker": wspr_worker,
-            "listen": wspr_worker,  # alias listen -> worker
+            "listen": wspr_listen,
             "scan": wspr_scan,
             "calibrate": wspr_calibrate,
             "upload": wspr_upload,
@@ -465,6 +443,9 @@ def main(argv: list[str] | None = None) -> int:
         aprs_command = getattr(args, "aprs_command", None)
         if aprs_command is None:
             parser.error("aprs: command required")
+        # Detect leftover unknown arguments from initial parse
+        if remainder:
+            parser.error("unrecognized arguments: " + " ".join(remainder))
         handler = aprs_handlers.get(aprs_command)
         if handler is None:
             parser.error(f"aprs: unknown command: {aprs_command}")
@@ -475,20 +456,16 @@ def main(argv: list[str] | None = None) -> int:
         wspr_command = getattr(args, "wspr_command", None)
         if wspr_command is None:
             parser.error("wspr: command required")
+        if remainder:
+            parser.error("unrecognized arguments: " + " ".join(remainder))
         handler = wspr_handlers.get(wspr_command)
         if handler is None:
             parser.error(f"wspr: unknown command: {wspr_command}")
         return handler(args)
 
-    # Default to listen when no command provided (backward compatibility)
+    # Require an explicit command; no silent default behavior
     if args.command is None:
-        listen_parser = subparser_map.get("listen")
-        if listen_parser is None:
-            parser.print_help()
-            return 0
-        listen_namespace = listen_parser.parse_args(remainder)
-        setattr(listen_namespace, "command", "listen")
-        return handlers["listen"](listen_namespace)
+        parser.error("command required")
 
     if remainder:
         parser.error(f"Unknown arguments: {' '.join(remainder)}")

@@ -86,12 +86,12 @@ def build_parser() -> argparse.ArgumentParser:
     wspr_setup = wspr_sub.add_parser("setup", help="Run WSPR setup wizard")
     _add_common_flags(wspr_setup)
 
-    wspr_worker = wspr_sub.add_parser(
-        "worker", help="Run WSPR capture → decode → upload loop"
+    wspr_listen = wspr_sub.add_parser(
+        "listen", help="Run WSPR capture → decode → upload loop"
     )
-    _add_common_flags(wspr_worker)
-    wspr_worker.add_argument("--band", help="Override first band (MHz)")
-    wspr_worker.add_argument(
+    _add_common_flags(wspr_listen)
+    wspr_listen.add_argument("--band", help="Override first band (MHz)")
+    wspr_listen.add_argument(
         "--duration", type=int, help="Optional run duration (seconds)"
     )
 
@@ -156,10 +156,10 @@ def main(argv: list[str] | None = None) -> int:
             if getattr(args, "json", False):
                 argv2.append("--json")
             return legacy_main(argv2)
-        elif args.verb == "worker":
-            from neo_wspr.commands.worker import run_worker  # type: ignore[import]
+        elif args.verb == "listen":
+            from neo_wspr.commands.listen import run_listen  # type: ignore[import]
 
-            return run_worker(args)
+            return run_listen(args)
         elif args.verb == "scan":
             from neo_wspr.commands.scan import run_scan  # type: ignore[import]
 

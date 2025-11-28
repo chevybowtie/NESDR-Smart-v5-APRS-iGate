@@ -35,7 +35,7 @@ Defines the abstraction used to communicate with SDR hardware and the RTL-SDR im
   neo-rx aprs listen --device-id 00000001 --instance-id aprs-east
   
   # Terminal 2: WSPR on device 00000002
-  neo-rx wspr worker --device-id 00000002 --instance-id wspr-20m
+  neo-rx wspr listen --device-id 00000002 --instance-id wspr-20m
   ```
 
 ## Future Enhancements

@@ -184,7 +184,7 @@ Logs and probe outputs are stored beneath `~/.local/share/neo-rx/logs/aprs/` by 
 ## 6. WSPR Monitoring (optional)
 If you installed WSPR support, you can monitor WSPR bands for propagation reports:
 ```bash
-neo-rx wspr worker
+neo-rx wspr listen
 ```
 
 The WSPR monitor will:
@@ -197,8 +197,8 @@ The WSPR monitor will:
 ### WSPR commands
 
 ```bash
-# Start WSPR monitoring worker
-neo-rx wspr worker [--band 20m] [--instance-id wspr-1]
+# Start WSPR monitoring listener
+neo-rx wspr listen [--band 20m] [--instance-id wspr-1]
 
 # Multi-band scan
 neo-rx wspr scan
@@ -219,7 +219,7 @@ Useful flags:
 - `--device-id SERIAL` to select a specific RTL-SDR device
 - `--config PATH` to point at an alternate configuration file
 
-WSPR data is stored beneath `~/.local/share/neo-rx/wspr/` by default (or `~/.local/share/neo-rx/instances/<id>/wspr/` when using `--instance-id`). Each worker run creates a timestamped or instance-labeled directory under `wspr/runs/` for spots and upload queue.
+WSPR data is stored beneath `~/.local/share/neo-rx/wspr/` by default (or `~/.local/share/neo-rx/instances/<id>/wspr/` when using `--instance-id`). Each listen run creates a timestamped or instance-labeled directory under `wspr/runs/` for spots and upload queue.
 
 ### WSPR uploader configuration
 
@@ -261,7 +261,7 @@ Run APRS and WSPR simultaneously on different SDRs:
 neo-rx aprs listen --device-id 00000001 --instance-id aprs-east
 
 # Terminal 2: WSPR monitor on second SDR
-neo-rx wspr worker --device-id 00000002 --instance-id wspr-20m
+neo-rx wspr listen --device-id 00000002 --instance-id wspr-20m
 ```
 
 Each instance maintains isolated data and log directories:

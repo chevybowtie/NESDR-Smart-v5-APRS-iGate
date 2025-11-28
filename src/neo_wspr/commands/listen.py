@@ -1,4 +1,4 @@
-"""WSPR worker command implementation.
+"""WSPR listen command implementation.
 
 Runs the WSPR capture/decode/upload pipeline continuously.
 """
@@ -14,7 +14,7 @@ from neo_core import config as config_module
 LOG = logging.getLogger(__name__)
 
 
-def run_worker(args: Namespace) -> int:
+def run_listen(args: Namespace) -> int:
     """Start WSPR monitoring loop: capture → decode → upload."""
     cfg_path = getattr(args, "config", None)
     cfg = None
