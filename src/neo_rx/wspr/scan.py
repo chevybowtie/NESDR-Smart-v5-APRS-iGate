@@ -40,7 +40,9 @@ def score_band(spots: List[dict], duration_s: int) -> dict:
     }
 
 
-def scan_bands(bands_hz: List[int], capture_fn: CaptureFunc, duration_s: int) -> List[dict]:
+def scan_bands(
+    bands_hz: List[int], capture_fn: CaptureFunc, duration_s: int
+) -> List[dict]:
     """Scan the provided bands and return a ranked list of band reports.
 
     Each report contains the `band_hz` and the metrics returned by

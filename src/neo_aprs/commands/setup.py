@@ -167,7 +167,8 @@ def _interactive_prompt(existing: StationConfig | None) -> StationConfig:
     # This keeps the interactive flow compact for new users and preserves test
     # expectations which don't provide answers for WSPR prompts.
     if config_module.keyring_supported() or (
-        existing is not None and bool(_default(existing, "wspr_enabled", fallback=False))
+        existing is not None
+        and bool(_default(existing, "wspr_enabled", fallback=False))
     ):
         wspr_grid = prompt.optional_string(
             "WSPR reporter grid (Maidenhead, e.g. EM12ab)",
@@ -191,7 +192,9 @@ def _interactive_prompt(existing: StationConfig | None) -> StationConfig:
         except Exception:
             wspr_power_dbm = 37
 
-        wspr_uploader_enabled = bool(_default(existing, "wspr_uploader_enabled", fallback=False))
+        wspr_uploader_enabled = bool(
+            _default(existing, "wspr_uploader_enabled", fallback=False)
+        )
 
     return StationConfig(
         callsign=callsign,

@@ -29,7 +29,11 @@ def _base_args():
 
 
 def test_upload_requires_configuration(monkeypatch, caplog, base_args):
-    monkeypatch.setattr(config_module, "load_config", lambda path=None: (_ for _ in ()).throw(Exception("No config")))
+    monkeypatch.setattr(
+        config_module,
+        "load_config",
+        lambda path=None: (_ for _ in ()).throw(Exception("No config")),
+    )
     caplog.set_level(logging.ERROR)
 
     exit_code = run_upload(base_args)

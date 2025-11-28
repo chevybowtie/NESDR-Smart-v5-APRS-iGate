@@ -33,7 +33,7 @@ PACKAGES = {
 
 VERSION_PATTERN = re.compile(r'^version\s*=\s*"([^"]+)"', re.MULTILINE)
 DEPENDENCY_PATTERN = re.compile(
-    r'(neo-(?:core|aprs|wspr|telemetry)(?:\[[^\]]+\])?)==([0-9.]+)'
+    r"(neo-(?:core|aprs|wspr|telemetry)(?:\[[^\]]+\])?)==([0-9.]+)"
 )
 
 
@@ -67,29 +67,29 @@ def get_current_versions(root: Path) -> dict[str, str]:
 def update_version_in_file(path: Path, new_version: str) -> None:
     """Update version field in a pyproject.toml file."""
     content = path.read_text()
-    
+
     # Update version field
     updated = VERSION_PATTERN.sub(f'version = "{new_version}"', content)
-    
+
     # Update dependency versions (neo-core==X.Y.Z -> neo-core==new_version)
-    updated = DEPENDENCY_PATTERN.sub(rf'\1=={new_version}', updated)
-    
+    updated = DEPENDENCY_PATTERN.sub(rf"\1=={new_version}", updated)
+
     path.write_text(updated)
 
 
 def sync_versions(root: Path, new_version: str) -> None:
     """Update all package versions to new_version."""
     print(f"Updating all packages to version {new_version}...")
-    
+
     for package, rel_path in PACKAGES.items():
         path = root / rel_path
         if not path.exists():
             print(f"Skipping {package}: {path} not found", file=sys.stderr)
             continue
-        
+
         update_version_in_file(path, new_version)
         print(f"  ✓ {package}: {rel_path}")
-    
+
     print(f"\nAll packages synchronized to version {new_version}")
 
 
@@ -99,7 +99,7 @@ def show_versions(root: Path) -> None:
     print("Current package versions:")
     for package, version in versions.items():
         print(f"  {package:20s} {version}")
-    
+
     # Check for version mismatches
     unique_versions = set(versions.values())
     if len(unique_versions) > 1:
@@ -111,7 +111,7 @@ def show_versions(root: Path) -> None:
 
 def validate_version(version: str) -> bool:
     """Validate semantic version format."""
-    pattern = re.compile(r'^\d+\.\d+\.\d+(?:-[a-zA-Z0-9.]+)?$')
+    pattern = re.compile(r"^\d+\.\d+\.\d+(?:-[a-zA-Z0-9.]+)?$")
     return bool(pattern.match(version))
 
 
@@ -119,10 +119,10 @@ def main() -> None:
     if len(sys.argv) != 2:
         print(__doc__, file=sys.stderr)
         sys.exit(1)
-    
+
     arg = sys.argv[1]
     root = find_project_root()
-    
+
     if arg == "--show":
         show_versions(root)
     else:
@@ -131,10 +131,10 @@ def main() -> None:
             print(
                 f"Error: Invalid version format '{new_version}'. "
                 "Expected: X.Y.Z or X.Y.Z-suffix",
-                file=sys.stderr
+                file=sys.stderr,
             )
             sys.exit(1)
-        
+
         sync_versions(root, new_version)
 
 

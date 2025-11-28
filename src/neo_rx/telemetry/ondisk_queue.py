@@ -3,6 +3,6 @@
 This module re-exports from neo_telemetry to maintain backward compatibility.
 """
 
-from neo_telemetry.ondisk_queue import *  # noqa: F401,F403
+from neo_telemetry.ondisk_queue import OnDiskQueue
 
 __all__ = ["OnDiskQueue"]

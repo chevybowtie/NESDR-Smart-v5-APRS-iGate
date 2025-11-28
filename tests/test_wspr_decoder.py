@@ -4,7 +4,9 @@ from neo_wspr.wspr.decoder import WsprDecoder
 
 
 def test_parse_wsprd_fixture():
-    fixture = pathlib.Path("tests/fixtures/wsprd_output.txt").read_text(encoding="utf-8")
+    fixture = pathlib.Path("tests/fixtures/wsprd_output.txt").read_text(
+        encoding="utf-8"
+    )
     decoder = WsprDecoder()
     spots = list(decoder.decode_stream(fixture.splitlines()))
     assert len(spots) == 2

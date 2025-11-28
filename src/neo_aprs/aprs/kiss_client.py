@@ -2,6 +2,7 @@
 
 Migrated from neo_rx.aprs.kiss_client.
 """
+
 from __future__ import annotations
 import socket
 from collections.abc import ByteString
@@ -14,6 +15,7 @@ FESC = 0xDB
 TFEND = 0xDC
 TFESC = 0xDD
 
+
 class KISSCommand(IntEnum):
     DATA = 0x00
     TX_DELAY = 0x01
@@ -24,8 +26,10 @@ class KISSCommand(IntEnum):
     SET_HARDWARE = 0x06
     RETURN = 0x0F
 
+
 class KISSClientError(RuntimeError):
     pass
+
 
 @dataclass(slots=True)
 class KISSClientConfig:
@@ -33,11 +37,13 @@ class KISSClientConfig:
     port: int = 8001
     timeout: float = 2.0
 
+
 @dataclass(slots=True)
 class KISSFrame:
     port: int
     command: KISSCommand
     payload: bytes
+
 
 class KISSClient:
     def __init__(self, config: KISSClientConfig | None = None) -> None:
@@ -76,12 +82,20 @@ class KISSClient:
             except socket.timeout as exc:
                 raise TimeoutError("Timed out waiting for KISS frame") from exc
             except OSError as exc:
-                raise KISSClientError(f"Socket error while reading frame: {exc}") from exc
+                raise KISSClientError(
+                    f"Socket error while reading frame: {exc}"
+                ) from exc
             if not chunk:
                 raise KISSClientError("KISS connection closed by remote host")
             self._buffer.extend(chunk)
 
-    def send_frame(self, payload: ByteString, *, port: int = 0, command: KISSCommand | int = KISSCommand.DATA) -> None:
+    def send_frame(
+        self,
+        payload: ByteString,
+        *,
+        port: int = 0,
+        command: KISSCommand | int = KISSCommand.DATA,
+    ) -> None:
         sock = self._require_socket()
         payload_bytes = bytes(payload)
         command_value = int(KISSCommand(command))
@@ -136,6 +150,7 @@ class KISSClient:
         if self._socket is None:
             raise KISSClientError("KISS connection not established")
         return self._socket
+
 
 def _kiss_escape(payload: ByteString) -> bytes:
     """Escape a payload per the KISS protocol rules."""

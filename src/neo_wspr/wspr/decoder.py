@@ -29,11 +29,11 @@ class WsprDecoder:
     def _find_wsprd(self) -> str | None:
         """Find the wsprd binary, preferring bundled over system."""
         # Check bundled
-        bundled = os.path.join(os.path.dirname(__file__), 'bin', 'wsprd')
+        bundled = os.path.join(os.path.dirname(__file__), "bin", "wsprd")
         if os.path.exists(bundled):
             return bundled
         # Check system
-        system = shutil.which('wsprd')
+        system = shutil.which("wsprd")
         if system:
             return system
         return None
@@ -105,7 +105,13 @@ class WsprDecoder:
                 if parsed is not None:
                     yield parsed
 
-    def run_wsprd_subprocess(self, iq_data: bytes, band_hz: int, cmd: List[str] | None = None, keep_temp: bool = False) -> Iterator[dict]:
+    def run_wsprd_subprocess(
+        self,
+        iq_data: bytes,
+        band_hz: int,
+        cmd: List[str] | None = None,
+        keep_temp: bool = False,
+    ) -> Iterator[dict]:
         """Run `wsprd` as a subprocess, feed IQ data via temp file, and yield parsed spots.
 
         This function writes the provided IQ data to a temporary file, runs `wsprd`
@@ -132,13 +138,22 @@ class WsprDecoder:
             temp_dir = temp_dir_ctx.name
 
         # Create temp file for IQ data
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.c2', dir=temp_dir) as temp_file:
+        with tempfile.NamedTemporaryFile(
+            delete=False, suffix=".c2", dir=temp_dir
+        ) as temp_file:
             temp_file.write(iq_data)
             temp_file_path = temp_file.name
 
         try:
             if cmd is None:
-                cmd = [self.wsprd_path, '-a', temp_dir, '-f', str(band_hz / 1e6), temp_file_path]
+                cmd = [
+                    self.wsprd_path,
+                    "-a",
+                    temp_dir,
+                    "-f",
+                    str(band_hz / 1e6),
+                    temp_file_path,
+                ]
 
             proc = subprocess.Popen(
                 cmd,
@@ -153,9 +168,18 @@ class WsprDecoder:
                 file_size = os.path.getsize(temp_file_path)
                 samples = file_size // 4
                 inferred_secs = samples / 1_200_000.0
-                LOG.info("wsprd input file %s size=%d bytes -> %d complex samples (%.2f s @1.2e6)", temp_file_path, file_size, samples, inferred_secs)
+                LOG.info(
+                    "wsprd input file %s size=%d bytes -> %d complex samples (%.2f s @1.2e6)",
+                    temp_file_path,
+                    file_size,
+                    samples,
+                    inferred_secs,
+                )
                 if inferred_secs < 100:
-                    LOG.warning("wsprd input duration seems short (%.2fs). wsprd expects ~119s input for WSPR; this may explain missing decodes.", inferred_secs)
+                    LOG.warning(
+                        "wsprd input duration seems short (%.2fs). wsprd expects ~119s input for WSPR; this may explain missing decodes.",
+                        inferred_secs,
+                    )
             except Exception:
                 LOG.debug("Could not stat wsprd temp file for diagnostics")
 
@@ -166,20 +190,26 @@ class WsprDecoder:
                 try:
                     if pipe is None:
                         return
-                    for sline in io.TextIOWrapper(pipe, encoding='utf-8', errors='replace'):
+                    for sline in io.TextIOWrapper(
+                        pipe, encoding="utf-8", errors="replace"
+                    ):
                         sline = sline.rstrip("\n")
                         if sline:
                             LOG.debug("wsprd[stderr]: %s", sline)
                 except Exception:
                     LOG.exception("Error reading wsprd stderr")
 
-            stderr_thread = threading.Thread(target=_log_stderr, args=(proc.stderr,), daemon=True)
+            stderr_thread = threading.Thread(
+                target=_log_stderr, args=(proc.stderr,), daemon=True
+            )
             stderr_thread.start()
 
             assert proc.stdout is not None
             try:
                 # Read stdout as text and parse lines for spots
-                for line in io.TextIOWrapper(proc.stdout, encoding='utf-8', errors='replace'):
+                for line in io.TextIOWrapper(
+                    proc.stdout, encoding="utf-8", errors="replace"
+                ):
                     parsed = self._parse_line(line)
                     if parsed is not None:
                         yield parsed

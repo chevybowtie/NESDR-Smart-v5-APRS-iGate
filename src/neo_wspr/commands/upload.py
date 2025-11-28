@@ -8,7 +8,6 @@ from __future__ import annotations
 import json
 import logging
 from argparse import Namespace
-from typing import Optional
 
 from neo_core import config as config_module
 
@@ -25,11 +24,15 @@ def run_upload(args: Namespace) -> int:
         else:
             cfg = config_module.load_config()
     except Exception:
-        LOG.error("Cannot upload WSPR spots without a configuration; rerun neo-rx setup or provide --config")
+        LOG.error(
+            "Cannot upload WSPR spots without a configuration; rerun neo-rx setup or provide --config"
+        )
         return 1
 
     if not getattr(cfg, "wspr_uploader_enabled", False):
-        LOG.error("WSPR uploader is disabled. Set wspr_uploader_enabled = true in config.toml before uploading")
+        LOG.error(
+            "WSPR uploader is disabled. Set wspr_uploader_enabled = true in config.toml before uploading"
+        )
         return 1
 
     data_dir = config_module.get_mode_data_dir("wspr")
@@ -75,4 +78,3 @@ def run_upload(args: Namespace) -> int:
     except Exception:
         LOG.exception("Upload operation failed")
         return 1
-

@@ -2,6 +2,7 @@
 
 Migrated from neo_rx.aprs.aprsis_client.
 """
+
 from __future__ import annotations
 import io
 import socket
@@ -15,8 +16,10 @@ try:
 except ImportError:
     __version__ = "0.2.2"
 
+
 class APRSISClientError(RuntimeError):
     pass
+
 
 @dataclass(slots=True)
 class APRSISConfig:
@@ -29,11 +32,20 @@ class APRSISConfig:
     filter_string: str | None = None
     timeout: float = 5.0
 
+
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
+
 class RetryBackoff:
-    def __init__(self, *, base_delay: float = 2.0, max_delay: float = 120.0, multiplier: float = 2.0, clock: Optional[Callable[[], float]] = None) -> None:
+    def __init__(
+        self,
+        *,
+        base_delay: float = 2.0,
+        max_delay: float = 120.0,
+        multiplier: float = 2.0,
+        clock: Optional[Callable[[], float]] = None,
+    ) -> None:
         if base_delay <= 0:
             raise ValueError("base_delay must be positive")
         if max_delay < base_delay:
@@ -67,6 +79,7 @@ class RetryBackoff:
         self._current = self._base
         self._next_attempt = 0.0
 
+
 class APRSISClient:
     def __init__(self, config: APRSISConfig) -> None:
         self._config = config
@@ -76,13 +89,26 @@ class APRSISClient:
 
     def connect(self) -> None:
         if self._socket is not None:
-            logger.debug("APRS-IS session already active for %s:%s", self._config.host, self._config.port)
+            logger.debug(
+                "APRS-IS session already active for %s:%s",
+                self._config.host,
+                self._config.port,
+            )
             return
-        logger.debug("Opening APRS-IS session to %s:%s as %s", self._config.host, self._config.port, self._config.callsign)
+        logger.debug(
+            "Opening APRS-IS session to %s:%s as %s",
+            self._config.host,
+            self._config.port,
+            self._config.callsign,
+        )
         try:
-            sock = socket.create_connection((self._config.host, self._config.port), timeout=self._config.timeout)
+            sock = socket.create_connection(
+                (self._config.host, self._config.port), timeout=self._config.timeout
+            )
         except OSError as exc:
-            raise APRSISClientError(f"Unable to connect to APRS-IS server {self._config.host}:{self._config.port}: {exc}") from exc
+            raise APRSISClientError(
+                f"Unable to connect to APRS-IS server {self._config.host}:{self._config.port}: {exc}"
+            ) from exc
         sock.settimeout(self._config.timeout)
         self._socket = sock
         self._reader = sock.makefile("rb")
@@ -93,14 +119,23 @@ class APRSISClient:
             writer.write(login)
             writer.flush()
             self._await_logresp()
-            logger.info("Connected to APRS-IS %s:%s as %s", self._config.host, self._config.port, self._config.callsign)
+            logger.info(
+                "Connected to APRS-IS %s:%s as %s",
+                self._config.host,
+                self._config.port,
+                self._config.callsign,
+            )
         except Exception:
             self.close()
             raise
 
     def send_packet(self, packet: str | bytes) -> None:
         writer = self._require_writer()
-        packet_bytes = packet.encode("ascii", errors="replace") if isinstance(packet, str) else bytes(packet)
+        packet_bytes = (
+            packet.encode("ascii", errors="replace")
+            if isinstance(packet, str)
+            else bytes(packet)
+        )
         packet_bytes = packet_bytes.rstrip(b"\r\n") + b"\n"
         try:
             writer.write(packet_bytes)
@@ -111,24 +146,40 @@ class APRSISClient:
     def close(self) -> None:
         had = any(c is not None for c in (self._writer, self._reader, self._socket))
         if self._writer is not None:
-            try: self._writer.close()
-            except OSError: pass
+            try:
+                self._writer.close()
+            except OSError:
+                pass
             self._writer = None
         if self._reader is not None:
-            try: self._reader.close()
-            except OSError: pass
+            try:
+                self._reader.close()
+            except OSError:
+                pass
             self._reader = None
         if self._socket is not None:
-            try: self._socket.close()
-            except OSError: pass
+            try:
+                self._socket.close()
+            except OSError:
+                pass
             self._socket = None
         if had:
-            logger.info("Closed APRS-IS connection to %s:%s", self._config.host, self._config.port)
+            logger.info(
+                "Closed APRS-IS connection to %s:%s",
+                self._config.host,
+                self._config.port,
+            )
         else:
-            logger.debug("APRS-IS close requested with no active session for %s:%s", self._config.host, self._config.port)
+            logger.debug(
+                "APRS-IS close requested with no active session for %s:%s",
+                self._config.host,
+                self._config.port,
+            )
 
     def __enter__(self) -> "APRSISClient":
-        self.connect(); return self
+        self.connect()
+        return self
+
     def __exit__(self, exc_type, exc, tb) -> None:
         self.close()
 
@@ -138,12 +189,17 @@ class APRSISClient:
             try:
                 line = reader.readline()
             except OSError as exc:
-                raise APRSISClientError(f"Error reading APRS-IS response: {exc}") from exc
+                raise APRSISClientError(
+                    f"Error reading APRS-IS response: {exc}"
+                ) from exc
             if not line:
                 raise APRSISClientError("APRS-IS server closed connection during login")
             decoded = line.decode("utf-8", errors="replace").strip().lower()
             if decoded.startswith("# logresp"):
-                if any(term in decoded for term in ("unverified", "invalid", "reject", "bad")):
+                if any(
+                    term in decoded
+                    for term in ("unverified", "invalid", "reject", "bad")
+                ):
                     raise APRSISClientError(f"APRS-IS login failed: {decoded}")
                 if "verified" in decoded or " ok" in decoded:
                     return

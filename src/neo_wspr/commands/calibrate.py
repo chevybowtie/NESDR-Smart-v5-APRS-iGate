@@ -32,8 +32,6 @@ def run_calibrate(args: Namespace) -> int:
     from neo_wspr.wspr.calibrate import (
         load_spots_from_jsonl,
         estimate_offset_from_spots,
-        apply_ppm_to_radio,
-        persist_ppm_to_config,
     )
 
     # Determine spots file: CLI override -> config data dir
@@ -83,7 +81,8 @@ def run_calibrate(args: Namespace) -> int:
     # Note: --apply flag not currently exposed in unified CLI; reserved for future
     # If needed, can add via: if getattr(args, "apply", False)
     ppm = result.get("ppm", 0.0)
-    LOG.info("To apply this correction, add ppm_correction = %.3f to your config.toml", ppm)
+    LOG.info(
+        "To apply this correction, add ppm_correction = %.3f to your config.toml", ppm
+    )
 
     return 0
-

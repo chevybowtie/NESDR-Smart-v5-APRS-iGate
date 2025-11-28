@@ -39,6 +39,7 @@ def load_layered_config(
     """
     if config_dir is None:
         from neo_core.config import get_config_dir
+
         config_dir = get_config_dir()
 
     # Start with defaults
@@ -102,7 +103,7 @@ def _extract_env_overrides() -> dict[str, Any]:
     for env_key, env_value in os.environ.items():
         if not env_key.startswith(prefix):
             continue
-        suffix = env_key[len(prefix):]
+        suffix = env_key[len(prefix) :]
         if not suffix:
             continue
 

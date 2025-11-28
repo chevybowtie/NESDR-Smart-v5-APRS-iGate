@@ -71,12 +71,20 @@ def persist_ppm_to_config(ppm: float, config_path: str | None = None) -> None:
         raise RuntimeError("Configuration module not available")
 
     try:
-        cfg = config_module.load_config(config_path) if config_path else config_module.load_config()
+        cfg = (
+            config_module.load_config(config_path)
+            if config_path
+            else config_module.load_config()
+        )
         cfg.ppm_correction = int(round(float(ppm)))
 
         # Resolve the real target config path we will write to
         try:
-            target_path = config_module.resolve_config_path() if config_path is None else Path(config_path)
+            target_path = (
+                config_module.resolve_config_path()
+                if config_path is None
+                else Path(config_path)
+            )
         except Exception:
             target_path = Path(config_path) if config_path else None
 
@@ -106,16 +114,22 @@ def persist_ppm_to_config(ppm: float, config_path: str | None = None) -> None:
 
         config_module.save_config(cfg, config_path)
         try:
-            cfg_path_repr = str(target_path) if target_path is not None else str(config_path)
+            cfg_path_repr = (
+                str(target_path) if target_path is not None else str(config_path)
+            )
         except Exception:
             cfg_path_repr = str(config_path)
-        LOG.info("Saved ppm_correction=%s to config %s", cfg.ppm_correction, cfg_path_repr)
+        LOG.info(
+            "Saved ppm_correction=%s to config %s", cfg.ppm_correction, cfg_path_repr
+        )
     except Exception:
         LOG.exception("Failed to persist ppm to config")
         raise
 
 
-def estimate_offset_from_spots(spots: Iterable[dict], expected_freq_hz: Optional[float] = None) -> dict:
+def estimate_offset_from_spots(
+    spots: Iterable[dict], expected_freq_hz: Optional[float] = None
+) -> dict:
     """Estimate frequency offset (Hz) and derived ppm from an iterable of spot dicts.
 
     Each spot dict is expected to contain a numeric `freq_hz` key and optionally

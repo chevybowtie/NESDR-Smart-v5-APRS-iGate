@@ -50,13 +50,14 @@ class TestApplyPpmToRadio:
 
     def test_import_error(self):
         import builtins
+
         original_import = builtins.__import__
-        
+
         def mock_import(name, *args, **kwargs):
             if name == "rtlsdr":
                 raise ImportError("No module")
             return original_import(name, *args, **kwargs)
-        
+
         with patch("builtins.__import__", side_effect=mock_import):
             with pytest.raises(RuntimeError, match="RTL-SDR driver unavailable"):
                 apply_ppm_to_radio(10.0)
@@ -134,8 +135,6 @@ class TestLoadSpotsFromJsonl:
     def test_file_not_found(self):
         spots = load_spots_from_jsonl(Path("/nonexistent.jsonl"))
         assert spots == []
-
-
 
 
 def test_compute_ppm_from_offset_basic():

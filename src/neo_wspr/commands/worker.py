@@ -44,6 +44,7 @@ def run_worker(args: Namespace) -> int:
     if cfg and getattr(cfg, "mqtt_enabled", False):
         try:
             from neo_wspr.wspr.publisher import make_publisher_from_config
+
             publisher = make_publisher_from_config(cfg)
             if publisher:
                 publisher.topic = getattr(cfg, "mqtt_topic", "neo_rx/wspr/spots")
@@ -55,6 +56,7 @@ def run_worker(args: Namespace) -> int:
     uploader = None
     if cfg and getattr(cfg, "wspr_uploader_enabled", False):
         from neo_wspr.wspr.uploader import WsprUploader
+
         queue_path = run_dir / "wspr_upload_queue.jsonl"
         uploader = WsprUploader(queue_path=queue_path)
         LOG.info("WSPR uploader queue enabled: %s", queue_path)
@@ -83,6 +85,7 @@ def run_worker(args: Namespace) -> int:
     upconverter_offset = getattr(cfg, "upconverter_lo_offset_hz", None) if cfg else None
 
     from neo_wspr.wspr.capture import WsprCapture
+
     capture = WsprCapture(
         bands_hz=bands,
         capture_duration_s=duration,
@@ -104,4 +107,3 @@ def run_worker(args: Namespace) -> int:
         capture.stop()
 
     return 0
-

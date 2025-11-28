@@ -50,7 +50,11 @@ class WsprUploader:
             )
 
         self.credentials = credentials or {}
-        self.queue_path = Path(queue_path) if queue_path is not None else Path("./data/wspr_upload_queue.jsonl")
+        self.queue_path = (
+            Path(queue_path)
+            if queue_path is not None
+            else Path("./data/wspr_upload_queue.jsonl")
+        )
         self.queue_path.parent.mkdir(parents=True, exist_ok=True)
 
         self.base_url = base_url or DEFAULT_ENDPOINT
@@ -93,7 +97,9 @@ class WsprUploader:
 
     def _rewrite_queue(self, remaining: Iterable[Dict]) -> None:
         # Atomic-ish rewrite via temp file then replace
-        tmp_fd, tmp_path = tempfile.mkstemp(prefix="wspr_queue_", dir=str(self.queue_path.parent))
+        tmp_fd, tmp_path = tempfile.mkstemp(
+            prefix="wspr_queue_", dir=str(self.queue_path.parent)
+        )
         os.close(tmp_fd)
         tmp_file = Path(tmp_path)
         try:
@@ -118,9 +124,7 @@ class WsprUploader:
             if self._last_upload_error is None:
                 self._last_upload_error = "Spot missing metadata required for upload"
             return False
-        success_message = (
-            f"Uploaded WSPR spot {params.get('tcall')} ({params.get('tgrid')} → {params.get('rgrid')})"
-        )
+        success_message = f"Uploaded WSPR spot {params.get('tcall')} ({params.get('tgrid')} → {params.get('rgrid')})"
         return self._perform_request(params, success_log=success_message)
 
     def send_heartbeat(
@@ -154,7 +158,9 @@ class WsprUploader:
         )
         return self._perform_request(params, success_log=success_message)
 
-    def drain(self, max_items: Optional[int] = None, *, daemon: bool = False) -> Dict[str, Any]:
+    def drain(
+        self, max_items: Optional[int] = None, *, daemon: bool = False
+    ) -> Dict[str, Any]:
         """Attempt to upload queued spots; keep failures and unattempted in the queue.
 
         Returns a dict with counts: {"attempted", "succeeded", "failed"}.
@@ -202,7 +208,10 @@ class WsprUploader:
             else:
                 failed_items.append(spot)
                 if first_error is None:
-                    reason = self._last_upload_error or f"Upload failed for {spot.get('call')}"
+                    reason = (
+                        self._last_upload_error
+                        or f"Upload failed for {spot.get('call')}"
+                    )
                     first_error = reason
 
         self._rewrite_queue(failed_items)
@@ -352,7 +361,9 @@ class WsprUploader:
         if dial_freq is None:
             missing.append("dial_freq_hz")
 
-        target_freq = _as_float(target_freq_hz if target_freq_hz is not None else dial_freq)
+        target_freq = _as_float(
+            target_freq_hz if target_freq_hz is not None else dial_freq
+        )
         if target_freq is None:
             missing.append("target_freq_hz")
 
@@ -398,8 +409,12 @@ class WsprUploader:
             params.get("tcall") or params.get("tqrg"),
         )
         try:
-            response = self._session.get(self.base_url, params=params, timeout=self._timeout)
-        except Exception as exc:  # requests.RequestException but keep generic for typing
+            response = self._session.get(
+                self.base_url, params=params, timeout=self._timeout
+            )
+        except (
+            Exception
+        ) as exc:  # requests.RequestException but keep generic for typing
             LOG.warning("WSPR %s request failed: %s", function, exc)
             self._last_upload_error = f"Request error: {exc}"
             return False

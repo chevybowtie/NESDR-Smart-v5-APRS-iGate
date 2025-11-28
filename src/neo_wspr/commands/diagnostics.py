@@ -16,12 +16,11 @@ LOG = logging.getLogger(__name__)
 def run_diagnostics(args: Namespace) -> int:
     """Run WSPR-specific diagnostics (upconverter detection)."""
     cfg_path = getattr(args, "config", None)
-    cfg = None
     try:
         if cfg_path:
-            cfg = config_module.load_config(cfg_path)
+            config_module.load_config(cfg_path)
         else:
-            cfg = config_module.load_config()
+            config_module.load_config()
     except Exception:
         LOG.debug("No configuration available")
 
@@ -45,6 +44,7 @@ def run_diagnostics(args: Namespace) -> int:
     # Emit JSON if requested
     if getattr(args, "json", False):
         import json
+
         result = {
             "upconverter_hint": hint,
             "spots_analyzed": len(spots),
@@ -52,4 +52,3 @@ def run_diagnostics(args: Namespace) -> int:
         print(json.dumps(result, indent=2))
 
     return 0
-

@@ -1,13 +1,15 @@
 """Back-compat shim re-exporting from neo_wspr.wspr."""
 
-# Import explicitly to avoid circular imports during transition
-from neo_wspr.wspr.capture import *  # noqa: F401,F403
-from neo_wspr.wspr.decoder import *  # noqa: F401,F403
-from neo_wspr.wspr.uploader import *  # noqa: F401,F403
-from neo_wspr.wspr.calibrate import *  # noqa: F401,F403
-from neo_wspr.wspr.diagnostics import *  # noqa: F401,F403
-from neo_wspr.wspr.scan import *  # noqa: F401,F403
-from neo_wspr.wspr.publisher import *  # noqa: F401,F403
+# Re-export submodules by name to avoid star-import issues
+from neo_wspr.wspr import (
+    capture,
+    decoder,
+    diagnostics,
+    uploader,
+    calibrate,
+    publisher,
+    scan,
+)
 
 __all__ = [
     "capture",
@@ -18,5 +20,3 @@ __all__ = [
     "publisher",
     "scan",
 ]
-
-

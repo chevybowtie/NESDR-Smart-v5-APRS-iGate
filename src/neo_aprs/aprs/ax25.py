@@ -2,21 +2,26 @@
 
 Migrated from neo_rx.aprs.ax25.
 """
+
 from __future__ import annotations
 from dataclasses import dataclass
 
+
 class AX25DecodeError(ValueError):
     """Raised when a KISS payload cannot be decoded into a TNC2 frame."""
+
 
 @dataclass(slots=True)
 class AX25Address:
     callsign: str
     ssid: int
     has_been_repeated: bool
+
     def to_tnc2(self, include_asterisk: bool = False) -> str:
         suffix = f"-{self.ssid}" if self.ssid > 0 else ""
         indicator = "*" if include_asterisk and self.has_been_repeated else ""
         return f"{self.callsign}{suffix}{indicator}"
+
 
 def kiss_payload_to_tnc2(payload: bytes) -> bytes:
     if len(payload) < 16:
@@ -51,6 +56,7 @@ def kiss_payload_to_tnc2(payload: bytes) -> bytes:
             break
     return header_bytes + info
 
+
 def _parse_address_fields(payload: bytes) -> tuple[list[AX25Address], int]:
     addresses: list[AX25Address] = []
     offset = 0
@@ -66,6 +72,7 @@ def _parse_address_fields(payload: bytes) -> tuple[list[AX25Address], int]:
     else:
         raise AX25DecodeError("AX.25 address extension bit not found")
     return addresses, offset
+
 
 def _decode_callsign(raw: bytes) -> str:
     chars = []

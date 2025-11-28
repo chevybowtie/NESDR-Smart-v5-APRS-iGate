@@ -18,7 +18,9 @@ class Publisher(Protocol):
     def connect(self) -> None:  # pragma: no cover - interface
         ...
 
-    def publish(self, topic: str, payload: dict) -> None:  # pragma: no cover - interface
+    def publish(
+        self, topic: str, payload: dict
+    ) -> None:  # pragma: no cover - interface
         ...
 
     def close(self) -> None:  # pragma: no cover - interface

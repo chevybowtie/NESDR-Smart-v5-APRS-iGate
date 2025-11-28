@@ -18,7 +18,11 @@ def test_scan_bands_ranks_and_metrics():
     bands = [14080000, 7080000]
 
     def capture_fn(band, duration):
-        return fake_capture_band1(band, duration) if band == 14080000 else fake_capture_band2(band, duration)
+        return (
+            fake_capture_band1(band, duration)
+            if band == 14080000
+            else fake_capture_band2(band, duration)
+        )
 
     reports = scan_bands(bands, capture_fn, duration_s=120)
     assert len(reports) == 2

@@ -79,6 +79,7 @@ def ensure_patched_rtlsdr() -> None:
     try:
         # Import numpy first to prevent reload warning
         import numpy  # noqa: F401
+
         exec(compile(patched_source, spec.origin, "exec"), module_dict)
     except Exception:
         sys.modules.pop(spec.name, None)

@@ -408,9 +408,7 @@ def test_run_diagnostics_text_emits_summary(monkeypatch, tmp_path, caplog) -> No
 
     assert exit_code == 0
     version_records = [
-        record
-        for record in caplog.records
-        if "neo-rx diagnostics v" in record.message
+        record for record in caplog.records if "neo-rx diagnostics v" in record.message
     ]
     assert len(version_records) == 1
     summary_records = [

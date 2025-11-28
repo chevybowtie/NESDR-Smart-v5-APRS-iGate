@@ -360,7 +360,7 @@ def _apply_software_tocall(tnc2_line: str | bytes, tocall: str) -> str | bytes:
     """
     if not tocall:
         return tnc2_line
-    
+
     # Work with bytes internally for safety, convert back to original type at end
     if isinstance(tnc2_line, bytes):
         was_bytes = True
@@ -370,35 +370,35 @@ def _apply_software_tocall(tnc2_line: str | bytes, tocall: str) -> str | bytes:
         was_bytes = False
         line_bytes = tnc2_line.encode("ascii", errors="replace")
         tocall_bytes = tocall.encode("ascii")
-    
+
     if b":" not in line_bytes or b">" not in line_bytes:
         return tnc2_line
-    
+
     header, info = line_bytes.split(b":", 1)
     try:
         src, rest = header.split(b">", 1)
     except ValueError:
         return tnc2_line
-    
+
     # rest may contain dest[,path]
     if b"," in rest:
         _, path = rest.split(b",", 1)
         new_rest = tocall_bytes + b"," + path
     else:
         new_rest = tocall_bytes
-    
+
     result = src + b">" + new_rest + b":" + info
     return result if was_bytes else result.decode("ascii", errors="replace")
 
 
 def _get_source_callsign(tnc2_packet: str | bytes) -> str | None:
     """Extract the source callsign from a TNC2 packet (before the >).
-    
+
     Handles both str and bytes input, returns str or None.
     """
     if isinstance(tnc2_packet, bytes):
         tnc2_packet = tnc2_packet.decode("ascii", errors="replace")
-    
+
     tokens = tnc2_packet.split(":")
     if not tokens:
         return None
@@ -469,7 +469,7 @@ def _display_frame(count: int, port: int, tnc2_line: str | bytes) -> None:
         snippet = tnc2_line.decode("ascii", errors="replace")
     else:
         snippet = tnc2_line
-    
+
     if len(snippet) > 120:
         snippet = snippet[:117] + "…"
     logger.info("[%06d] port=%s %s", count, port, snippet)

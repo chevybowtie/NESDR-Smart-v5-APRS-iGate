@@ -13,9 +13,9 @@ import time  # noqa: F401
 
 # Expose mqtt client namespace to allow monkeypatching Client in tests
 try:  # pragma: no cover - optional dependency
-	import paho.mqtt.client as mqtt  # type: ignore[import]
+    import paho.mqtt.client as mqtt  # type: ignore[import]
 except Exception:
-	mqtt = None  # type: ignore[assignment]
+    mqtt = None  # type: ignore[assignment]
 
 # Ensure underlying implementation sees our exposed monkeypatch targets
 _impl.time = time  # type: ignore[assignment]

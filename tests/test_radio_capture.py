@@ -13,6 +13,9 @@ from neo_rx.radio.capture import (  # type: ignore[import]
     RtlFmConfig,
 )
 
+# Since neo_rx.radio.capture is a shim, patch the actual implementation
+CAPTURE_MODULE = "neo_core.radio.capture"
+
 
 class _FakeProcess:
     def __init__(
@@ -53,8 +56,8 @@ def test_rtl_fm_capture_builds_command(monkeypatch) -> None:
         launch_args.append(args)
         return _FakeProcess(args, data=b"abcdEFGH")
 
-    monkeypatch.setattr("neo_rx.radio.capture.shutil.which", fake_which)
-    monkeypatch.setattr("neo_rx.radio.capture.subprocess.Popen", fake_popen)
+    monkeypatch.setattr(f"{CAPTURE_MODULE}.shutil.which", fake_which)
+    monkeypatch.setattr(f"{CAPTURE_MODULE}.subprocess.Popen", fake_popen)
 
     config = RtlFmConfig(
         frequency_hz=144_390_000,
@@ -99,7 +102,7 @@ def test_rtl_fm_capture_builds_command(monkeypatch) -> None:
 
 
 def test_rtl_fm_missing_command(monkeypatch) -> None:
-    monkeypatch.setattr("neo_rx.radio.capture.shutil.which", lambda _: None)
+    monkeypatch.setattr(f"{CAPTURE_MODULE}.shutil.which", lambda _: None)
     capture = RtlFmAudioCapture(RtlFmConfig(frequency_hz=144_390_000))
 
     with pytest.raises(AudioCaptureError):
@@ -120,8 +123,8 @@ def test_rtl_fm_unexpected_exit(monkeypatch) -> None:
     def fake_popen(args: list[str], **_: Any) -> _FakeProcess:
         return _EmptyProcess(args)
 
-    monkeypatch.setattr("neo_rx.radio.capture.shutil.which", fake_which)
-    monkeypatch.setattr("neo_rx.radio.capture.subprocess.Popen", fake_popen)
+    monkeypatch.setattr(f"{CAPTURE_MODULE}.shutil.which", fake_which)
+    monkeypatch.setattr(f"{CAPTURE_MODULE}.subprocess.Popen", fake_popen)
 
     capture = RtlFmAudioCapture(RtlFmConfig(frequency_hz=144_390_000))
     capture.start()
@@ -151,8 +154,8 @@ def test_rtl_fm_exit_reports_stderr(monkeypatch) -> None:
     def fake_popen(args: list[str], **_: Any) -> _FakeProcess:
         return _FailingProcess(args)
 
-    monkeypatch.setattr("neo_rx.radio.capture.shutil.which", fake_which)
-    monkeypatch.setattr("neo_rx.radio.capture.subprocess.Popen", fake_popen)
+    monkeypatch.setattr(f"{CAPTURE_MODULE}.shutil.which", fake_which)
+    monkeypatch.setattr(f"{CAPTURE_MODULE}.subprocess.Popen", fake_popen)
 
     capture = RtlFmAudioCapture(RtlFmConfig(frequency_hz=144_390_000))
     capture.start()

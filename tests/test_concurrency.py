@@ -69,17 +69,24 @@ def test_wspr_runs_dir_uses_instance_label(monkeypatch, tmp_path: Path) -> None:
     runs_dir = config_module.get_wspr_runs_dir()
 
     # Should use instance ID as the run label
-    assert runs_dir == tmp_path / "instances" / "wspr-40m" / "wspr" / "runs" / "wspr-40m"
+    assert (
+        runs_dir == tmp_path / "instances" / "wspr-40m" / "wspr" / "runs" / "wspr-40m"
+    )
 
 
-def test_wspr_runs_dir_custom_label_overrides_instance(monkeypatch, tmp_path: Path) -> None:
+def test_wspr_runs_dir_custom_label_overrides_instance(
+    monkeypatch, tmp_path: Path
+) -> None:
     """Verify custom run_label overrides instance ID."""
     monkeypatch.setenv("NEO_RX_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("NEO_RX_INSTANCE_ID", "wspr-40m")
 
     runs_dir = config_module.get_wspr_runs_dir(run_label="calibration-2025")
 
-    assert runs_dir == tmp_path / "instances" / "wspr-40m" / "wspr" / "runs" / "calibration-2025"
+    assert (
+        runs_dir
+        == tmp_path / "instances" / "wspr-40m" / "wspr" / "runs" / "calibration-2025"
+    )
 
 
 def test_no_instance_id_uses_base_paths(monkeypatch, tmp_path: Path) -> None:
@@ -111,7 +118,7 @@ def test_instance_id_sanitization(monkeypatch, tmp_path: Path) -> None:
 
 def test_concurrent_aprs_wspr_simulation(monkeypatch, tmp_path: Path) -> None:
     """Simulate concurrent APRS and WSPR runs with different instances.
-    
+
     This test verifies the core path isolation mechanism that enables
     concurrent operation without requiring actual process spawning.
     """
@@ -158,7 +165,7 @@ def test_cli_propagates_instance_id_to_env(monkeypatch) -> None:
     monkeypatch.delenv("NEO_RX_INSTANCE_ID", raising=False)
 
     args = Namespace(instance_id="test-rig", data_dir=None, mode="aprs", verb="listen")
-    
+
     # Simulate the env propagation logic from cli.main
     if getattr(args, "instance_id", None):
         monkeypatch.setenv("NEO_RX_INSTANCE_ID", str(args.instance_id))
@@ -172,7 +179,9 @@ def test_cli_propagates_data_dir_to_env(monkeypatch, tmp_path: Path) -> None:
 
     monkeypatch.delenv("NEO_RX_DATA_DIR", raising=False)
 
-    args = Namespace(instance_id=None, data_dir=str(tmp_path), mode="wspr", verb="worker")
+    args = Namespace(
+        instance_id=None, data_dir=str(tmp_path), mode="wspr", verb="worker"
+    )
 
     # Simulate the env propagation logic from cli.main
     if getattr(args, "data_dir", None):

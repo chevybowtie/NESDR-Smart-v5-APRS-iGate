@@ -82,7 +82,9 @@ class MqttPublisher:
         LOG.debug("Publishing to %s: %s", topic, body)
         # ensure we are connected (attempt reconnect with backoff if needed)
         if not self._connected:
-            LOG.warning("MQTT client not connected; enqueueing message to on-disk queue")
+            LOG.warning(
+                "MQTT client not connected; enqueueing message to on-disk queue"
+            )
             self._enqueue_message(topic, body)
             return
 
@@ -108,7 +110,9 @@ class MqttPublisher:
         except Exception:  # pragma: no cover - best-effort cleanup
             LOG.exception("Failed to disconnect MQTT client")
 
-    def _on_connect(self, client: Any, userdata: Any, flags: Any, rc: int) -> None:  # pragma: no cover - callback
+    def _on_connect(
+        self, client: Any, userdata: Any, flags: Any, rc: int
+    ) -> None:  # pragma: no cover - callback
         if rc == 0:
             LOG.info("MQTT connected to %s:%s", self._host, self._port)
             self._connected = True
@@ -117,7 +121,9 @@ class MqttPublisher:
         else:
             LOG.warning("MQTT connect returned rc=%s", rc)
 
-    def _on_disconnect(self, client: Any, userdata: Any, rc: int) -> None:  # pragma: no cover - callback
+    def _on_disconnect(
+        self, client: Any, userdata: Any, rc: int
+    ) -> None:  # pragma: no cover - callback
         LOG.info("MQTT disconnected (rc=%s)", rc)
         self._connected = False
 
@@ -169,7 +175,10 @@ class MqttPublisher:
     def _enqueue_message(self, topic: str, body: str) -> None:
         try:
             if self._queue.size() >= self._max_buffer_size:
-                LOG.warning("MQTT queue at capacity (%d messages); dropping oldest", self._max_buffer_size)
+                LOG.warning(
+                    "MQTT queue at capacity (%d messages); dropping oldest",
+                    self._max_buffer_size,
+                )
                 # remove oldest file to make room
                 files = self._queue.list()
                 if files:
@@ -200,7 +209,9 @@ class MqttPublisher:
                     # remove on success
                     self._queue.remove(p)
                 except Exception:
-                    LOG.exception("Failed to publish queued message %s; leaving in queue", p)
+                    LOG.exception(
+                        "Failed to publish queued message %s; leaving in queue", p
+                    )
                     failed.append(p)
             if failed:
                 LOG.info("Left %d messages in queue after drain", len(failed))

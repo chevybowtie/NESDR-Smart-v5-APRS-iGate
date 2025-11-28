@@ -48,14 +48,14 @@ class WsprCapture:
     ) -> None:
         # Default to primary WSPR bands (Hz)
         self.bands_hz = bands_hz or [
-            3_594_000,   # 80m
-            7_038_600,   # 40m
+            3_594_000,  # 80m
+            7_038_600,  # 40m
             14_095_600,  # 20m
             10_140_200,  # 30m
             28_124_600,  # 10m
             50_294_800,  # 6m
-            144_489_000, # 2m
-            432_500_000, # 70cm
+            144_489_000,  # 2m
+            432_500_000,  # 70cm
         ]
         self.capture_duration_s = capture_duration_s
         self._running = False
@@ -66,7 +66,9 @@ class WsprCapture:
         self._spots_file = self._data_dir / "wspr_spots.jsonl"
         self._publisher = publisher
         self._upconverter_enabled = upconverter_enabled
-        self._upconverter_offset_hz = upconverter_offset_hz or 125_000_000  # Default 125MHz
+        self._upconverter_offset_hz = (
+            upconverter_offset_hz or 125_000_000
+        )  # Default 125MHz
         # When True, preserve wsprd temp files for debugging
         self._keep_temp = bool(keep_temp)
         self._station_config = station_config
@@ -79,7 +81,9 @@ class WsprCapture:
         LOG.info("Starting WSPR capture with bands: %s", self.bands_hz)
         self._running = True
         self._stop_event.clear()
-        self._thread = threading.Thread(target=self._capture_loop, name="wspr_capture", daemon=True)
+        self._thread = threading.Thread(
+            target=self._capture_loop, name="wspr_capture", daemon=True
+        )
         self._thread.start()
 
     def stop(self) -> None:
@@ -130,15 +134,23 @@ class WsprCapture:
 
             sdr = RtlSdr()  # type: ignore[operator]
             LOG.info("RTL-SDR initialized for WSPR capture")
-            LOG.info("Note: '[R82XX] PLL not locked!' messages during tuning are normal and don't indicate errors")
+            LOG.info(
+                "Note: '[R82XX] PLL not locked!' messages during tuning are normal and don't indicate errors"
+            )
 
             # Check system time accuracy - critical for WSPR synchronization
             import datetime
+
             now = datetime.datetime.now()
             if now.year < 2024:
-                LOG.warning("System time appears to be incorrect (year %d). WSPR synchronization requires accurate system time within seconds. Please configure NTP (e.g., 'sudo apt install ntp' and 'sudo systemctl enable ntp').", now.year)
+                LOG.warning(
+                    "System time appears to be incorrect (year %d). WSPR synchronization requires accurate system time within seconds. Please configure NTP (e.g., 'sudo apt install ntp' and 'sudo systemctl enable ntp').",
+                    now.year,
+                )
             else:
-                LOG.info("System time appears reasonable. For optimal WSPR reception, ensure NTP synchronization: 'timedatectl status' should show 'NTP synchronized: yes'")
+                LOG.info(
+                    "System time appears reasonable. For optimal WSPR reception, ensure NTP synchronization: 'timedatectl status' should show 'NTP synchronized: yes'"
+                )
 
             decoder = WsprDecoder()
 
@@ -147,21 +159,26 @@ class WsprCapture:
             seconds_since_epoch = int(now)
             current_minute = (seconds_since_epoch // 60) % 60
             seconds_into_minute = seconds_since_epoch % 60
-            
+
             if current_minute % 2 == 0:
                 # Already at even minute, wait until next even minute
                 wait_seconds = 120 - seconds_into_minute
             else:
                 # At odd minute, wait until next even minute
                 wait_seconds = (120 - seconds_into_minute) % 120
-            
+
             if wait_seconds > 0:
-                LOG.info("Waiting %d seconds to synchronize with WSPR schedule (next even minute)", wait_seconds)
+                LOG.info(
+                    "Waiting %d seconds to synchronize with WSPR schedule (next even minute)",
+                    wait_seconds,
+                )
                 # Countdown with updates every second
                 for remaining in range(wait_seconds, 0, -1):
                     if self._stop_event.wait(1.0):  # Wait 1 second, check for stop
                         return
-                    if remaining <= 10 or remaining % 10 == 0:  # Log every 10 seconds, or last 10
+                    if (
+                        remaining <= 10 or remaining % 10 == 0
+                    ):  # Log every 10 seconds, or last 10
                         LOG.info("WSPR sync: %d seconds remaining", remaining)
                 LOG.info("WSPR synchronization complete - starting capture")
 
@@ -170,21 +187,34 @@ class WsprCapture:
                     if self._stop_event.is_set():
                         break
 
-                    LOG.info("Tuning to band %s Hz for %s s", band_hz, self.capture_duration_s)
+                    LOG.info(
+                        "Tuning to band %s Hz for %s s",
+                        band_hz,
+                        self.capture_duration_s,
+                    )
                     try:
                         # Apply upconverter offset if enabled
                         if self._upconverter_enabled and self._upconverter_offset_hz:
                             actual_freq = band_hz + self._upconverter_offset_hz
-                            LOG.info("RTL-SDR tuning to %.3f MHz (HF: %.3f MHz + %d MHz upconverter offset)", 
-                                   actual_freq / 1e6, band_hz / 1e6, self._upconverter_offset_hz // 1_000_000)
+                            LOG.info(
+                                "RTL-SDR tuning to %.3f MHz (HF: %.3f MHz + %d MHz upconverter offset)",
+                                actual_freq / 1e6,
+                                band_hz / 1e6,
+                                self._upconverter_offset_hz // 1_000_000,
+                            )
                         else:
                             actual_freq = band_hz
-                            LOG.info("RTL-SDR tuning to %.3f MHz (no upconverter)", actual_freq / 1e6)
+                            LOG.info(
+                                "RTL-SDR tuning to %.3f MHz (no upconverter)",
+                                actual_freq / 1e6,
+                            )
                         sdr.set_center_freq(actual_freq)  # type: ignore[attr-defined]
                         # Allow PLL to settle after frequency change
                         time.sleep(0.1)  # 100ms delay for tuner stabilization
                         sdr.set_sample_rate(1_200_000)  # Standard for WSPR
-                        sdr.set_gain(35)  # Set gain to 35dB (matches SDR++ settings of 20-35dB range)
+                        sdr.set_gain(
+                            35
+                        )  # Set gain to 35dB (matches SDR++ settings of 20-35dB range)
                         LOG.info("RTL-SDR configured: sample rate 1.2 MHz, gain 35dB")
                         # Capture IQ samples
                         iq_data = b""
@@ -196,7 +226,7 @@ class WsprCapture:
                         chunk_size = 16384
 
                         # Prefer async/callback-based capture if supported by the binding.
-                        use_async = hasattr(sdr, 'read_samples_async')
+                        use_async = hasattr(sdr, "read_samples_async")
                         if use_async:
                             LOG.info("Using async capture via read_samples_async")
                             buf = bytearray()
@@ -205,8 +235,16 @@ class WsprCapture:
                                 # samples is typically a numpy array of complex64
                                 try:
                                     for sample in samples:
-                                        buf.extend(int(sample.real * 32767).to_bytes(2, 'little', signed=True))
-                                        buf.extend(int(sample.imag * 32767).to_bytes(2, 'little', signed=True))
+                                        buf.extend(
+                                            int(sample.real * 32767).to_bytes(
+                                                2, "little", signed=True
+                                            )
+                                        )
+                                        buf.extend(
+                                            int(sample.imag * 32767).to_bytes(
+                                                2, "little", signed=True
+                                            )
+                                        )
                                     # Do not call cancel_read_async() from the callback; the
                                     # main thread will stop the async read when the duration
                                     # has elapsed. Calling cancel from the callback can race
@@ -216,11 +254,19 @@ class WsprCapture:
 
                             import threading as _threading
 
-                            reader_thread = _threading.Thread(target=lambda: sdr.read_samples_async(_async_cb, chunk_size), daemon=True)
+                            reader_thread = _threading.Thread(
+                                target=lambda: sdr.read_samples_async(
+                                    _async_cb, chunk_size
+                                ),
+                                daemon=True,
+                            )
                             reader_thread.start()
 
                             # Wait until duration elapsed or stop requested
-                            while time.time() - start_time < self.capture_duration_s and not self._stop_event.is_set():
+                            while (
+                                time.time() - start_time < self.capture_duration_s
+                                and not self._stop_event.is_set()
+                            ):
                                 time.sleep(0.1)
 
                             # Ensure async read stopped. Call cancel_read_async from the
@@ -231,7 +277,9 @@ class WsprCapture:
                             try:
                                 sdr.cancel_read_async()
                             except Exception:
-                                LOG.debug("sdr.cancel_read_async() raised an exception during shutdown")
+                                LOG.debug(
+                                    "sdr.cancel_read_async() raised an exception during shutdown"
+                                )
 
                             # Wait for the reader thread to exit (give it up to 5s).
                             timeout = 5.0
@@ -242,17 +290,29 @@ class WsprCapture:
                                 waited += interval
 
                             if reader_thread.is_alive():
-                                LOG.warning("Async reader thread did not exit within %.1fs", timeout)
+                                LOG.warning(
+                                    "Async reader thread did not exit within %.1fs",
+                                    timeout,
+                                )
 
                             iq_data = bytes(buf)
                         else:
                             # Fallback synchronous capture (existing approach)
-                            while time.time() - start_time < self.capture_duration_s and not self._stop_event.is_set():
-                                samples = sdr.read_samples(chunk_size)  # Read in larger chunks
+                            while (
+                                time.time() - start_time < self.capture_duration_s
+                                and not self._stop_event.is_set()
+                            ):
+                                samples = sdr.read_samples(
+                                    chunk_size
+                                )  # Read in larger chunks
                                 # Convert complex samples to bytes (IQ as int16)
                                 iq_bytes = b"".join(
-                                    int(sample.real * 32767).to_bytes(2, 'little', signed=True) +
-                                    int(sample.imag * 32767).to_bytes(2, 'little', signed=True)
+                                    int(sample.real * 32767).to_bytes(
+                                        2, "little", signed=True
+                                    )
+                                    + int(sample.imag * 32767).to_bytes(
+                                        2, "little", signed=True
+                                    )
                                     for sample in samples
                                 )
                                 iq_data += iq_bytes
@@ -264,7 +324,12 @@ class WsprCapture:
                                     try:
                                         total_samples = len(iq_data) // 4
                                         elapsed = now - start_time
-                                        LOG.info("WSPR capture progress: %d complex samples in %.1fs (%.1f sps)", total_samples, elapsed, total_samples / max(1.0, elapsed))
+                                        LOG.info(
+                                            "WSPR capture progress: %d complex samples in %.1fs (%.1f sps)",
+                                            total_samples,
+                                            elapsed,
+                                            total_samples / max(1.0, elapsed),
+                                        )
                                     except Exception:
                                         LOG.debug("Failed to compute capture progress")
                                     last_progress = now
@@ -273,23 +338,33 @@ class WsprCapture:
                         if iq_data:
                             # Log capture diagnostics: sample rate reported by driver and written data size
                             try:
-                                actual_sr = getattr(sdr, 'get_sample_rate', None)
+                                actual_sr = getattr(sdr, "get_sample_rate", None)
                                 if callable(actual_sr):
                                     reported_sr = actual_sr()
                                 else:
                                     # Some bindings expose property instead
-                                    reported_sr = getattr(sdr, 'sample_rate', None)
+                                    reported_sr = getattr(sdr, "sample_rate", None)
                                 if reported_sr:
-                                    LOG.info("RTL-SDR reported sample rate: %s", reported_sr)
+                                    LOG.info(
+                                        "RTL-SDR reported sample rate: %s", reported_sr
+                                    )
                             except Exception:
                                 LOG.debug("Could not read sample rate from SDR object")
                             try:
                                 total_samples = len(iq_data) // 4
                                 inferred_duration = total_samples / float(1_200_000)
-                                LOG.info("Captured %d complex samples (%.2f seconds at 1.2e6 sps assumed)", total_samples, inferred_duration)
+                                LOG.info(
+                                    "Captured %d complex samples (%.2f seconds at 1.2e6 sps assumed)",
+                                    total_samples,
+                                    inferred_duration,
+                                )
                             except Exception:
-                                LOG.debug("Failed to compute captured sample count/duration")
-                            for spot in decoder.run_wsprd_subprocess(iq_data, band_hz, keep_temp=self._keep_temp):
+                                LOG.debug(
+                                    "Failed to compute captured sample count/duration"
+                                )
+                            for spot in decoder.run_wsprd_subprocess(
+                                iq_data, band_hz, keep_temp=self._keep_temp
+                            ):
                                 self._handle_spot(spot, band_hz)
 
                     except Exception as exc:

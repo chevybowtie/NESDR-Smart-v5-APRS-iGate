@@ -5,6 +5,11 @@ within the package can consistently report the package version at
 runtime without duplicating fallback logic.
 """
 
+# Suppress pkg_resources deprecation warning
+import warnings
+
+from pathlib import Path as _Path
+
 try:
     # Python 3.8+ exposes importlib.metadata in the stdlib; fall back to
     # the backport package if necessary. We keep this minimal and avoid
@@ -14,13 +19,18 @@ try:
 except Exception:  # pragma: no cover - defensive for very old runtimes
     import importlib_metadata as _importlib_metadata  # type: ignore
 
-from pathlib import Path as _Path
+warnings.filterwarnings(
+    "ignore", message="pkg_resources is deprecated", category=UserWarning
+)
+
 _pkg_path = _Path(__file__).resolve()
 _in_site = ("site-packages" in str(_pkg_path)) or ("dist-packages" in str(_pkg_path))
+
 
 def _version_from_pyproject() -> str:
     try:
         import sys as _sys
+
         if _sys.version_info >= (3, 11):
             import tomllib as _toml
         else:  # pragma: no cover
@@ -35,6 +45,7 @@ def _version_from_pyproject() -> str:
         pass
     return "0.0.0"
 
+
 if not _in_site:
     __version__ = _version_from_pyproject()
 else:
@@ -42,10 +53,6 @@ else:
         __version__ = _importlib_metadata.version("neo-rx")
     except Exception:
         __version__ = _version_from_pyproject()
-
-# Suppress pkg_resources deprecation warning
-import warnings
-warnings.filterwarnings("ignore", message="pkg_resources is deprecated", category=UserWarning)
 
 from . import cli, config, diagnostics_helpers, term  # noqa: E402
 

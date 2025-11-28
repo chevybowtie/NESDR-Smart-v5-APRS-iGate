@@ -15,6 +15,7 @@ def run_listen(args: Namespace) -> int:
     """Run APRS listen via the legacy CLI, mapping known flags."""
     # Import lazily to avoid pulling heavy dependencies at module import time
     from neo_rx.cli import main as legacy_main  # type: ignore[import]
+
     argv: List[str] = ["listen"]
 
     config = getattr(args, "config", None)

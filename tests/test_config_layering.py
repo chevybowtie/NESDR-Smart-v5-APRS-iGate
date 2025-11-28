@@ -41,14 +41,18 @@ def test_load_layered_config_cli_overrides_all(tmp_path: Path) -> None:
     aprs_config.write_text('[station]\ncallsign = "APRS"\n', encoding="utf-8")
 
     cli_overrides = {"station": {"callsign": "CLI"}}
-    result = load_layered_config(mode="aprs", config_dir=tmp_path, cli_overrides=cli_overrides)
+    result = load_layered_config(
+        mode="aprs", config_dir=tmp_path, cli_overrides=cli_overrides
+    )
 
     assert result == {"station": {"callsign": "CLI"}}
 
 
 def test_load_layered_config_merges_nested_dicts(tmp_path: Path) -> None:
     defaults = tmp_path / "defaults.toml"
-    defaults.write_text('[station]\ncallsign = "DEFAULT"\npasscode = "12345"\n', encoding="utf-8")
+    defaults.write_text(
+        '[station]\ncallsign = "DEFAULT"\npasscode = "12345"\n', encoding="utf-8"
+    )
 
     aprs_config = tmp_path / "aprs.toml"
     aprs_config.write_text('[station]\ncallsign = "APRS"\n', encoding="utf-8")

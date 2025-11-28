@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import json
 import logging
-import re
-from argparse import Namespace
 from collections.abc import Iterator
 
 import pytest
@@ -98,7 +96,7 @@ def test_setup_non_interactive(tmp_path, monkeypatch, capsys) -> None:
     monkeypatch.setenv(CONFIG_ENV_VAR, str(config_path))
 
     exit_code = main(["aprs", "setup", "--non-interactive"])
-    captured = capsys.readouterr()
+    capsys.readouterr()
 
     assert exit_code == 0
     # Output may be via logging, not stdout
@@ -133,7 +131,7 @@ def test_setup_dry_run_interactive(tmp_path, monkeypatch, capsys) -> None:
     monkeypatch.setattr("neo_aprs.commands.setup.getpass", lambda _: next(passwords))
 
     exit_code = main(["aprs", "setup", "--dry-run"])
-    captured = capsys.readouterr()
+    capsys.readouterr()
 
     assert exit_code == 0
     # Dry run check - config should not exist
@@ -293,7 +291,7 @@ def test_listen_command_once(tmp_path, monkeypatch, capsys) -> None:
     )
 
     exit_code = main(["aprs", "listen", "--once", "--config", str(config_path)])
-    captured = capsys.readouterr()
+    capsys.readouterr()
 
     assert exit_code == 0
     assert DummyAPRSClient.instances
@@ -426,7 +424,7 @@ def test_listen_reconnect_and_stats(tmp_path, monkeypatch, capsys) -> None:
     )
 
     exit_code = main(["aprs", "listen", "--config", str(config_path)])
-    captured = capsys.readouterr()
+    capsys.readouterr()
 
     assert exit_code == 0
     assert len(DummyAPRSClient.instances) >= 2

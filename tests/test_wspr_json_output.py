@@ -61,7 +61,7 @@ def test_scan_json_output(monkeypatch, capsys, tmp_path):
 
     captured = capsys.readouterr()
     output = captured.out.strip()
-    
+
     # Verify valid JSON with expected structure
     data = json.loads(output)
     assert isinstance(data, list)
@@ -148,7 +148,12 @@ def test_upload_json_includes_last_error(monkeypatch, capsys, tmp_path):
     monkeypatch.setattr(
         WsprUploader,
         "drain",
-        lambda self: {"attempted": 1, "succeeded": 0, "failed": 1, "last_error": "boom"},
+        lambda self: {
+            "attempted": 1,
+            "succeeded": 0,
+            "failed": 1,
+            "last_error": "boom",
+        },
     )
 
     args = Namespace(

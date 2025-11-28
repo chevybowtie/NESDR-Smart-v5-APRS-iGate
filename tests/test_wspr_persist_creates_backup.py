@@ -28,7 +28,7 @@ def test_persist_creates_backup(tmp_path: Path):
 
     # There should be a backup file in the `backups/` directory with .bak- timestamp suffix
     backups_dir = cfg_path.parent / "backups"
-    backups = list(backups_dir.glob(cfg_path.name + ".bak-*") )
+    backups = list(backups_dir.glob(cfg_path.name + ".bak-*"))
     assert len(backups) >= 1
     # backup file should be non-empty
     assert backups[0].stat().st_size > 0

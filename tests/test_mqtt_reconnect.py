@@ -6,7 +6,6 @@ from argparse import Namespace
 import pytest
 
 import neo_rx.telemetry.mqtt_publisher as mp
-import neo_wspr.commands as wspr_cmd
 
 
 class MockClient:
@@ -45,7 +44,9 @@ class MockClient:
 
 
 def _patch_client(monkeypatch, behavior):
-    monkeypatch.setattr(mp, "mqtt", types.SimpleNamespace(Client=lambda: MockClient(behavior=behavior)))
+    monkeypatch.setattr(
+        mp, "mqtt", types.SimpleNamespace(Client=lambda: MockClient(behavior=behavior))
+    )
 
 
 def test_connect_eventually_succeeds(monkeypatch, tmp_path):
@@ -109,18 +110,22 @@ def test_cli_publisher_wiring(monkeypatch):
         topic=None,
     )
     import neo_wspr.wspr.publisher as wspr_publisher
-    monkeypatch.setattr(wspr_publisher, "make_publisher_from_config", lambda _cfg: mock_pub)
+
+    monkeypatch.setattr(
+        wspr_publisher, "make_publisher_from_config", lambda _cfg: mock_pub
+    )
 
     class StubCapture:
         def __init__(self, *args, **kwargs):
-            self.publisher = kwargs.get('publisher')
-            self.bands_hz = kwargs.get('bands_hz', [14_080_000])
+            self.publisher = kwargs.get("publisher")
+            self.bands_hz = kwargs.get("bands_hz", [14_080_000])
 
         def start(self):
             # Simulate publishing spots
             from neo_wspr.wspr.decoder import WsprDecoder
+
             decoder = WsprDecoder()
-            for spot in decoder.run_wsprd_subprocess(b'', self.bands_hz[0]):
+            for spot in decoder.run_wsprd_subprocess(b"", self.bands_hz[0]):
                 if self.publisher:
                     topic = getattr(self.publisher, "topic", "neo_rx/wspr/spots")
                     self.publisher.publish(topic, spot)
@@ -132,6 +137,7 @@ def test_cli_publisher_wiring(monkeypatch):
             return False  # Return False so the loop exits immediately
 
     import neo_wspr.wspr.capture as wspr_capture
+
     monkeypatch.setattr(wspr_capture, "WsprCapture", StubCapture)
 
     import neo_wspr.wspr.decoder as decoder_mod

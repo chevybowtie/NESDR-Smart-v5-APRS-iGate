@@ -342,7 +342,8 @@ class StationConfig:
             wspr_power_dbm=wspr_power,
             wspr_uploader_enabled=bool(wspr.get("uploader_enabled", False)),
             upconverter_enabled=bool(upconverter.get("enabled", False)),
-            upconverter_lo_offset_hz=_optional_int(upconverter.get("lo_offset_hz")) or 125_000_000,
+            upconverter_lo_offset_hz=_optional_int(upconverter.get("lo_offset_hz"))
+            or 125_000_000,
             mqtt_enabled=bool(mqtt.get("enabled", False)),
             mqtt_host=mqtt.get("host"),
             mqtt_port=_optional_int(mqtt.get("port")),
@@ -461,5 +462,7 @@ def _retrieve_passcode_from_keyring(callsign: str) -> str:
                     pass
             return value
     if last_error:
-        raise ValueError(f"Failed to read passcode from keyring: {last_error}") from last_error
+        raise ValueError(
+            f"Failed to read passcode from keyring: {last_error}"
+        ) from last_error
     raise ValueError("No APRS-IS passcode stored in keyring; rerun setup")

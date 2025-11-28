@@ -26,7 +26,12 @@ def fake_capture_fn(band_hz: int, duration_s: int):
 
 def test_capture_publishes(tmp_path: Path):
     publisher = MockPublisher()
-    cap = WsprCapture(bands_hz=[14080000], capture_duration_s=10, data_dir=tmp_path, publisher=publisher)
+    cap = WsprCapture(
+        bands_hz=[14080000],
+        capture_duration_s=10,
+        data_dir=tmp_path,
+        publisher=publisher,
+    )
     cap.start()
     spots = cap.run_capture_cycle(fake_capture_fn)
     cap.stop()

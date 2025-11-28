@@ -1,6 +1,5 @@
 """Tests for WSPR diagnostics upconverter detection heuristics."""
 
-
 from neo_wspr.wspr.diagnostics import detect_upconverter_hint
 
 

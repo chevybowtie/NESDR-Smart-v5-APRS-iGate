@@ -5,6 +5,7 @@ Design goals:
 - Atomic enqueue via write+rename.
 - Dequeue by consuming the oldest file (lexicographic by name).
 """
+
 from __future__ import annotations
 
 import json

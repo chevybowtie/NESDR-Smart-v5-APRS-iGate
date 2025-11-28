@@ -41,6 +41,7 @@ def run_scan(args: Namespace) -> int:
     def _capture_fn(band_hz: int, dur: int):
         """Capture function for scanning: runs wsprd and collects output."""
         from neo_wspr.wspr.decoder import WsprDecoder
+
         decoder = WsprDecoder()
         wsprd_path = decoder.wsprd_path
         if wsprd_path is None:
@@ -48,7 +49,9 @@ def run_scan(args: Namespace) -> int:
             return []
         cmd = [wsprd_path]
         try:
-            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            proc = subprocess.Popen(
+                cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+            )
         except Exception:
             LOG.exception("Failed to start wsprd for band %s", band_hz)
             return []
@@ -72,6 +75,7 @@ def run_scan(args: Namespace) -> int:
         return lines
 
     from neo_wspr.wspr import scan as wspr_scan
+
     reports = wspr_scan.scan_bands(bands, _capture_fn, duration)
 
     # Emit JSON if requested, otherwise human-readable logs
@@ -91,4 +95,3 @@ def run_scan(args: Namespace) -> int:
             r.get("unique_calls"),
         )
     return 0
-
