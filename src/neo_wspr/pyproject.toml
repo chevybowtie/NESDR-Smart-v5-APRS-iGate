@@ -7,9 +7,9 @@ name = "neo-wspr"
 version = "0.2.3"
 description = "Neo-RX WSPR monitoring functionality"
 authors = [{ name = "Paul Sturm" }]
-readme = "README.md"
+
 requires-python = ">=3.11"
-license = { text = "Proprietary" }
+license = "LicenseRef-Proprietary"
 keywords = ["wspr", "ham-radio", "sdr"]
 classifiers = [
 	"Programming Language :: Python :: 3",

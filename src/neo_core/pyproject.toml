@@ -7,9 +7,9 @@ name = "neo-core"
 version = "0.2.3"
 description = "Neo-RX core radio and configuration utilities"
 authors = [{ name = "Paul Sturm" }]
-readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "Proprietary" }
+license = "LicenseRef-Proprietary"
 keywords = ["aprs", "sdr", "rtl-sdr", "ham-radio"]
 classifiers = [
 	"Programming Language :: Python :: 3",
