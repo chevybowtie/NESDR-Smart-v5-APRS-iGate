@@ -61,13 +61,13 @@ sync-versions:
 		echo "Usage: make sync-versions VERSION=0.3.0"; \
 		exit 1; \
 	fi
-	@$(PYTHON) scripts/sync_versions.py $(VERSION)
+	@$(VENV_DIR)/bin/python scripts/sync_versions.py $(VERSION)
 
 release:
 	@if [ -z "$(VERSION)" ]; then \
 		echo "Usage: make release VERSION=0.3.0 [DRY_RUN=1] [UPLOAD=1]"; \
 		exit 1; \
 	fi
-	@$(PYTHON) scripts/release.py $(VERSION) \
-		$(if $(DRY_RUN),--dry-run,) \
+	@$(VENV_DIR)/bin/python scripts/release.py $(VERSION) \
+	    $(if $(DRY_RUN),--dry-run,) \
 		$(if $(UPLOAD),--upload,)
