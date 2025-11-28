@@ -65,9 +65,11 @@ sync-versions:
 
 release:
 	@if [ -z "$(VERSION)" ]; then \
-		echo "Usage: make release VERSION=0.3.0 [DRY_RUN=1] [UPLOAD=1]"; \
+		echo "Usage: make release VERSION=0.3.0 [DRY_RUN=1] [UPLOAD=1] [SKIP=1] [FORCE=1]"; \
 		exit 1; \
 	fi
 	@$(VENV_DIR)/bin/python scripts/release.py $(VERSION) \
 	    $(if $(DRY_RUN),--dry-run,) \
-		$(if $(UPLOAD),--upload,)
+		$(if $(UPLOAD),--upload,) \
+		$(if $(SKIP),--skip-version-check,) \
+		$(if $(FORCE),--force-tags,)

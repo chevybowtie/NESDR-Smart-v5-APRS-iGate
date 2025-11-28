@@ -270,6 +270,9 @@ def main() -> None:
     parser.add_argument(
         "--skip-version-check", action="store_true", help="Skip version validation"
     )
+    parser.add_argument(
+        "--force-tags", action="store_true", help="Force re-create tags if they already exist"
+    )
     args = parser.parse_args()
 
     root = find_project_root()
@@ -314,7 +317,7 @@ def main() -> None:
     build_packages(root, args.dry_run)
 
     # Create tags
-    create_git_tags(root, version, args.dry_run)
+    create_git_tags(root, version, args.dry_run, force=args.force_tags)
 
     # Upload to PyPI
     if args.upload:
