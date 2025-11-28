@@ -199,7 +199,26 @@ def commit_changes(root: Path, version: str, dry_run: bool) -> None:
         print("  [DRY RUN] Would commit version/changelog updates")
         return
 
-    run_command(["git", "add", "CHANGELOG.md", "**/pyproject.toml"], cwd=root)
+    # Stage updated files explicitly; glob patterns may not expand through subprocess
+    files_to_add = [
+        "CHANGELOG.md",
+        "pyproject.toml",
+        "src/neo_core/pyproject.toml",
+        "src/neo_aprs/pyproject.toml",
+        "src/neo_wspr/pyproject.toml",
+        "src/neo_telemetry/pyproject.toml",
+    ]
+    run_command(["git", "add", *files_to_add], cwd=root, capture=False)
+
+    # If nothing is staged, skip commit gracefully
+    try:
+        run_command(["git", "diff", "--cached", "--quiet"], cwd=root)
+        print("  No changes staged; skipping commit")
+        return
+    except subprocess.CalledProcessError:
+        # There are staged changes; proceed with commit
+        pass
+
     run_command(["git", "commit", "-m", f"Release {version}"], cwd=root, capture=False)
     print(f"✓ Committed release changes for {version}")
 
