@@ -126,7 +126,15 @@ def update_changelog(root: Path, version: str) -> None:
     print(f"✓ Updated CHANGELOG.md: [Unreleased] → [{version}] - {today}")
 
 
-def create_git_tags(root: Path, version: str, dry_run: bool) -> None:
+def tag_exists(root: Path, tag: str) -> bool:
+    try:
+        run_command(["git", "rev-parse", "-q", "--verify", tag], cwd=root)
+        return True
+    except subprocess.CalledProcessError:
+        return False
+
+
+def create_git_tags(root: Path, version: str, dry_run: bool, force: bool = False) -> None:
     """Create git tags for each package."""
     print(f"\nCreating git tags for version {version}...")
 
@@ -139,6 +147,13 @@ def create_git_tags(root: Path, version: str, dry_run: bool) -> None:
         return
 
     for tag in tags:
+        if tag_exists(root, tag):
+            if force:
+                run_command(["git", "tag", "-f", "-a", tag, "-m", f"Release {tag}"], cwd=root)
+                print(f"  ✓ Recreated tag: {tag}")
+            else:
+                print(f"  ↺ Tag exists, skipping: {tag}")
+            continue
         run_command(["git", "tag", "-a", tag, "-m", f"Release {tag}"], cwd=root)
         print(f"  ✓ Created tag: {tag}")
 
