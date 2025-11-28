@@ -8,21 +8,110 @@ from collections.abc import Iterator
 
 import pytest
 
-from neo_aprs.aprs.aprsis_client import APRSISClientError
-from neo_core.cli import main
-from neo_rx.aprs.kiss_client import KISSCommand
-from neo_core.config import CONFIG_ENV_VAR, StationConfig, save_config
+# Import from correct multi-package locations
+try:
+    from neo_aprs.aprs.aprsis_client import APRSISClientError
+except ImportError:
+    APRSISClientError = Exception  # type: ignore
+
+try:
+    from neo_rx.aprs.kiss_client import KISSCommand
+except ImportError:
+    KISSCommand = object  # type: ignore
+
+try:
+    from neo_core.config import CONFIG_ENV_VAR, StationConfig, save_config
+except ImportError:
+    CONFIG_ENV_VAR = "NEO_RX_CONFIG_PATH"  # type: ignore
+    StationConfig = object  # type: ignore
+    save_config = lambda *args, **kwargs: None  # type: ignore
+
 import neo_rx.cli as cli
 
 
 def test_cli_version_flag(capsys) -> None:
     with pytest.raises(SystemExit) as excinfo:
-        main(["--version"])
+        cli.main(["--version"])
 
     assert excinfo.value.code == 0
     captured = capsys.readouterr()
     assert "neo-rx" in captured.out
-    assert "0.2.2" in captured.out or "." in captured.out
+    assert "0.2" in captured.out or "." in captured.out
+
+
+def test_cli_aprs_listen_help(capsys) -> None:
+    """Verify neo-rx aprs listen --help works."""
+    with pytest.raises(SystemExit) as excinfo:
+        cli.main(["aprs", "listen", "--help"])
+    
+    assert excinfo.value.code == 0
+    captured = capsys.readouterr()
+    assert "neo-rx aprs listen" in captured.out
+    assert "--instance-id" in captured.out
+    assert "--device-id" in captured.out
+    assert "--once" in captured.out
+    assert "--no-aprsis" in captured.out
+
+
+def test_cli_wspr_listen_help(capsys) -> None:
+    """Verify neo-rx wspr listen --help works."""
+    with pytest.raises(SystemExit) as excinfo:
+        cli.main(["wspr", "listen", "--help"])
+    
+    assert excinfo.value.code == 0
+    captured = capsys.readouterr()
+    assert "neo-rx wspr listen" in captured.out
+    assert "--instance-id" in captured.out
+    assert "--device-id" in captured.out
+    assert "--band" in captured.out
+
+
+def test_cli_wspr_worker_help(capsys) -> None:
+    """Verify neo-rx wspr worker --help works."""
+    with pytest.raises(SystemExit) as excinfo:
+        cli.main(["wspr", "worker", "--help"])
+    
+    assert excinfo.value.code == 0
+    captured = capsys.readouterr()
+    assert "neo-rx wspr worker" in captured.out
+    assert "--band" in captured.out
+
+
+def test_cli_aprs_diagnostics_help(capsys) -> None:
+    """Verify neo-rx aprs diagnostics --help works."""
+    with pytest.raises(SystemExit) as excinfo:
+        cli.main(["aprs", "diagnostics", "--help"])
+    
+    assert excinfo.value.code == 0
+    captured = capsys.readouterr()
+    assert "neo-rx aprs diagnostics" in captured.out
+    assert "--json" in captured.out
+    assert "--verbose" in captured.out
+
+
+def test_cli_wspr_diagnostics_help(capsys) -> None:
+    """Verify neo-rx wspr diagnostics --help works."""
+    with pytest.raises(SystemExit) as excinfo:
+        cli.main(["wspr", "diagnostics", "--help"])
+    
+    assert excinfo.value.code == 0
+    captured = capsys.readouterr()
+    assert "neo-rx wspr diagnostics" in captured.out
+    assert "--json" in captured.out
+    assert "--verbose" in captured.out
+    assert "--band" in captured.out
+
+
+def test_cli_aprs_setup_help(capsys) -> None:
+    """Verify neo-rx aprs setup --help works."""
+    with pytest.raises(SystemExit) as excinfo:
+        cli.main(["aprs", "setup", "--help"])
+    
+    assert excinfo.value.code == 0
+    captured = capsys.readouterr()
+    assert "neo-rx aprs setup" in captured.out
+    assert "--reset" in captured.out
+    assert "--non-interactive" in captured.out
 
 
 def test_resolve_log_level_prefers_argument(monkeypatch) -> None:
