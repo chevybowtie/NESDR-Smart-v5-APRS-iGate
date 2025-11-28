@@ -149,17 +149,22 @@ def create_git_tags(root: Path, version: str, dry_run: bool) -> None:
 def build_packages(root: Path, dry_run: bool) -> None:
     """Build wheels for all packages."""
     print("\nBuilding packages...")
+    # Ensure required build tooling is available in the active interpreter
+    try:
+        import build  # type: ignore
+    except ImportError:
+        if not dry_run:
+            print("  Installing build tooling (build, wheel)")
+            run_command(
+                [sys.executable, "-m", "pip", "install", "-q", "build", "wheel"],
+                cwd=root,
+            )
+        else:
+            print("  [DRY RUN] Would install build tooling (build, wheel)")
 
     if dry_run:
         print("  [DRY RUN] Would build all packages")
         return
-
-        # Ensure required build tooling is available in the active interpreter
-        try:
-            import build  # type: ignore
-        except ImportError:
-            print("  Installing build tooling (build, wheel)")
-            run_command([sys.executable, "-m", "pip", "install", "-q", "build", "wheel"], cwd=root)
 
     # Clean dist directory
     dist_dir = root / "dist"
@@ -190,6 +195,16 @@ def upload_to_pypi(root: Path, dry_run: bool) -> None:
     if dry_run:
         print("  [DRY RUN] Would upload to PyPI")
         return
+
+    # Ensure twine is available
+    try:
+        import twine  # type: ignore
+    except ImportError:
+        print("  Installing upload tooling (twine)")
+        run_command(
+            [sys.executable, "-m", "pip", "install", "-q", "twine"],
+            cwd=root,
+        )
 
     root / "dist"
     run_command(
