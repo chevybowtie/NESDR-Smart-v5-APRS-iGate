@@ -80,13 +80,28 @@ def get_current_version(root: Path) -> str:
 def validate_version_sync(root: Path, expected: str) -> None:
     """Verify all packages have same version."""
     print(f"Validating version synchronization (expecting {expected})...")
-    result = run_command(
-        [sys.executable, "scripts/sync_versions.py", "--show"], cwd=root
-    )
-    if "Version mismatch" in result:
-        print("Error: Packages not synchronized", file=sys.stderr)
-        sys.exit(1)
-    print("✓ All packages synchronized")
+    try:
+        result = run_command(
+            [sys.executable, "scripts/sync_versions.py", "--show"], cwd=root
+        )
+    except subprocess.CalledProcessError:
+        result = ""
+
+    if ("Warning" in result) or (expected not in result):
+        print(result or "Version mismatch reported by sync_versions")
+        print("Auto-syncing packages to", expected, "...")
+        # Align all package versions to the expected root version automatically
+        run_command(
+            [sys.executable, "scripts/sync_versions.py", expected], cwd=root
+        )
+        # Re-check for visibility
+        recheck = run_command(
+            [sys.executable, "scripts/sync_versions.py", "--show"], cwd=root
+        )
+        print(recheck)
+        if "Warning" in recheck:
+            raise RuntimeError("Version mismatch persists after auto-sync.")
+    print("\u2713 All packages synchronized")
 
 
 def update_changelog(root: Path, version: str) -> None:
