@@ -69,7 +69,13 @@ Progress Checklist:
 	- Verified simultaneous APRS/WSPR on different SDRs via `--device-id` and `--instance-id`.
 - [x] Update docs (README, onboarding, diagnostics, radio-layer, direwolf, wspr).
 	- Updated to reflect unified CLI, config layering, per-instance paths, and concurrent operation.
-- [ ] Update CI/release scripts for multi-package synchronized release.
+- [x] Update CI/release scripts for multi-package synchronized release.
+	- Created per-package pyproject.toml files with synchronized versions.
+	- Created scripts/sync_versions.py for version management.
+	- Updated CI workflow to test/build all packages.
+	- Updated verify_release.sh for multi-package verification.
+	- Created scripts/release.py for coordinated releases.
+	- Updated Makefile with multi-package targets.
 
 Usage Examples:
 - APRS: `neo-rx aprs setup`; `neo-rx aprs listen --device-id 00000001 --instance-id aprs-1`.

@@ -3,14 +3,14 @@ requires = ["setuptools>=69", "build>=1.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "neo-rx"
+name = "neo-telemetry"
 version = "0.2.3"
-description = "Neo-RX multi-mode radio toolkit (APRS, WSPR, telemetry)"
+description = "Neo-RX telemetry and MQTT publishing"
 authors = [{ name = "Paul Sturm" }]
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "Proprietary" }
-keywords = ["aprs", "igate", "wspr", "sdr", "rtl-sdr", "ham-radio"]
+keywords = ["mqtt", "telemetry", "ham-radio"]
 classifiers = [
 	"Programming Language :: Python :: 3",
 	"Programming Language :: Python :: 3 :: Only",
@@ -21,50 +21,29 @@ classifiers = [
 ]
 dependencies = [
 	"neo-core==0.2.3",
-	"neo-aprs==0.2.3",
-	"neo-wspr==0.2.3",
-	"neo-telemetry==0.2.3",
+	"paho-mqtt>=1.6",
 ]
 
 [project.urls]
 Homepage = "https://github.com/chevybowtie/NESDR-Smart-v5-APRS-iGate"
-
-[project.scripts]
-neo-rx = "neo_core.cli:main"
-neo-rx-next = "neo_core.cli:main"
 
 [project.optional-dependencies]
 dev = [
 	"pytest>=8.3",
 	"pytest-asyncio>=0.23",
 	"pytest-cov>=5.0",
-	"pytest-rerunfailures>=14.0",
-	"black>=24.4",
-	"mypy>=1.10",
 	"ruff>=0.6",
-	"coverage[toml]>=7.6",
-	"twine>=4.0",
-	"build>=1.0",
-]
-direwolf = [
-	"neo-aprs[direwolf]==0.2.3",
-]
-all = [
-	"neo-aprs[direwolf]==0.2.3",
 ]
 
 [tool.setuptools]
-package-dir = {"" = "src"}
-packages = ["neo_rx"]
+package-dir = {"" = ".."}
+packages = ["neo_telemetry"]
 
 [tool.pytest.ini_options]
 addopts = "-ra"
-testpaths = ["tests"]
+testpaths = ["../../tests"]
 asyncio_mode = "auto"
-filterwarnings = [
-    "ignore:pkg_resources is deprecated:UserWarning",
-]
 
 [tool.ruff]
 line-length = 88
-src = ["src", "tests"]
+src = [".", "../../tests"]
