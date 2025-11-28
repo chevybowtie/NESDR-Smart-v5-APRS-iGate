@@ -1,19 +1,22 @@
 # Diagnostics Command Outline
 
-Defines the behavior of `neo-rx diagnostics`, providing status snapshots for the SDR, Direwolf, and APRS-IS uplink.
+Defines the behavior of mode-specific diagnostics commands (`neo-rx aprs diagnostics`, `neo-rx wspr diagnostics`), providing status snapshots for the SDR, mode-specific services, and network connectivity.
 
 ## Command Summary
-- Usage: `neo-rx diagnostics [--json] [--verbose]`
+- Usage: 
+  - `neo-rx aprs diagnostics [--json] [--verbose]`
+  - `neo-rx wspr diagnostics [--json] [--verbose] [--band 20m]`
 - Default output: human-readable status table.
 - `--json`: emit structured JSON suitable for scripting.
 - `--verbose`: include extended details (logs, environment info).
+- `--instance-id NAME`: check instance-specific paths and configuration.
 
-## Checks Performed
+## Checks Performed (Common)
 
 ### 1. Environment
 - Active virtual environment detected?
 - Python version and executable path.
-- Package versions (`pyrtlsdr`, `aprslib`, `numpy`).
+- Package versions (`pyrtlsdr`, `aprslib`, `numpy`, etc.).
 
 ### 2. SDR Hardware
 - Enumerate RTL-SDR devices (`pyrtlsdr.RtlSdr.get_device_count`).
@@ -21,6 +24,9 @@ Defines the behavior of `neo-rx diagnostics`, providing status snapshots for the
   - Tuner info (manufacturer, serial, gain range).
   - Attempt tune to configured frequency and read a short sample buffer.
   - Report signal strength (RSSI estimate) and DC offset metrics (if available).
+- Note: Use `--device-id SERIAL` to check specific SDRs in concurrent setups.
+
+## APRS-Specific Checks
 
 ### 3. Direwolf / KISS
 - Check connectivity to KISS host:port.
@@ -37,10 +43,31 @@ Defines the behavior of `neo-rx diagnostics`, providing status snapshots for the
 - Measure latency (connect and login response time).
 - Report number of packets forwarded during current session (if telemetry available).
 
+## WSPR-Specific Checks
+
+### 3. Decoder Binary
+- Verify bundled `wsprd` binary is present and executable.
+- Report version information from wsprd.
+
+### 4. Upconverter Detection
+- Analyze recent WSPR spots (if available) to detect frequency offsets.
+- Report hint: "likely upconverter" or "direct sampling" based on frequency clusters.
+- Use `--band BAND` to focus detection on specific band data.
+
+## Configuration & Paths (Both Modes)
+
 ### 5. Configuration & Paths
-- Display config file path, timestamp, and permission bits.
+- Display config file path(s):
+  - `~/.config/neo-rx/config.toml` (legacy)
+  - `~/.config/neo-rx/defaults.toml`, `aprs.toml`, `wspr.toml` (layered)
+- Config layering status (which files are present and loaded).
 - Keyring status for passcode storage (keyring backend name or fallback warning).
-- Location of logs (`~/.local/share/neo-rx/logs`).
+- Location of mode-specific logs:
+  - APRS: `~/.local/share/neo-rx/logs/aprs/` (or per-instance)
+  - WSPR: `~/.local/share/neo-rx/logs/wspr/` (or per-instance)
+- Data directories:
+  - APRS: N/A (minimal state)
+  - WSPR: `~/.local/share/neo-rx/wspr/` (spots, queue, runs)
 
 ## Output Schema
 ```

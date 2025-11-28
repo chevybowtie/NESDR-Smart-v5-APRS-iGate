@@ -67,7 +67,8 @@ Progress Checklist:
 	- [x] Implement per-instance directories under XDG paths.
 - [x] Add concurrency tests.
 	- Verified simultaneous APRS/WSPR on different SDRs via `--device-id` and `--instance-id`.
-- [ ] Update docs (README, onboarding, diagnostics, radio-layer, direwolf, wspr).
+- [x] Update docs (README, onboarding, diagnostics, radio-layer, direwolf, wspr).
+	- Updated to reflect unified CLI, config layering, per-instance paths, and concurrent operation.
 - [ ] Update CI/release scripts for multi-package synchronized release.
 
 Usage Examples:
