@@ -65,8 +65,8 @@ Progress Checklist:
 	- Multi-file layering implemented with precedence defaults < mode < env < CLI.
 - [x] Namespace data/log paths per mode/instance.
 	- [x] Implement per-instance directories under XDG paths.
-- [ ] Add concurrency tests.
-	- Verify simultaneous APRS/WSPR on different SDRs via `--device-id` and `--instance-id`.
+- [x] Add concurrency tests.
+	- Verified simultaneous APRS/WSPR on different SDRs via `--device-id` and `--instance-id`.
 - [ ] Update docs (README, onboarding, diagnostics, radio-layer, direwolf, wspr).
 - [ ] Update CI/release scripts for multi-package synchronized release.
 
