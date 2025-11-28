@@ -154,6 +154,13 @@ def build_packages(root: Path, dry_run: bool) -> None:
         print("  [DRY RUN] Would build all packages")
         return
 
+        # Ensure required build tooling is available in the active interpreter
+        try:
+            import build  # type: ignore
+        except ImportError:
+            print("  Installing build tooling (build, wheel)")
+            run_command([sys.executable, "-m", "pip", "install", "-q", "build", "wheel"], cwd=root)
+
     # Clean dist directory
     dist_dir = root / "dist"
     if dist_dir.exists():
