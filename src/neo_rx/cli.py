@@ -19,6 +19,33 @@ from neo_rx.commands import (  # type: ignore[import]
     run_setup,
 )
 
+# Import subpackage commands for namespaced CLI
+try:
+    from neo_aprs.commands import (
+        run_listen as aprs_listen,
+        run_setup as aprs_setup,
+        run_diagnostics as aprs_diagnostics,
+    )
+except ImportError:
+    aprs_listen = None  # type: ignore
+    aprs_setup = None  # type: ignore
+    aprs_diagnostics = None  # type: ignore
+
+try:
+    from neo_wspr.commands import (
+        run_worker as wspr_worker,
+        run_scan as wspr_scan,
+        run_calibrate as wspr_calibrate,
+        run_upload as wspr_upload,
+        run_diagnostics as wspr_diagnostics,
+    )
+except ImportError:
+    wspr_worker = None  # type: ignore
+    wspr_scan = None  # type: ignore
+    wspr_calibrate = None  # type: ignore
+    wspr_upload = None  # type: ignore
+    wspr_diagnostics = None  # type: ignore
+
 CommandHandler = Callable[[Namespace], int]
 
 _LOG_LEVEL_ALIASES: dict[str, int] = {
@@ -118,6 +145,7 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=False)
     subparser_map: Dict[str, argparse.ArgumentParser] = {}
 
+    # Legacy top-level commands (for backward compatibility)
     listen_parser = subparsers.add_parser(
         "listen", help="Run the SDR capture and APRS iGate pipeline"
     )
@@ -178,6 +206,213 @@ def build_parser() -> argparse.ArgumentParser:
     )
     subparser_map["diagnostics"] = diagnostics_parser
 
+    # APRS namespaced commands
+    if aprs_listen is not None:
+        aprs_parser = subparsers.add_parser(
+            "aprs", help="APRS iGate commands"
+        )
+        aprs_subparsers = aprs_parser.add_subparsers(dest="aprs_command", required=True)
+        
+        aprs_listen_parser = aprs_subparsers.add_parser(
+            "listen", help="Run the SDR capture and APRS iGate pipeline"
+        )
+        aprs_listen_parser.add_argument(
+            "--config",
+            help="Path to configuration file (overrides default location)",
+        )
+        aprs_listen_parser.add_argument(
+            "--once",
+            action="store_true",
+            help="Process a single batch of samples and exit (debug/testing)",
+        )
+        aprs_listen_parser.add_argument(
+            "--no-aprsis",
+            action="store_true",
+            help="Disable APRS-IS uplink (receive-only mode)",
+        )
+        aprs_listen_parser.add_argument(
+            "--instance-id",
+            help="Instance identifier for isolated data/log directories",
+        )
+        aprs_listen_parser.add_argument(
+            "--device-id",
+            help="RTL-SDR device serial number or index",
+        )
+        subparser_map["aprs:listen"] = aprs_listen_parser
+
+        aprs_setup_parser = aprs_subparsers.add_parser(
+            "setup", help="Run the APRS onboarding wizard"
+        )
+        aprs_setup_parser.add_argument(
+            "--reset",
+            action="store_true",
+            help="Delete existing configuration before starting",
+        )
+        aprs_setup_parser.add_argument(
+            "--non-interactive",
+            action="store_true",
+            help="Load answers from a config file instead of prompting",
+        )
+        aprs_setup_parser.add_argument(
+            "--config",
+            help="Path to onboarding configuration template",
+        )
+        aprs_setup_parser.add_argument(
+            "--dry-run",
+            action="store_true",
+            help="Run validation without writing any files",
+        )
+        subparser_map["aprs:setup"] = aprs_setup_parser
+
+        aprs_diagnostics_parser = aprs_subparsers.add_parser(
+            "diagnostics", help="Display APRS system and radio health checks"
+        )
+        aprs_diagnostics_parser.add_argument(
+            "--config",
+            help="Path to configuration file (overrides default location)",
+        )
+        aprs_diagnostics_parser.add_argument(
+            "--json",
+            action="store_true",
+            help="Emit diagnostics in JSON format",
+        )
+        aprs_diagnostics_parser.add_argument(
+            "--verbose",
+            action="store_true",
+            help="Show extended diagnostic information",
+        )
+        subparser_map["aprs:diagnostics"] = aprs_diagnostics_parser
+
+    # WSPR namespaced commands
+    if wspr_worker is not None:
+        wspr_parser = subparsers.add_parser(
+            "wspr", help="WSPR monitoring commands"
+        )
+        wspr_subparsers = wspr_parser.add_subparsers(dest="wspr_command", required=True)
+        
+        wspr_worker_parser = wspr_subparsers.add_parser(
+            "worker", help="Run WSPR monitoring worker"
+        )
+        wspr_worker_parser.add_argument(
+            "--config",
+            help="Path to configuration file (overrides default location)",
+        )
+        wspr_worker_parser.add_argument(
+            "--band",
+            help="Monitor a single band (80m, 40m, 30m, 20m, 10m, 6m, 2m, 70cm)",
+        )
+        wspr_worker_parser.add_argument(
+            "--instance-id",
+            help="Instance identifier for isolated data/log directories",
+        )
+        wspr_worker_parser.add_argument(
+            "--device-id",
+            help="RTL-SDR device serial number or index",
+        )
+        subparser_map["wspr:worker"] = wspr_worker_parser
+
+        # Add wspr listen as an alias to worker
+        wspr_listen_parser = wspr_subparsers.add_parser(
+            "listen", help="Run WSPR monitoring worker (alias for worker)"
+        )
+        wspr_listen_parser.add_argument(
+            "--config",
+            help="Path to configuration file (overrides default location)",
+        )
+        wspr_listen_parser.add_argument(
+            "--band",
+            help="Monitor a single band (80m, 40m, 30m, 20m, 10m, 6m, 2m, 70cm)",
+        )
+        wspr_listen_parser.add_argument(
+            "--instance-id",
+            help="Instance identifier for isolated data/log directories",
+        )
+        wspr_listen_parser.add_argument(
+            "--device-id",
+            help="RTL-SDR device serial number or index",
+        )
+        subparser_map["wspr:listen"] = wspr_listen_parser
+
+        wspr_scan_parser = wspr_subparsers.add_parser(
+            "scan", help="Multi-band WSPR scan"
+        )
+        wspr_scan_parser.add_argument(
+            "--config",
+            help="Path to configuration file (overrides default location)",
+        )
+        wspr_scan_parser.add_argument(
+            "--instance-id",
+            help="Instance identifier for isolated data/log directories",
+        )
+        wspr_scan_parser.add_argument(
+            "--device-id",
+            help="RTL-SDR device serial number or index",
+        )
+        subparser_map["wspr:scan"] = wspr_scan_parser
+
+        wspr_calibrate_parser = wspr_subparsers.add_parser(
+            "calibrate", help="Calibrate frequency correction"
+        )
+        wspr_calibrate_parser.add_argument(
+            "--config",
+            help="Path to configuration file (overrides default location)",
+        )
+        wspr_calibrate_parser.add_argument(
+            "--samples",
+            help="Path to IQ sample file for calibration",
+        )
+        wspr_calibrate_parser.add_argument(
+            "--device-id",
+            help="RTL-SDR device serial number or index",
+        )
+        subparser_map["wspr:calibrate"] = wspr_calibrate_parser
+
+        wspr_upload_parser = wspr_subparsers.add_parser(
+            "upload", help="Upload queued WSPR spots to WSPRnet"
+        )
+        wspr_upload_parser.add_argument(
+            "--config",
+            help="Path to configuration file (overrides default location)",
+        )
+        wspr_upload_parser.add_argument(
+            "--heartbeat",
+            action="store_true",
+            help="Send heartbeat ping when queue is empty",
+        )
+        wspr_upload_parser.add_argument(
+            "--json",
+            action="store_true",
+            help="Output upload results in JSON format",
+        )
+        wspr_upload_parser.add_argument(
+            "--instance-id",
+            help="Instance identifier for isolated data/log directories",
+        )
+        subparser_map["wspr:upload"] = wspr_upload_parser
+
+        wspr_diagnostics_parser = wspr_subparsers.add_parser(
+            "diagnostics", help="Display WSPR system and radio health checks"
+        )
+        wspr_diagnostics_parser.add_argument(
+            "--config",
+            help="Path to configuration file (overrides default location)",
+        )
+        wspr_diagnostics_parser.add_argument(
+            "--json",
+            action="store_true",
+            help="Emit diagnostics in JSON format",
+        )
+        wspr_diagnostics_parser.add_argument(
+            "--verbose",
+            action="store_true",
+            help="Show extended diagnostic information",
+        )
+        wspr_diagnostics_parser.add_argument(
+            "--band",
+            help="Test specific band (80m, 40m, 30m, 20m, 10m, 6m, 2m, 70cm)",
+        )
+        subparser_map["wspr:diagnostics"] = wspr_diagnostics_parser
+
     setattr(parser, "_nesdr_subparser_map", subparser_map)
 
     return parser
@@ -197,12 +432,55 @@ def main(argv: list[str] | None = None) -> int:
 
     _configure_logging(getattr(args, "log_level", None))
 
+    # Legacy top-level handlers (backward compatibility)
     handlers: dict[str, CommandHandler] = {
         "listen": run_listen,
         "setup": run_setup,
         "diagnostics": run_diagnostics,
     }
 
+    # Namespaced APRS handlers
+    aprs_handlers: dict[str, CommandHandler] = {}
+    if aprs_listen is not None:
+        aprs_handlers = {
+            "listen": aprs_listen,
+            "setup": aprs_setup,
+            "diagnostics": aprs_diagnostics,
+        }
+
+    # Namespaced WSPR handlers
+    wspr_handlers: dict[str, CommandHandler] = {}
+    if wspr_worker is not None:
+        wspr_handlers = {
+            "worker": wspr_worker,
+            "listen": wspr_worker,  # alias listen -> worker
+            "scan": wspr_scan,
+            "calibrate": wspr_calibrate,
+            "upload": wspr_upload,
+            "diagnostics": wspr_diagnostics,
+        }
+
+    # Handle namespaced aprs commands
+    if args.command == "aprs":
+        aprs_command = getattr(args, "aprs_command", None)
+        if aprs_command is None:
+            parser.error("aprs: command required")
+        handler = aprs_handlers.get(aprs_command)
+        if handler is None:
+            parser.error(f"aprs: unknown command: {aprs_command}")
+        return handler(args)
+
+    # Handle namespaced wspr commands
+    if args.command == "wspr":
+        wspr_command = getattr(args, "wspr_command", None)
+        if wspr_command is None:
+            parser.error("wspr: command required")
+        handler = wspr_handlers.get(wspr_command)
+        if handler is None:
+            parser.error(f"wspr: unknown command: {wspr_command}")
+        return handler(args)
+
+    # Default to listen when no command provided (backward compatibility)
     if args.command is None:
         listen_parser = subparser_map.get("listen")
         if listen_parser is None:
@@ -215,6 +493,7 @@ def main(argv: list[str] | None = None) -> int:
     if remainder:
         parser.error(f"Unknown arguments: {' '.join(remainder)}")
 
+    # Handle legacy top-level commands
     handler = handlers.get(args.command)
     if handler is None:  # pragma: no cover - future safeguard
         parser.error(f"Unknown command: {args.command}")
