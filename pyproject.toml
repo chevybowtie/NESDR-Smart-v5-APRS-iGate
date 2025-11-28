@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "neo-rx"
-version = "0.2.4"
+version = "0.2.3"
 description = "Neo-RX multi-mode radio toolkit (APRS, WSPR, telemetry)"
 authors = [{ name = "Paul Sturm" }]
 readme = "README.md"
@@ -20,10 +20,10 @@ classifiers = [
 	"Topic :: Communications :: Ham Radio"
 ]
 dependencies = [
-	"neo-core==0.2.4",
-	"neo-aprs==0.2.4",
-	"neo-wspr==0.2.4",
-	"neo-telemetry==0.2.4",
+	"neo-core==0.2.3",
+	"neo-aprs==0.2.3",
+	"neo-wspr==0.2.3",
+	"neo-telemetry==0.2.3",
 ]
 
 [project.urls]
@@ -47,10 +47,10 @@ dev = [
 	"build>=1.0",
 ]
 direwolf = [
-	"neo-aprs[direwolf]==0.2.4",
+	"neo-aprs[direwolf]==0.2.3",
 ]
 all = [
-	"neo-aprs[direwolf]==0.2.4",
+	"neo-aprs[direwolf]==0.2.3",
 ]
 
 [tool.setuptools]
