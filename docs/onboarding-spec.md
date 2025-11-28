@@ -71,13 +71,13 @@ This document defines the interactive setup commands (`neo-rx aprs setup`, `neo-
      - Direwolf connection status
      - APRS-IS server(s)
      - Config file path and sensitive data storage method
-   - Provide next command suggestions (`neo-rx listen`, `neo-rx diagnostics`).
+   - Provide next command suggestions (`neo-rx aprs listen`, `neo-rx aprs diagnostics`, optionally `neo-rx wspr listen`).
 
 ## CLI Options
-- `neo-rx setup`: interactive wizard (default).
-- `neo-rx setup --reset`: delete existing config (confirm first) and rerun wizard.
-- `neo-rx setup --non-interactive --config /path/to/file`: accept pre-filled TOML, only validate hardware/software.
-- `neo-rx setup --dry-run`: perform validation without writing config changes.
+- `neo-rx aprs setup`: interactive wizard (default).
+- `neo-rx aprs setup --reset`: delete existing config (confirm first) and rerun wizard.
+- `neo-rx aprs setup --non-interactive --config /path/to/file`: accept pre-filled TOML, only validate hardware/software.
+- `neo-rx aprs setup --dry-run`: perform validation without writing config changes.
 
 ## User Prompts & Validation Rules
 - Callsign must match regex `^[A-Z0-9]{1,6}-[0-9]{1,2}$`; offer uppercase normalization.

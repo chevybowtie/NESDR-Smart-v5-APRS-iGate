@@ -36,7 +36,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 - The `listen` command now logs a startup banner that includes the packaged version, callsign, and APRS-IS endpoint, making it easy to confirm the running build from captured logs.
-- Text-mode `diagnostics` runs emit a matching `neo-rx diagnostics v…` banner so operators and support logs clearly identify the tool version without switching to JSON output.
+- Text-mode diagnostics runs emit a matching `neo-rx aprs diagnostics v…` banner so operators and support logs clearly identify the tool version without switching to JSON output.
 
 ### Testing & Tooling
 - Extended CLI and diagnostics tests to assert the new version banners so future regressions are caught automatically.
@@ -49,7 +49,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 - Added a persistent listener log at `~/.local/share/neo-rx/logs/neo-rx.log` with UTC timestamps while keeping stdout output unchanged.
-- While `neo-rx listen` runs, pressing `s` now prints a 24-hour station activity summary that survives restarts by reading the listener log.
+- While `neo-rx aprs listen` runs, pressing `s` now prints a 24-hour station activity summary that survives restarts by reading the listener log.
 - Introduced optional software TOCALL rewriting for APRS-IS uplink traffic to better identify packets originated by the local station.
 - Added opt-in colorized output for CLI commands and diagnostics with explicit `--color`/`--no-color` flags and `NO_COLOR` environment support.
 

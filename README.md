@@ -276,6 +276,6 @@ Each instance maintains isolated data and log directories:
 
 ## Onboarding and setup details
 
-For a full specification of the interactive onboarding flow (what `neo-rx setup` does, preconditions, prompts, validation rules, and implementation notes), see the detailed onboarding specification in the docs:
+For a full specification of the interactive onboarding flow (what `neo-rx aprs setup` does, preconditions, prompts, validation rules, and implementation notes), see the detailed onboarding specification in the docs:
 
 - docs/onboarding-spec.md

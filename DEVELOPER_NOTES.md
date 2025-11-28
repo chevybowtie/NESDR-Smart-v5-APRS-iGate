@@ -17,7 +17,7 @@
 - Structured diagnostics live under `~/.local/share/neo-rx/logs/`; keep file writes atomic to avoid partial logs.
 
 ## CLI and UX Conventions
-- CLI entry point is `neo-rx`; no arguments defaults to `listen` for quick starts.
+- CLI entry point is `neo-rx`; an explicit command is required (invoking with no arguments now errors). Use namespaced groups for clarity: `neo-rx aprs listen`, `neo-rx aprs diagnostics`, `neo-rx wspr listen`, `neo-rx wspr upload`. Legacy top-level commands (`listen`, `setup`, `diagnostics`) remain for backward compatibility but are deprecated in documentation.
 - Commander modules follow `Command.run()` taking `ParsedArgs` and returning an exit code (0 success, otherwise failure).
 - Comment complex argument parsing with inline notes; use `argparse` subparsers and stick to kebab-case flags (`--log-level`).
 - Non-interactive flows must accept `--config PATH` to support testing and automation.

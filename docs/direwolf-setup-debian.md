@@ -39,7 +39,7 @@ Either run the CLI onboarding (which can render the file automatically) or copy 
 cp docs/templates/direwolf.conf ~/.config/neo-rx/direwolf.conf
 ```
 
-When `neo-rx setup` completes, accept the prompt to create `direwolf.conf` and the wizard will prefill your callsign, APRS-IS server, passcode, and KISS port values. Manually run the copy above if you prefer to edit the template yourself.
+When `neo-rx aprs setup` completes, accept the prompt to create `direwolf.conf` and the wizard will prefill your callsign, APRS-IS server, passcode, and KISS port values. Manually run the copy above if you prefer to edit the template yourself.
 
 Edit the file to confirm your callsign, passcode, latitude/longitude, and beacon text. Leave `ADEVICE stdin null` if you intend to use `rtl_fm` piping via `scripts/run_direwolf.sh`.
 
@@ -87,14 +87,14 @@ After Direwolf starts, you should see a log line similar to:
 KISS TCP port 8001 bound to 127.0.0.1
 ```
 
-The `neo-rx diagnostics` command will probe `127.0.0.1:8001`; adjust the CLI config if you use a different address or port.
+The `neo-rx aprs diagnostics` command will probe `127.0.0.1:8001`; adjust the CLI config if you use a different address or port.
 
 ## 7. Test with Diagnostics
 
 With Direwolf running you can validate the setup using the CLI.
 
 ```
-neo-rx diagnostics
+neo-rx aprs diagnostics
 ```
 
 Expected output snippet:

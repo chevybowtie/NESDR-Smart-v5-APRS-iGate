@@ -156,7 +156,7 @@ The uploader wiring will respect `uploader_enabled` before attempting to drain t
 
 With the flag enabled, the capture pipeline now writes enriched spot entries to `~/.local/share/neo-rx/wspr/wspr_upload_queue.jsonl`. Each entry carries the tuned band (`dial_freq_hz`), the aligned slot start timestamp, and the reporter fields required by WSPRnet so uploads can happen later without recomputing context.
 
-When you invoke `neo-rx wspr --upload`, the command enforces the same gate: it aborts with an actionable error until `[wspr].uploader_enabled = true`, guaranteeing that uploads remain opt-in.
+When you invoke `neo-rx wspr upload`, the command enforces the same gate: it aborts with an actionable error until `[wspr].uploader_enabled = true`, guaranteeing that uploads remain opt-in.
 
 These fields complement the existing `wspr_bands_hz`, `wspr_capture_duration_s`, and MQTT options. The uploader and queueing are implemented; however, HTTP submission requires credential/configuration and should be hardened for production use.
 
@@ -195,13 +195,13 @@ print(f"Uploaded {result['succeeded']}/{result['attempted']} spots")
 
 ```bash
 # Drain the upload queue and attempt to submit all queued spots
-neo-rx wspr --upload
+neo-rx wspr upload
 
 # Emit drain results in JSON (helpful for monitoring/scripting)
-neo-rx wspr --upload --json
+neo-rx wspr upload --json
 
 # Force a wsprstat heartbeat when no uploads occur (opt-in)
-neo-rx wspr --upload --heartbeat
+neo-rx wspr upload --heartbeat
 
 JSON drain output always includes `attempted`, `succeeded`, `failed`, and
 `last_error` (which is `null` when the last run succeeded). When `--heartbeat`
@@ -220,13 +220,13 @@ exceptions without digging through debug logs.
 - **Logs:** Upload attempts are logged at DEBUG (shows rcall/target) while successes
   land at INFO and failures at WARNING. Enable `NEO_RX_LOG_LEVEL=DEBUG` when chasing
   HTTP/metadata issues; log files live under `~/.local/share/neo-rx/logs/neo-rx.log`.
-- **Heartbeats:** Use `neo-rx wspr --upload --heartbeat` to emit a `wsprstat` ping whenever
+- **Heartbeats:** Use `neo-rx wspr upload --heartbeat` to emit a `wsprstat` ping whenever
   a drain cycle produces zero successful uploads. The JSON response includes `heartbeat_sent`
   plus an error string to aid dashboards.
 - **Rate-limit etiquette:** `wsprnet.org` is mission-critical for shared spectrum.
   Schedule `--upload` runs no more frequently than once per slot (2 minutes), and
   let the built-in exponential backoff handle outages instead of hammering the service.
-- **Troubleshooting:** If `last_error` reports missing metadata, re-run `neo-rx setup`
+- **Troubleshooting:** If `last_error` reports missing metadata, re-run `neo-rx aprs setup`
   to populate `[wspr]` fields or inspect recent spots for malformed timestamps. Network
   failures leave entries queued; check firewall/CA bundles before deleting anything.
 ```
