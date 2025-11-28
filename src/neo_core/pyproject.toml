@@ -36,8 +36,8 @@ dev = [
 ]
 
 [tool.setuptools]
-package-dir = {"" = ".."}
-packages = ["neo_core"]
+package-dir = {"neo_core" = "."}
+packages = ["neo_core", "neo_core._compat", "neo_core.radio"]
 
 [tool.setuptools.package-data]
 neo_core = ["templates/direwolf.conf"]

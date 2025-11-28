@@ -78,17 +78,18 @@ if [ "${RUN_MYPY:-0}" = "1" ]; then
 fi
 
 echo "Installing build helper and building wheels for all packages"
-rm -rf "$WD/dist" "$WD/build" "$WD"/*.egg-info "$WD/src"/*/*.egg-info || true
+rm -rf "$WD/dist" "$WD/build" "$WD"/*.egg-info "$WD/src"/*/*.egg-info "$WD/src"/*/dist || true
+mkdir -p "$WD/dist"
 
 "$VENV_DIR/bin/python" -m pip install --upgrade build
 
 for pkg in "${PACKAGES[@]}"; do
   if [ "$pkg" = "neo_rx" ]; then
     echo "Building $pkg (metapackage)..."
-    "$VENV_DIR/bin/python" -m build "$WD"
+    "$VENV_DIR/bin/python" -m build "$WD" --outdir "$WD/dist"
   else
     echo "Building $pkg..."
-    "$VENV_DIR/bin/python" -m build "$WD/src/$pkg"
+    "$VENV_DIR/bin/python" -m build "$WD/src/$pkg" --outdir "$WD/dist"
   fi
 done
 
@@ -103,8 +104,10 @@ python3 -m venv "$VERIFY_VENV"
 "$VERIFY_VENV/bin/python" -m pip install --upgrade pip
 
 # Install all wheels from dist/
-echo "Installing all wheels from dist/..."
-"$VERIFY_VENV/bin/python" -m pip install "$WD/dist"/*.whl
+echo "Installing all wheels from dist/ in dependency order..."
+# Install in dependency order, allowing PyPI for dependencies
+"$VERIFY_VENV/bin/python" -m pip install --find-links="$WD/dist" \
+  neo-core neo-telemetry neo-aprs neo-wspr neo-rx
 
 echo "Running smoke tests from installed artifacts"
 "$VERIFY_VENV/bin/python" -c "import neo_core; print('✓ neo_core import ok')"

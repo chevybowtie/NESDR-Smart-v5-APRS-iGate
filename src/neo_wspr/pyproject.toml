@@ -35,8 +35,8 @@ dev = [
 ]
 
 [tool.setuptools]
-package-dir = {"" = ".."}
-packages = ["neo_wspr"]
+package-dir = {"neo_wspr" = "."}
+packages = ["neo_wspr", "neo_wspr.wspr", "neo_wspr.commands"]
 
 [tool.setuptools.package-data]
 neo_wspr = ["wspr/bin/wsprd"]

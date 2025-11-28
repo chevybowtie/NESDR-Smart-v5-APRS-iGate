@@ -38,8 +38,8 @@ direwolf = [
 ]
 
 [tool.setuptools]
-package-dir = {"" = ".."}
-packages = ["neo_aprs"]
+package-dir = {"neo_aprs" = "."}
+packages = ["neo_aprs", "neo_aprs.aprs", "neo_aprs.commands"]
 
 [tool.pytest.ini_options]
 addopts = "-ra"

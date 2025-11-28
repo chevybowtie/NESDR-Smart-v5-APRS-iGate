@@ -55,7 +55,16 @@ all = [
 
 [tool.setuptools]
 package-dir = {"" = "src"}
-packages = ["neo_rx"]
+packages = [
+    "neo_rx",
+    "neo_rx._compat",
+    "neo_rx.aprs",
+    "neo_rx.commands",
+    "neo_rx.radio",
+    "neo_rx.telemetry",
+    "neo_rx.templates",
+    "neo_rx.wspr",
+]
 
 [tool.pytest.ini_options]
 addopts = "-ra"
