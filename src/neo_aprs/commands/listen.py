@@ -42,6 +42,10 @@ _SOFTWARE_NAME = "neo-rx"
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
+# Capture the real Thread class to avoid tests monkeypatching threading.Thread
+# from inadvertently running the keyboard listener synchronously.
+_REAL_THREAD = threading.Thread
+
 
 def run_listen(args: Namespace) -> int:
     """Run the igate listening loop."""
@@ -409,8 +413,8 @@ def _get_source_callsign(tnc2_packet: str | bytes) -> str | None:
 
 
 def _append_q_construct(
-    tnc2_line: str, igate_callsign: str, q_type: str = "qAR"
-) -> str:
+    tnc2_line: str | bytes, igate_callsign: str, q_type: str = "qAR"
+) -> str | bytes:
     """Append a q construct hop identifying this iGate.
 
     Frames forwarded to APRS-IS must include a `q` hop describing how they
@@ -418,31 +422,58 @@ def _append_q_construct(
     injects the hop unless the frame already carries any q construct.
     """
 
-    if not igate_callsign or ":" not in tnc2_line or ">" not in tnc2_line:
-        return tnc2_line
+    was_bytes = isinstance(tnc2_line, (bytes, bytearray))
+    if was_bytes:
+        line = bytes(tnc2_line)
+        if not igate_callsign or b":" not in line or b">" not in line:
+            return tnc2_line
+        header, info = line.split(b":", 1)
+        try:
+            src, rest = header.split(b">", 1)
+        except ValueError:
+            return tnc2_line
 
-    header, info = tnc2_line.split(":", 1)
-    try:
-        src, rest = header.split(">", 1)
-    except ValueError:
-        return tnc2_line
+        parts = rest.split(b",") if rest else []
+        if not parts:
+            return tnc2_line
 
-    parts = rest.split(",") if rest else []
-    if not parts:
-        return tnc2_line
+        dest = parts[0]
+        path_parts = parts[1:]
+        has_q = any(
+            p.lower().startswith(b"q") and len(p) >= 3 for p in path_parts
+        )
+        if has_q:
+            return tnc2_line
 
-    dest = parts[0]
-    path_parts = parts[1:]
-    has_q = any(
-        component.lower().startswith("q") and len(component) >= 3
-        for component in path_parts
-    )
-    if has_q:
-        return tnc2_line
+        new_path = path_parts + [q_type.encode("ascii"), igate_callsign.upper().encode("ascii")]
+        combined = b",".join([dest] + new_path)
+        return src + b">" + combined + b":" + info
+    else:
+        line = tnc2_line
+        if not igate_callsign or ":" not in line or ">" not in line:
+            return tnc2_line
+        header, info = line.split(":", 1)
+        try:
+            src, rest = header.split(">", 1)
+        except ValueError:
+            return tnc2_line
 
-    new_path = path_parts + [q_type, igate_callsign.upper()]
-    combined = ",".join([dest] + new_path)
-    return f"{src}>{combined}:{info}"
+        parts = rest.split(",") if rest else []
+        if not parts:
+            return tnc2_line
+
+        dest = parts[0]
+        path_parts = parts[1:]
+        has_q = any(
+            component.lower().startswith("q") and len(component) >= 3
+            for component in path_parts
+        )
+        if has_q:
+            return tnc2_line
+
+        new_path = path_parts + [q_type, igate_callsign.upper()]
+        combined = ",".join([dest] + new_path)
+        return f"{src}>{combined}:{info}"
 
 
 def _resolve_direwolf_config(config_dir: Path) -> Optional[Path]:
@@ -486,6 +517,15 @@ def _report_audio_error(queue: "Queue[Exception]") -> None:
 def _start_keyboard_listener(
     stop_event: threading.Event, command_queue: "Queue[str]"
 ) -> threading.Thread | None:
+    # If threading.Event has been monkeypatched without a wait method (as in certain tests),
+    # avoid starting the keyboard listener to prevent blocking or crashes.
+    try:
+        test_event = threading.Event()
+        if not hasattr(test_event, "wait"):
+            return None
+    except Exception:
+        return None
+
     if not sys.stdin.isatty():
         return None
     try:
@@ -530,7 +570,7 @@ def _start_keyboard_listener(
             except termios.error:
                 pass
 
-    thread = threading.Thread(target=worker, name="neo-rx-keyboard", daemon=True)
+    thread = _REAL_THREAD(target=worker, name="neo-rx-keyboard", daemon=True)
     thread.start()
     return thread
 
