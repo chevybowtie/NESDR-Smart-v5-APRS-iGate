@@ -12,7 +12,6 @@ jobs:
     strategy:
       matrix:
         python: [3.11, 3.12, 3.13]
-        package: [neo_core, neo_telemetry, neo_aprs, neo_wspr, neo_rx]
 
     steps:
       - uses: actions/checkout@v4
@@ -42,28 +41,15 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
 
-      - name: Install package dependencies
+      - name: Install all packages
         run: |
           python -m pip install --upgrade pip build
-          # Install in dependency order
-          if [ "${{ matrix.package }}" = "neo_core" ]; then
-            python -m pip install -e ./src/neo_core[dev]
-          elif [ "${{ matrix.package }}" = "neo_telemetry" ]; then
-            python -m pip install -e ./src/neo_core[dev]
-            python -m pip install -e ./src/neo_telemetry[dev]
-          elif [ "${{ matrix.package }}" = "neo_aprs" ]; then
-            python -m pip install -e ./src/neo_core[dev]
-            python -m pip install -e ./src/neo_aprs[dev,direwolf]
-          elif [ "${{ matrix.package }}" = "neo_wspr" ]; then
-            python -m pip install -e ./src/neo_core[dev]
-            python -m pip install -e ./src/neo_wspr[dev]
-          elif [ "${{ matrix.package }}" = "neo_rx" ]; then
-            python -m pip install -e ./src/neo_core[dev]
-            python -m pip install -e ./src/neo_telemetry[dev]
-            python -m pip install -e ./src/neo_aprs[dev,direwolf]
-            python -m pip install -e ./src/neo_wspr[dev]
-            python -m pip install -e .[dev,all]
-          fi
+          # Install all packages in dependency order
+          python -m pip install -e ./src/neo_core[dev]
+          python -m pip install -e ./src/neo_telemetry[dev]
+          python -m pip install -e ./src/neo_aprs[dev,direwolf]
+          python -m pip install -e ./src/neo_wspr[dev]
+          python -m pip install -e .[dev,all]
 
       - name: Lint (ruff)
         run: |
@@ -74,16 +60,15 @@ jobs:
           PYTHONPATH=src python -m pytest -q
 
       - name: Run tests with coverage
-        if: matrix.package == 'neo_rx'
         run: PYTHONPATH=src python -m pytest -q --cov=src --cov-report=xml
 
-      - name: Build wheel for ${{ matrix.package }}
+      - name: Build all packages
         run: |
-          if [ "${{ matrix.package }}" = "neo_rx" ]; then
-            python -m build
-          else
-            python -m build src/${{ matrix.package }}
-          fi
+          python -m build
+          python -m build src/neo_core
+          python -m build src/neo_telemetry
+          python -m build src/neo_aprs
+          python -m build src/neo_wspr
 
   integration:
     runs-on: ubuntu-latest
