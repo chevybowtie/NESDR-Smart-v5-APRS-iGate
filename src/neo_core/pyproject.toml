@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=69", "build>=1.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "neo-core"
+version = "0.2.8"
+description = "Neo-RX core radio and configuration utilities"
+authors = [{ name = "Paul Sturm" }]
+requires-python = ">=3.11"
+license = "LicenseRef-Proprietary"
+keywords = ["aprs", "sdr", "rtl-sdr", "ham-radio"]
+classifiers = [
+	"Programming Language :: Python :: 3",
+	"Programming Language :: Python :: 3 :: Only",
+	"Programming Language :: Python :: 3.11",
+	"Programming Language :: Python :: 3.12",
+	"Operating System :: POSIX :: Linux",
+	"Topic :: Communications :: Ham Radio"
+]
+dependencies = [
+	"numpy>=2.0,<3",
+	"pyrtlsdr>=0.3.0,<0.4",
+	"tomli-w>=1.1,<2",
+]
+
+[project.urls]
+Homepage = "https://github.com/chevybowtie/NESDR-Smart-v5-APRS-iGate"
+
+[project.optional-dependencies]
+dev = [
+	"pytest>=8.3",
+	"pytest-cov>=5.0",
+	"ruff>=0.6",
+]
+
+[tool.setuptools]
+package-dir = {"neo_core" = "."}
+packages = ["neo_core", "neo_core._compat", "neo_core.radio"]
+
+[tool.setuptools.package-data]
+neo_core = ["templates/direwolf.conf"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["../../tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 88
+src = [".", "../../tests"]

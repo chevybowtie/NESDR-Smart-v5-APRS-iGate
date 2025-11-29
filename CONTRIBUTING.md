@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for your interest in contributing to NESDR APRS iGate. The project aims to be welcoming and maintainable.
+Thanks for your interest in contributing to NEO-RX. The project aims to be welcoming and maintainable.
 
 How to contribute
 

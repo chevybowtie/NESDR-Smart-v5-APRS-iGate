@@ -10,8 +10,8 @@ import types
 from pathlib import Path
 from argparse import Namespace
 
-from neo_igate.commands import diagnostics
-from neo_igate.config import StationConfig, save_config
+from neo_aprs.commands import diagnostics
+from neo_core.config import StationConfig, save_config
 
 
 class _ProbeResult:
@@ -317,7 +317,7 @@ def test_sections_to_mapping() -> None:
 
 
 def test_print_text_report_verbose(caplog) -> None:
-    caplog.set_level(logging.INFO, logger="neo_igate.commands.diagnostics")
+    caplog.set_level(logging.INFO, logger="neo_aprs.commands.diagnostics")
     caplog.clear()
     sections = [
         diagnostics.Section("Env", "ok", "ready", {"packages": {"numpy": "1.0"}})
@@ -329,7 +329,7 @@ def test_print_text_report_verbose(caplog) -> None:
 
 
 def test_print_text_report_non_verbose(caplog) -> None:
-    caplog.set_level(logging.INFO, logger="neo_igate.commands.diagnostics")
+    caplog.set_level(logging.INFO, logger="neo_aprs.commands.diagnostics")
     caplog.clear()
     sections = [
         diagnostics.Section("Env", "ok", "ready", {"packages": {"numpy": "1.0"}})
@@ -343,7 +343,7 @@ def test_print_text_report_non_verbose(caplog) -> None:
 def test_run_diagnostics_json_includes_meta_and_summary(
     monkeypatch, tmp_path, capsys, caplog
 ) -> None:
-    caplog.set_level(logging.INFO, logger="neo_igate.commands.diagnostics")
+    caplog.set_level(logging.INFO, logger="neo_aprs.commands.diagnostics")
     caplog.clear()
 
     env_section = diagnostics.Section("Environment", "ok", "env", {})
@@ -382,7 +382,7 @@ def test_run_diagnostics_json_includes_meta_and_summary(
 
 
 def test_run_diagnostics_text_emits_summary(monkeypatch, tmp_path, caplog) -> None:
-    caplog.set_level(logging.INFO, logger="neo_igate.commands.diagnostics")
+    caplog.set_level(logging.INFO, logger="neo_aprs.commands.diagnostics")
     caplog.clear()
 
     env_section = diagnostics.Section("Environment", "ok", "env", {})
@@ -408,9 +408,7 @@ def test_run_diagnostics_text_emits_summary(monkeypatch, tmp_path, caplog) -> No
 
     assert exit_code == 0
     version_records = [
-        record
-        for record in caplog.records
-        if "neo-igate diagnostics v" in record.message
+        record for record in caplog.records if "neo-rx diagnostics v" in record.message
     ]
     assert len(version_records) == 1
     summary_records = [

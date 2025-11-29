@@ -1,3 +1,19 @@
+## Future Features & Configuration Options
+
+### WSPR Features
+* **Auto-upload to WSPRnet**: Implement `wspr_auto_upload` config option to automatically upload decoded spots to WSPRnet database
+* **WSPR spot metadata**: Include station location (`latitude`, `longitude`, `altitude_m`) in spot data when available
+
+### APRS Transmit Features  
+* **APRS beaconing**: Implement transmit functionality using `beacon_comment` and `software_tocall` config options
+* **Position reports**: Include configured location data in APRS packets
+
+### Configuration Options (Defined but Not Yet Used)
+* `altitude_m`: Station altitude for APRS/WSPR metadata
+* `beacon_comment`: APRS beacon comment text  
+* `software_tocall`: APRS software identifier
+* `wspr_auto_upload`: Automatic WSPRnet upload flag
+
 ## Best Practices & Tooling
 * Introduce mypy with `--strict` for key modules (APRS, radio) to catch protocol mismatches early.
 * Add `pyproject.toml` `[tool.coverage.run]` configuration for consistent coverage runs (`branch = true`).

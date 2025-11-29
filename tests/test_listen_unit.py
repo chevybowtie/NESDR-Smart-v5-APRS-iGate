@@ -9,8 +9,8 @@ from datetime import datetime, timezone
 from queue import Queue
 from typing import cast
 
-from neo_igate.aprs.kiss_client import KISSClient, KISSClientError
-from neo_igate.commands import listen
+from neo_rx.aprs.kiss_client import KISSClient, KISSClientError
+from neo_aprs.commands import listen
 
 
 def test_apply_software_tocall_rewrites_destination() -> None:
@@ -32,7 +32,7 @@ def test_extract_station_from_message() -> None:
 
 
 def test_handle_keyboard_commands_prints_summary(tmp_path, capsys) -> None:
-    log_path = tmp_path / "neo-igate.log"
+    log_path = tmp_path / "neo-rx.log"
     now = datetime.now(timezone.utc)
     log_path.write_text(
         f"{now.strftime('%Y-%m-%dT%H:%M:%SZ')} [000001] port=0 CALL>APRS:PAYLOAD\n",
@@ -49,7 +49,7 @@ def test_handle_keyboard_commands_prints_summary(tmp_path, capsys) -> None:
 
 
 def test_handle_keyboard_commands_ignores_other_keys(tmp_path, capsys) -> None:
-    log_path = tmp_path / "neo-igate.log"
+    log_path = tmp_path / "neo-rx.log"
     log_path.write_text("dummy", encoding="utf-8")
 
     queue: "Queue[str]" = Queue()
@@ -61,7 +61,7 @@ def test_handle_keyboard_commands_ignores_other_keys(tmp_path, capsys) -> None:
 
 
 def test_report_audio_error_logs(caplog) -> None:
-    caplog.set_level(logging.ERROR, logger="neo_igate.commands.listen")
+    caplog.set_level(logging.ERROR, logger="neo_aprs.commands.listen")
     queue: "Queue[Exception]" = Queue()
     queue.put(RuntimeError("boom"))
 
@@ -105,6 +105,24 @@ def test_wait_for_kiss_exhausts_attempts(monkeypatch) -> None:
 def test_apply_software_tocall_handles_missing_header() -> None:
     tnc2_line = "SRC:PAYLOAD>INFO"
     assert listen._apply_software_tocall(tnc2_line, "NEO123") == tnc2_line
+
+
+def test_append_q_construct_adds_path() -> None:
+    original = "CALL1>DST1,PATH1:payload"
+    updated = listen._append_q_construct(original, "IGATE-10")
+    assert updated == "CALL1>DST1,PATH1,qAR,IGATE-10:payload"
+
+
+def test_append_q_construct_skips_existing_q() -> None:
+    original = "CALL1>DST1,PATH1,qAR,OTHER:payload"
+    updated = listen._append_q_construct(original, "IGATE-10")
+    assert updated == original
+
+
+def test_append_q_construct_handles_minimal_path() -> None:
+    original = "CALL1>DST1:payload"
+    updated = listen._append_q_construct(original, "igate")
+    assert updated == "CALL1>DST1,qAR,IGATE:payload"
 
 
 def test_start_keyboard_listener_reads_keys(monkeypatch) -> None:

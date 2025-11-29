@@ -8,13 +8,13 @@ from pathlib import Path
 
 import pytest
 
-from neo_igate import config as config_module
-from neo_igate.commands import setup
-from neo_igate.config import StationConfig, save_config
+from neo_core import config as config_module
+from neo_aprs.commands import setup
+from neo_core.config import StationConfig, save_config
 
 
 def _setup_caplog(caplog, level=logging.INFO) -> None:
-    caplog.set_level(level, logger="neo_igate.commands.setup")
+    caplog.set_level(level, logger="neo_aprs.commands.setup")
     caplog.clear()
 
 
@@ -63,6 +63,9 @@ def test_interactive_prompt_keyring_store(monkeypatch) -> None:
             "Beacon",  # comment
             "192.0.2.1",  # kiss host
             "9001",  # kiss port
+            "EM12ab",  # wspr grid
+            "37",  # wspr power
+            "y",  # wspr uploader enabled
         ]
     )
     passwords = iter(["pass123", "pass123"])
@@ -88,6 +91,9 @@ def test_interactive_prompt_keyring_store(monkeypatch) -> None:
     assert config.latitude == pytest.approx(30.5)
     assert config.longitude == pytest.approx(-97.7)
     assert config.kiss_port == 9001
+    assert config.wspr_grid == "EM12ab"
+    assert config.wspr_power_dbm == 37
+    assert config.wspr_uploader_enabled is True
     assert store_calls == [("N0TEST-1", "pass123")]
 
 
@@ -103,7 +109,7 @@ def test_interactive_prompt_keyring_missing_backend(monkeypatch, caplog) -> None
         kiss_port=9100,
     )
 
-    responses = iter(["", "", "", "", "", "", "", ""])
+    responses = iter(["", "", "", "", "", "", "", "", "", "", "", ""])
     monkeypatch.setattr("builtins.input", lambda _: next(responses))
     monkeypatch.setattr(setup, "getpass", lambda _: "")
     monkeypatch.setattr(setup.config_module, "keyring_supported", lambda: False)

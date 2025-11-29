@@ -1,19 +1,21 @@
 ```markdown
 # Onboarding Flow Specification
 
-This document defines the interactive `neo-igate setup` command used to prepare a host for running the APRS iGate.
+This document defines the interactive setup commands (`neo-rx aprs setup`, `neo-rx wspr setup`) used to prepare a host for running the APRS iGate or WSPR monitor.
 
 ## Goals
 - Verify hardware and software prerequisites without modifying system-level configuration.
-- Collect operator identity and station metadata needed for APRS-IS access.
-- Persist configuration to `~/.config/neo-igate/config.toml` while protecting sensitive data.
-- Prime support services (Direwolf, logging directories) and provide clear success/failure feedback.
+- Collect operator identity and station metadata needed for APRS-IS access and/or WSPR reporting.
+- Persist configuration to `~/.config/neo-rx/config.toml` (or mode-specific files) while protecting sensitive data.
+- Prime support services (Direwolf for APRS, logging directories) and provide clear success/failure feedback.
 - Support reruns (`--reset`, `--non-interactive`) for headless or scripted environments.
+- Support multi-file configuration layering (`defaults.toml`, `aprs.toml`, `wspr.toml`).
 
 ## Preconditions
 - Host has Python 3.11+ with project virtual environment activated.
-   - `neo-igate` CLI installed (`pip install -e '.[dev]'`).
-- `direwolf` installed via system package manager or manual build.
+   - `neo-rx` CLI installed (`pip install -e '.[dev]'` or `pip install -e '.[direwolf,wspr]'`).
+- For APRS: `direwolf` installed via system package manager or manual build.
+- For WSPR: bundled `wsprd` is included with the `wspr` extra.
 
 > NOTE (Oct 2025): Packaging caveats
 >
@@ -23,33 +25,40 @@ This document defines the interactive `neo-igate setup` command used to prepare 
 ## High-Level Steps
 1. **Environment Checks**
    - Detect active virtual environment (`sys.prefix` under project root) and warn if missing.
-   - Locate `direwolf` executable in `PATH`; fail with remediation guidance if not found.
-   - Confirm `python3` executable version and required runtime dependencies (numpy, pyrtlsdr, aprslib).
+   - For APRS: Locate `direwolf` executable in `PATH`; fail with remediation guidance if not found.
+   - For WSPR: Verify bundled `wsprd` binary is present.
+   - Confirm `python3` executable version and required runtime dependencies.
 
 2. **USB Device Verification**
-   - Attempt `rtl_test` (or direct `pyrtlsdr.RtlSdr`) probe to ensure NESDR Smart v5 is accessible.
+   - Attempt `rtl_test` (or direct `pyrtlsdr.RtlSdr`) probe to ensure RTL-SDR is accessible.
    - Check for required udev permissions (read/write). If insufficient, output instructions and pause for retry.
    - Capture recommended defaults: tuner gain options, RTL crystal correction (ppm), sample rate capability.
+   - Note: For concurrent operation, use `--device-id SERIAL` to select specific SDRs.
 
-3. **Direwolf Sanity Test**
-   - Offer to launch Direwolf with a lightweight test configuration (loopback input) or verify existing instance.
-   - Validate KISS TCP port (default `127.0.0.1:8001`) is reachable and responds to version query.
+3. **Mode-Specific Service Tests**
+   - APRS: Offer to launch Direwolf with a test configuration or verify existing instance; validate KISS TCP port (default `127.0.0.1:8001`).
+   - WSPR: No external service required; validate wsprd binary execution.
 
 4. **Station Identity Collection**
-   - Prompt for callsign-SSID (e.g., `CALLSIGN-10`), APRS-IS passcode, optional operator name.
+   - Prompt for callsign-SSID (e.g., `CALLSIGN-10`), APRS-IS passcode (APRS mode), optional operator name.
    - Prompt for station location: latitude, longitude, altitude (meters), optional comment/beacon text.
-   - Provide default APRS-IS server rotation (`noam.aprs2.net`) with option to override or specify fallback list.
+   - For WSPR: Prompt for Maidenhead grid square (e.g., `EM12ab`) and reporter power (dBm).
+   - Provide default APRS-IS server rotation (`noam.aprs2.net`) with option to override.
 
 5. **Configuration Persistence**
-   - Store collected data in `~/.config/neo-igate/config.toml` with mode `0o600`.
+   - Store collected data in:
+     - `~/.config/neo-rx/config.toml` (single-file mode, legacy)
+     - `~/.config/neo-rx/defaults.toml` (shared defaults)
+     - `~/.config/neo-rx/aprs.toml` or `~/.config/neo-rx/wspr.toml` (mode-specific overrides)
    - Passcode handling:
-     - Prefer local keyring (Secret Service) via `keyring` lib; fall back to base64-encoded storage with warning if keyring unavailable.
+     - Prefer local keyring (Secret Service) via `keyring` lib; fall back to file storage with warning if keyring unavailable.
    - Include derived settings: detected tuner gain, sample rate, KISS host/port, timestamp of onboarding.
-   - Render Direwolf config from `docs/templates/direwolf.conf` into `~/.config/neo-igate/direwolf.conf` when user opts in to managed setup.
+   - For APRS: Render Direwolf config from template into `~/.config/neo-rx/direwolf.conf` when user opts in.
 
 6. **Telemetry & Logging Setup**
    - Ask user if they want local logs retained and whether anonymized metrics may be collected (default off).
-   - Ensure `~/.local/share/neo-igate/logs` exists with rotation policy notes.
+   - Ensure `~/.local/share/neo-rx/logs/{aprs,wspr}` exists (or per-instance paths when using `--instance-id`).
+   - Display guidance for host-managed rotation (recommend a weekly `logrotate` rule).
 
 7. **Validation Run**
    - Optionally perform end-to-end dry run using bundled sample IQ:
@@ -62,13 +71,13 @@ This document defines the interactive `neo-igate setup` command used to prepare 
      - Direwolf connection status
      - APRS-IS server(s)
      - Config file path and sensitive data storage method
-   - Provide next command suggestions (`neo-igate listen`, `neo-igate diagnostics`).
+   - Provide next command suggestions (`neo-rx aprs listen`, `neo-rx aprs diagnostics`, optionally `neo-rx wspr listen`).
 
 ## CLI Options
-- `neo-igate setup`: interactive wizard (default).
-- `neo-igate setup --reset`: delete existing config (confirm first) and rerun wizard.
-- `neo-igate setup --non-interactive --config /path/to/file`: accept pre-filled TOML, only validate hardware/software.
-- `neo-igate setup --dry-run`: perform validation without writing config changes.
+- `neo-rx aprs setup`: interactive wizard (default).
+- `neo-rx aprs setup --reset`: delete existing config (confirm first) and rerun wizard.
+- `neo-rx aprs setup --non-interactive --config /path/to/file`: accept pre-filled TOML, only validate hardware/software.
+- `neo-rx aprs setup --dry-run`: perform validation without writing config changes.
 
 ## User Prompts & Validation Rules
 - Callsign must match regex `^[A-Z0-9]{1,6}-[0-9]{1,2}$`; offer uppercase normalization.
@@ -82,10 +91,10 @@ This document defines the interactive `neo-igate setup` command used to prepare 
 - Abort only when critical prerequisites fail after retries.
 
 ## Artifacts
-- `~/.config/neo-igate/config.toml`: primary config file.
-- `~/.config/neo-igate/direwolf.conf`: rendered Direwolf configuration (optional, managed flow).
-- Keyring entry (`neo-igate/callsign`): secure passcode storage when available.
-- `~/.local/share/neo-igate/logs/setup.log`: onboarding transcript for diagnostics.
+- `~/.config/neo-rx/config.toml`: primary config file.
+- `~/.config/neo-rx/direwolf.conf`: rendered Direwolf configuration (optional, managed flow).
+- Keyring entry (`neo-rx/callsign`): secure passcode storage when available.
+- `~/.local/share/neo-rx/logs/setup.log`: onboarding transcript for diagnostics.
 
 ## Open Questions
 - Should onboarding auto-generate a Direwolf config file tailored to device, or simply validate user-provided config?

@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 
-from neo_igate._compat import rtlsdr  # type: ignore[attr-defined]
+from neo_rx._compat import rtlsdr  # type: ignore[attr-defined]
 
 
 def _reset_rtlsdr(sys_modules: MutableMapping[str, Any]) -> None:

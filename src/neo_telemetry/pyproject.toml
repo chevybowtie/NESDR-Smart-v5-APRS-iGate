@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=69", "build>=1.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "neo-telemetry"
+version = "0.2.8"
+description = "Neo-RX telemetry and MQTT publishing"
+authors = [{ name = "Paul Sturm" }]
+
+requires-python = ">=3.11"
+license = "LicenseRef-Proprietary"
+keywords = ["mqtt", "telemetry", "ham-radio"]
+classifiers = [
+	"Programming Language :: Python :: 3",
+	"Programming Language :: Python :: 3 :: Only",
+	"Programming Language :: Python :: 3.11",
+	"Programming Language :: Python :: 3.12",
+	"Operating System :: POSIX :: Linux",
+	"Topic :: Communications :: Ham Radio"
+]
+dependencies = [
+	"neo-core==0.2.8",
+	"paho-mqtt>=1.6",
+]
+
+[project.urls]
+Homepage = "https://github.com/chevybowtie/NESDR-Smart-v5-APRS-iGate"
+
+[project.optional-dependencies]
+dev = [
+	"pytest>=8.3",
+	"pytest-asyncio>=0.23",
+	"pytest-cov>=5.0",
+	"ruff>=0.6",
+]
+
+[tool.setuptools]
+package-dir = {"neo_telemetry" = "."}
+packages = ["neo_telemetry"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["../../tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 88
+src = [".", "../../tests"]
