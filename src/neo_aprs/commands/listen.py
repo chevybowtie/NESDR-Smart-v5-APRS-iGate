@@ -13,7 +13,7 @@ from datetime import datetime, timedelta, timezone
 from argparse import Namespace
 from pathlib import Path
 from queue import Empty, Queue
-from typing import Optional
+from typing import Optional, overload
 
 from neo_core import config as config_module
 from neo_aprs.aprs.ax25 import AX25DecodeError, kiss_payload_to_tnc2  # type: ignore[import]
@@ -412,8 +412,22 @@ def _get_source_callsign(tnc2_packet: str | bytes) -> str | None:
     return header.split(">", 1)[0]
 
 
+@overload
 def _append_q_construct(
-    tnc2_line: str | bytes, igate_callsign: str, q_type: str = "qAR"
+    tnc2_line: str, igate_callsign: str, q_type: str = "qAR"
+) -> str:
+    ...
+
+
+@overload
+def _append_q_construct(
+    tnc2_line: bytes | bytearray, igate_callsign: str, q_type: str = "qAR"
+) -> bytes:
+    ...
+
+
+def _append_q_construct(
+    tnc2_line: str | bytes | bytearray, igate_callsign: str, q_type: str = "qAR"
 ) -> str | bytes:
     """Append a q construct hop identifying this iGate.
 
@@ -422,58 +436,61 @@ def _append_q_construct(
     injects the hop unless the frame already carries any q construct.
     """
 
-    was_bytes = isinstance(tnc2_line, (bytes, bytearray))
-    if was_bytes:
+    if isinstance(tnc2_line, (bytes, bytearray)):
         line = bytes(tnc2_line)
         if not igate_callsign or b":" not in line or b">" not in line:
-            return tnc2_line
+            return line
         header, info = line.split(b":", 1)
         try:
             src, rest = header.split(b">", 1)
         except ValueError:
-            return tnc2_line
+            return line
 
         parts = rest.split(b",") if rest else []
         if not parts:
-            return tnc2_line
+            return line
 
         dest = parts[0]
         path_parts = parts[1:]
         has_q = any(
-            p.lower().startswith(b"q") and len(p) >= 3 for p in path_parts
-        )
-        if has_q:
-            return tnc2_line
-
-        new_path = path_parts + [q_type.encode("ascii"), igate_callsign.upper().encode("ascii")]
-        combined = b",".join([dest] + new_path)
-        return src + b">" + combined + b":" + info
-    else:
-        line = tnc2_line
-        if not igate_callsign or ":" not in line or ">" not in line:
-            return tnc2_line
-        header, info = line.split(":", 1)
-        try:
-            src, rest = header.split(">", 1)
-        except ValueError:
-            return tnc2_line
-
-        parts = rest.split(",") if rest else []
-        if not parts:
-            return tnc2_line
-
-        dest = parts[0]
-        path_parts = parts[1:]
-        has_q = any(
-            component.lower().startswith("q") and len(component) >= 3
+            component.lower().startswith(b"q") and len(component) >= 3
             for component in path_parts
         )
         if has_q:
-            return tnc2_line
+            return line
 
-        new_path = path_parts + [q_type, igate_callsign.upper()]
-        combined = ",".join([dest] + new_path)
-        return f"{src}>{combined}:{info}"
+        new_path = path_parts + [
+            q_type.encode("ascii"),
+            igate_callsign.upper().encode("ascii"),
+        ]
+        combined = b",".join([dest] + new_path)
+        return src + b">" + combined + b":" + info
+
+    line = tnc2_line
+    if not igate_callsign or ":" not in line or ">" not in line:
+        return tnc2_line
+    header, info = line.split(":", 1)
+    try:
+        src, rest = header.split(">", 1)
+    except ValueError:
+        return tnc2_line
+
+    parts = rest.split(",") if rest else []
+    if not parts:
+        return tnc2_line
+
+    dest = parts[0]
+    path_parts = parts[1:]
+    has_q = any(
+        component.lower().startswith("q") and len(component) >= 3
+        for component in path_parts
+    )
+    if has_q:
+        return tnc2_line
+
+    new_path = path_parts + [q_type, igate_callsign.upper()]
+    combined = ",".join([dest] + new_path)
+    return f"{src}>{combined}:{info}"
 
 
 def _resolve_direwolf_config(config_dir: Path) -> Optional[Path]:
