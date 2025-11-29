@@ -1,64 +1,199 @@
-## Release checklist
+# Release Guide
 
-This is a concise checklist for producing a release from this repository.
+This guide explains how to prepare and publish a release using the `Makefile` commands.
 
-1. Verify the tree is clean and tests/lint/build pass (local quick check):
+## Prerequisites
 
-```bash
-# run the project's verification script (creates ephemeral venv, runs ruff/pytest/build)
-bash scripts/verify_release.sh
-```
+- Clean working tree: `git status --porcelain` should be empty
+- Active virtual environment with dev dependencies: `source .venv/bin/activate`
+- PyPI credentials configured (for upload step)
 
-2. Choose branch and prepare release branch:
+## Release Process
 
-```bash
-# create a release branch from the branch you're preparing (e.g. develop)
-git checkout -b release/0.2.3
-```
+### 1. Prepare release branch
 
-3. Bump version in `pyproject.toml` (if not already set to release version).
-   - Update `version = "X.Y.Z"` and commit with message `chore(release): X.Y.Z`.
-   - Ensure `neo_rx.__version__` returns the new version when run from source (it reads from `pyproject.toml`).
-
-4. Run verification again to ensure package metadata matches and artifacts build:
+Create a release branch from `develop`:
 
 ```bash
-bash scripts/verify_release.sh
+git checkout develop
+git pull origin develop
+git checkout -b release/0.2.9
 ```
 
-5. Push the release branch and open a PR against `master` (or push directly if you prefer):
+### 2. Sync versions across all packages
+
+Use the `sync-versions` target to update version numbers in all `pyproject.toml` files:
 
 ```bash
-# add remote (only if not already configured)
-git remote add origin https://github.com/chevybowtie/NESDR-Smart-v5-APRS-iGate.git
-git push -u origin release/0.2.3
+make sync-versions VERSION=0.2.9
 ```
 
-6. After review & merge into `master`, tag the release and push tag:
+This updates:
+- Root `pyproject.toml`
+- All subpackage `pyproject.toml` files (`neo_core`, `neo_telemetry`, `neo_aprs`, `neo_wspr`)
+
+Review and commit the version changes:
+
+```bash
+git add pyproject.toml src/*/pyproject.toml
+git commit -m "chore(release): bump version to 0.2.9"
+```
+
+### 3. Update CHANGELOG.md
+
+Move items from `[Unreleased]` to a new versioned section:
+
+```markdown
+## [0.2.9] - 2025-11-28
+
+(copy content from [Unreleased] section)
+
+## [Unreleased]
+
+(leave empty or add placeholder entries)
+```
+
+Commit the changelog:
+
+```bash
+git add CHANGELOG.md
+git commit -m "docs: update CHANGELOG for 0.2.9"
+```
+
+### 4. Run verification suite
+
+Verify tests, linting, and builds pass:
+
+```bash
+make verify-release
+```
+
+This runs `scripts/verify_release.sh`, which creates an ephemeral venv and runs:
+- `ruff check` (linting)
+- `pytest` (full test suite)
+- `python -m build` (wheel builds for all packages)
+
+### 5. Dry-run the release
+
+Simulate the release to verify everything is ready:
+
+```bash
+make release VERSION=0.2.9 DRY_RUN=1
+```
+
+This will show:
+- What tags would be created
+- What artifacts would be built
+- Any warnings (e.g., missing `[Unreleased]` section)
+
+### 6. Build and tag (no upload)
+
+Perform the actual release build and create Git tags:
+
+```bash
+make release VERSION=0.2.9 SKIP=1 FORCE=1
+```
+
+Flags explained:
+- `SKIP=1` — Skip version equality check (allows re-running for same version)
+- `FORCE=1` — Force tag recreation if tags already exist
+
+This will:
+- Build all package wheels and sdists
+- Create tags: `neo-core-v0.2.9`, `neo-telemetry-v0.2.9`, `neo-aprs-v0.2.9`, `neo-wspr-v0.2.9`, `neo-rx-v0.2.9`
+
+### 7. Push branch and tags
+
+Push the release branch and tags to GitHub:
+
+```bash
+git push origin release/0.2.9
+git push origin --tags
+```
+
+### 8. Open pull request
+
+Open a PR from `release/0.2.9` to `master` for review. After approval and merge:
 
 ```bash
 git checkout master
 git pull origin master
-git tag -s v0.2.3 -m "Release v0.2.3"
-git push origin v0.2.3
 ```
 
-7. Publish artifacts (two options):
-   - CI-based publish: configure GH Actions to publish on pushed tags (preferred).
-   - Manual publish: in a clean venv install `build` and `twine` and run:
+### 9. Publish to PyPI (optional)
+
+**Option A: CI-based publish (recommended)**
+
+Configure GitHub Actions to publish on pushed tags automatically.
+
+**Option B: Manual publish**
+
+Upload the built artifacts to PyPI:
 
 ```bash
-# build artifacts locally
-python -m build
-# upload to TestPyPI or PyPI
-python -m twine upload --repository testpypi dist/*
+make release VERSION=0.2.9 SKIP=1 FORCE=1 UPLOAD=1
 ```
 
-8. Post-release housekeeping:
-   - Create or update `CHANGELOG.md` with release notes.
-   - Close any milestone or issues associated with the release.
-   - Remove ephemeral venvs used for verification (e.g., `.venv-check`).
+⚠️ **Warning**: The `UPLOAD=1` flag will publish to PyPI using `twine`. Ensure:
+- You have PyPI credentials configured (`~/.pypirc` or `TWINE_*` env vars)
+- You understand the consequences of publishing
+- You're on the correct branch/commit
 
-Notes
-- Use `scripts/verify_release.sh` to automate verification steps locally.
-- Prefer CI for publish to avoid leaking credentials from your local machine.
+### 10. Post-release cleanup
+
+```bash
+# Remove ephemeral venvs
+rm -rf .venv-check .venv-smoke
+
+# Tag master with version tag if not already done
+git checkout master
+git tag -s v0.2.9 -m "Release v0.2.9"
+git push origin v0.2.9
+```
+
+## Makefile Targets Reference
+
+| Target | Description |
+|--------|-------------|
+| `make sync-versions VERSION=X.Y.Z` | Sync version across all package `pyproject.toml` files |
+| `make verify-release` | Run full verification suite (lint, test, build) |
+| `make release VERSION=X.Y.Z DRY_RUN=1` | Simulate release (safe, read-only) |
+| `make release VERSION=X.Y.Z SKIP=1 FORCE=1` | Build artifacts and create tags locally |
+| `make release VERSION=X.Y.Z SKIP=1 FORCE=1 UPLOAD=1` | Build, tag, and upload to PyPI |
+
+## Release Flags
+
+| Flag | Effect |
+|------|--------|
+| `DRY_RUN=1` | Simulate the release without making changes |
+| `SKIP=1` | Skip the "already at version" guard |
+| `FORCE=1` | Force recreation of existing tags |
+| `UPLOAD=1` | Upload artifacts to PyPI (requires credentials) |
+
+## Smoke Testing (optional but recommended)
+
+After building wheels, verify them in an isolated environment:
+
+```bash
+# Create ephemeral venv
+rm -rf .venv-smoke
+python3 -m venv .venv-smoke
+.venv-smoke/bin/pip install --upgrade pip wheel setuptools
+
+# Install built wheels (no deps)
+.venv-smoke/bin/pip install --no-deps dist/*.whl src/*/dist/*.whl
+
+# Install runtime dependencies
+.venv-smoke/bin/pip install tomli_w numpy pyrtlsdr aprslib
+
+# Verify imports
+.venv-smoke/bin/python -c "import neo_rx; print('neo_rx OK')"
+
+# CLI smoke test
+.venv-smoke/bin/neo-rx --version
+```
+
+## Additional Documentation
+
+- `docs/developer.md` — Developer setup and smoke-test instructions
+- `docs/release_guide.md` — Expanded release examples and troubleshooting
