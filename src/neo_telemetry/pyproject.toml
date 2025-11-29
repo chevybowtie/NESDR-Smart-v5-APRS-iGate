@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "neo-telemetry"
-version = "0.2.7"
+version = "0.2.8"
 description = "Neo-RX telemetry and MQTT publishing"
 authors = [{ name = "Paul Sturm" }]
 
@@ -20,7 +20,7 @@ classifiers = [
 	"Topic :: Communications :: Ham Radio"
 ]
 dependencies = [
-	"neo-core==0.2.7",
+	"neo-core==0.2.8",
 	"paho-mqtt>=1.6",
 ]
 

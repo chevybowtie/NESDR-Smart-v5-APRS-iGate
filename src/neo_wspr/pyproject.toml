@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "neo-wspr"
-version = "0.2.7"
+version = "0.2.8"
 description = "Neo-RX WSPR monitoring functionality"
 authors = [{ name = "Paul Sturm" }]
 
@@ -20,7 +20,7 @@ classifiers = [
 	"Topic :: Communications :: Ham Radio"
 ]
 dependencies = [
-	"neo-core==0.2.7",
+	"neo-core==0.2.8",
 	"requests>=2.31,<3",
 ]
 
