@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=69", "build>=1.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "neo-aprs"
+version = "0.2.7"
+description = "Neo-RX APRS iGate functionality"
+authors = [{ name = "Paul Sturm" }]
+requires-python = ">=3.11"
+license = "LicenseRef-Proprietary"
+keywords = ["aprs", "igate", "ham-radio"]
+classifiers = [
+	"Programming Language :: Python :: 3",
+	"Programming Language :: Python :: 3 :: Only",
+	"Programming Language :: Python :: 3.11",
+	"Programming Language :: Python :: 3.12",
+	"Operating System :: POSIX :: Linux",
+	"Topic :: Communications :: Ham Radio"
+]
+dependencies = [
+	"neo-core==0.2.7",
+	"aprslib>=0.7.2,<0.9",
+]
+
+[project.urls]
+Homepage = "https://github.com/chevybowtie/NESDR-Smart-v5-APRS-iGate"
+
+[project.optional-dependencies]
+dev = [
+	"pytest>=8.3",
+	"pytest-cov>=5.0",
+	"ruff>=0.6",
+]
+direwolf = [
+	"sox>=1.5",
+]
+
+[tool.setuptools]
+package-dir = {"neo_aprs" = "."}
+packages = ["neo_aprs", "neo_aprs.aprs", "neo_aprs.commands"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["../../tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 88
+src = [".", "../../tests"]

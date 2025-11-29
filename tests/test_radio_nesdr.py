@@ -7,8 +7,8 @@ from typing import Any
 
 import pytest
 
-from neo_igate.radio.base import RadioError, RadioSettings
-from neo_igate.radio import nesdr
+from neo_rx.radio.base import RadioError, RadioSettings
+from neo_rx.radio import nesdr
 
 
 class _DummySdr:

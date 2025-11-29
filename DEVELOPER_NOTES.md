@@ -3,7 +3,7 @@
 ## Project Environment
 - Primary target is Python 3.11+; CI smoke tests run against 3.11 and 3.13 locally.
 - Create a local venv (`python3 -m venv .venv`) and install with `pip install -e '.[direwolf]'` plus `.[dev]` for tooling.
-- `NEO_IGATE_CONFIG_PATH` can override the default config directory for quick iterations.
+- `NEO_RX_CONFIG_PATH` can override the default config directory for quick iterations.
 
 ## Tooling Standards
 - Formatting: `ruff format` (PEP 8 style) with 4-space indentation, trailing commas enabled.
@@ -13,17 +13,17 @@
 
 ## Logging and Observability
 - All commands use `logging` with module-level loggers; avoid bare `print` outside CLI argument parsing.
-- Default log level is `INFO`; honor `--log-level` CLI flag and `NEO_IGATE_LOG_LEVEL` env override.
-- Structured diagnostics live under `~/.local/share/neo-igate/logs/`; keep file writes atomic to avoid partial logs.
+- Default log level is `INFO`; honor `--log-level` CLI flag and `NEO_RX_LOG_LEVEL` env override.
+- Structured diagnostics live under `~/.local/share/neo-rx/logs/`; keep file writes atomic to avoid partial logs.
 
 ## CLI and UX Conventions
-- CLI entry point is `neo-igate`; no arguments defaults to `listen` for quick starts.
+- CLI entry point is `neo-rx`; an explicit command is required (invoking with no arguments now errors). Use namespaced groups for clarity: `neo-rx aprs listen`, `neo-rx aprs diagnostics`, `neo-rx wspr listen`, `neo-rx wspr upload`. Legacy top-level commands (`listen`, `setup`, `diagnostics`) remain for backward compatibility but are deprecated in documentation.
 - Commander modules follow `Command.run()` taking `ParsedArgs` and returning an exit code (0 success, otherwise failure).
 - Comment complex argument parsing with inline notes; use `argparse` subparsers and stick to kebab-case flags (`--log-level`).
 - Non-interactive flows must accept `--config PATH` to support testing and automation.
 
 ## Configuration Artifacts
-- Primary settings live in `config.toml` beneath `~/.config/neo-igate/` unless overridden.
+- Primary settings live in `config.toml` beneath `~/.config/neo-rx/` unless overridden.
 - Setup wizard renders `direwolf.conf`; keep templates in sync with Direwolf upstream defaults.
 - Secrets such as APRS-IS passcodes are stored via `keyring` when possible; fall back to plaintext only with explicit user opt-in.
 
@@ -34,51 +34,71 @@
 - When hardware dependencies are unavoidable, guard tests with `pytest.mark.slow` to skip in CI.
 
 ## Release and Packaging
-- Version is managed in `pyproject.toml`; either update the version fields manually or install Hatch (`python -m pip install hatch`) and run `hatch version <level>`.
-- Build artifacts with `python -m build` (install the helper first via `python -m pip install build`) and verify `pip install dist/*.whl` inside a clean venv before tagging.
-- Update `README.md` quickstart steps whenever CLI defaults or required binaries change.
 
-## Build system & release guidance
+### Multi-package architecture
+- Project is organized into five coordinated packages:
+  - `neo-core`: shared utilities, configuration, radio capture
+  - `neo-telemetry`: MQTT publishing and on-disk queue
+  - `neo-aprs`: APRS protocol, KISS/APRS-IS clients, listen command
+  - `neo-wspr`: WSPR decoding, calibration, scan/upload commands
+  - `neo-rx`: metapackage CLI entry point, pulls all subpackages
+- Each package lives under `src/<package_name>/` with its own `pyproject.toml`
+- Versions must stay synchronized across all five packages
 
-- Recommended `build-system` for `pyproject.toml` (this project):
-  - `requires = ["setuptools>=69", "build>=1.0"]`
-  - `build-backend = "setuptools.build_meta"`
+### Release workflow
+- Use automated release script: `make release VERSION=x.y.z [DRY_RUN=1] [UPLOAD=1]`
+  - Auto-syncs versions across all package `pyproject.toml` files
+  - Updates `CHANGELOG.md` with release date
+  - Commits changes: "Release x.y.z"
+  - Builds wheels and source tarballs for all five packages
+  - Creates annotated git tags: `neo-core-vx.y.z`, `neo-aprs-vx.y.z`, etc.
+  - Optionally uploads to PyPI with `UPLOAD=1`
+- For re-runs or rebuilds without version bump: `make release VERSION=x.y.z SKIP=1 [FORCE=1]`
+  - `SKIP=1`: bypasses version-already-exists guard
+  - `FORCE=1`: re-creates git tags if they exist
+- Verify release: `make verify-release` or `scripts/verify_release.sh`
+  - Builds in clean venv, installs wheels, validates imports and CLI commands
 
-- Why this choice:
-  - `setuptools` is the widest-supported build backend and works well with our current code and packaging layout (src/ layout, package-data, entry points).
-  - `build` is a small, well-maintained wrapper to produce sdist and wheel in isolated environments.
+### Manual version sync
+- Sync all packages to a version: `make sync-versions VERSION=x.y.z`
+- Or directly: `.venv/bin/python scripts/sync_versions.py x.y.z`
+- Verify sync status: `.venv/bin/python scripts/sync_versions.py --show`
 
-- Actionable practices:
-  - Create a clean ephemeral venv for release verification:
+### Build system configuration
+- All packages use:
+  - `build-system.requires = ["setuptools>=69", "build>=1.0"]`
+  - `build-system.build-backend = "setuptools.build_meta"`
+- Rationale: `setuptools` is widely supported; `build` provides isolated builds matching PyPI behavior
+- Each subpackage uses flat layout with explicit `[tool.setuptools]` package mappings
 
-    ```bash
-    python3 -m venv .venv-release
-    .venv-release/bin/pip install --upgrade pip
-    .venv-release/bin/pip install -e '.[direwolf]' '.[dev]'
-    .venv-release/bin/python -m build
-    .venv-release/bin/pip install dist/*.whl
-    ```
+### Release artifacts
+- Built distributions in `dist/`:
+  - Wheels (`.whl`): prebuilt, fast to install, no compilation needed
+  - Source tarballs (`.tar.gz`): for source installs and PyPI archival
+- Git artifacts:
+  - Version bump commit
+  - Five annotated tags per release (one per package)
+- Metadata:
+  - Synchronized version fields across all `pyproject.toml` files
+  - `CHANGELOG.md` entry with release date
 
-  - Use the included `scripts/verify_release.sh` helper which automates the above steps in a repeatable way.
+### User installation
+- Install metapackage (recommended): `pip install --find-links dist neo-rx==x.y.z`
+- Install specific subpackage: `pip install --find-links dist neo-aprs==x.y.z`
+- Offline install: `pip install --no-index --find-links dist neo-rx==x.y.z`
+- Verify: `neo-rx --version`, `neo-rx aprs diagnostics --json`
 
-- Notes & compatibility concerns:
-  - Setuptools deprecation: `project.license` as a TOML table is deprecated in newer setuptools; switch to an SPDX string (for example `license = { text = "MIT" }` -> `license = "MIT"` or `license-files`) before 2026-Feb-18 to avoid future build breaks. The verification build will emit a deprecation warning until this is changed.
-  - Transient warning: some runtime dependencies (notably `pyrtlsdr` / `rtlsdr`) may emit runtime warnings referencing `pkg_resources` from `setuptools`. If these warnings are problematic, two options exist:
-    - Pin `setuptools` to a safe version in CI/build environments (for example `setuptools<81`) until transitive deps remove `pkg_resources` usage.
-    - Upgrade or replace the transitive dependency if a newer release removes the `pkg_resources` usage.
+### Notes & compatibility
+- License format: All packages use SPDX string `"LicenseRef-Proprietary"` (setuptools table format deprecated)
+- Subpackage readmes: Removed to silence `twine check` warnings (metapackage includes README.md)
+- Transient warnings: Some deps may reference `pkg_resources`; pin `setuptools<81` if problematic
+- `aprslib>=0.8` not on PyPI (Nov 2025); relax requirement to `>=0.7.2,<0.9` for compatibility
+- `types-keyring` unpublished; use runtime `keyring` package and document typing via `pyright` config
 
-  ## Packaging caveats (Oct 2025)
-
-  - `aprslib` upstream releases: note that `aprslib >=0.8` is not available on PyPI as of Oct 2025. The project currently uses a relaxed runtime requirement (`aprslib>=0.7.2,<0.9`) in `pyproject.toml` to allow installations. If you need `aprslib>=0.8` for a feature, either pin the package to a VCS URL or wait for an official release.
-  - `types-keyring`: the package name `types-keyring` is not published on PyPI. Do not add it to dev extras. Use the runtime `keyring` package for secure storage of APRS-IS passcodes and document any typing needs via `pyright`/`mypy` config or custom stubs.
-
-- Alternatives to consider (longer-term):
-  - `hatchling` (via `hatchling`/`hatch`) offers a modern, fast build backend with simpler configuration for some workflows; migrating requires updating CI and developer docs.
-  - `pdm` provides an opinionated workflow with dependency resolution through PEP 621 + PEP 517 but may be heavier to adopt for contributors.
-
-- CI implications:
-  - Keep the project's CI build step to run `python -m build` inside an isolated environment (this mirrors how PyPI builds packages) and to run the `scripts/verify_release.sh` on merge to main.
-  - Consider adding a lightweight gate that checks for `setuptools` deprecation warnings and fails only on new severe errors (so we catch regressions early without being brittle).
+### CI implications
+- Run `make verify-release` on merge to main to catch packaging regressions
+- Build in isolated environment via `python -m build` to mirror PyPI behavior
+- Gate on `setuptools` deprecation warnings to catch breaking changes early
 
 ## Documentation Habits
 - Prefer README updates alongside behavioral changes; keep troubleshooting tips user-focused.

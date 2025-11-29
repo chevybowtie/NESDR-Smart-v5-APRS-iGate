@@ -1,6 +1,6 @@
 # Direwolf Installation and Setup (Debian)
 
-These steps install Direwolf on a Debian-based system (tested on Debian 12 "Bookworm") and prepare it for use with the `neo-igate` CLI.
+These steps install Direwolf on a Debian-based system (tested on Debian 12 "Bookworm") and prepare it for use with the `neo-rx` CLI.
 
 ## 1. Install Packages
 
@@ -25,21 +25,21 @@ You should see the Direwolf version and build information. If the command is not
 ## 3. Prepare Config Directory
 
 ```
-mkdir -p ~/.config/neo-igate
-mkdir -p ~/.local/share/neo-igate/logs
+mkdir -p ~/.config/neo-rx
+mkdir -p ~/.local/share/neo-rx/logs
 ```
 
-The CLI expects the Direwolf configuration at `~/.config/neo-igate/direwolf.conf` by default and stores logs under `~/.local/share/neo-igate/logs`.
+The CLI expects the Direwolf configuration at `~/.config/neo-rx/direwolf.conf` by default and stores logs under `~/.local/share/neo-rx/logs`.
 
 ## 4. Render Direwolf Configuration
 
 Either run the CLI onboarding (which can render the file automatically) or copy the template manually:
 
 ```
-cp docs/templates/direwolf.conf ~/.config/neo-igate/direwolf.conf
+cp docs/templates/direwolf.conf ~/.config/neo-rx/direwolf.conf
 ```
 
-When `neo-igate setup` completes, accept the prompt to create `direwolf.conf` and the wizard will prefill your callsign, APRS-IS server, passcode, and KISS port values. Manually run the copy above if you prefer to edit the template yourself.
+When `neo-rx aprs setup` completes, accept the prompt to create `direwolf.conf` and the wizard will prefill your callsign, APRS-IS server, passcode, and KISS port values. Manually run the copy above if you prefer to edit the template yourself.
 
 Edit the file to confirm your callsign, passcode, latitude/longitude, and beacon text. Leave `ADEVICE stdin null` if you intend to use `rtl_fm` piping via `scripts/run_direwolf.sh`.
 
@@ -59,18 +59,18 @@ Use the helper script to start the SDR capture and feed Direwolf:
 ./scripts/run_direwolf.sh
 ```
 
-The script checks for `rtl_fm` and `direwolf`, configures gain and frequency defaults for 144.39 MHz, and writes logs to `~/.local/share/neo-igate/logs/direwolf.log`.
+The script checks for `rtl_fm` and `direwolf`, configures gain and frequency defaults for 144.39 MHz, and writes logs to `~/.local/share/neo-rx/logs/direwolf.log`.
 
 Common environment overrides:
 
 ```
-NEO_IGATE_GAIN=35 NEO_IGATE_FREQ=144.39M ./scripts/run_direwolf.sh
+NEO_RX_GAIN=35 NEO_RX_FREQ=144.39M ./scripts/run_direwolf.sh
 ```
 
 If you prefer manual control, mimic the helper script:
 
 ```
-rtl_fm -f 144.39M -s 22.05k -g 35 -p 0 - | direwolf -c ~/.config/neo-igate/direwolf.conf -
+rtl_fm -f 144.39M -s 22.05k -g 35 -p 0 - | direwolf -c ~/.config/neo-rx/direwolf.conf -
 ```
 
 ## 6. Enable KISS Port Access
@@ -87,14 +87,14 @@ After Direwolf starts, you should see a log line similar to:
 KISS TCP port 8001 bound to 127.0.0.1
 ```
 
-The `neo-igate diagnostics` command will probe `127.0.0.1:8001`; adjust the CLI config if you use a different address or port.
+The `neo-rx aprs diagnostics` command will probe `127.0.0.1:8001`; adjust the CLI config if you use a different address or port.
 
 ## 7. Test with Diagnostics
 
 With Direwolf running you can validate the setup using the CLI.
 
 ```
-neo-igate diagnostics
+neo-rx aprs diagnostics
 ```
 
 Expected output snippet:
@@ -127,8 +127,13 @@ systemctl --user daemon-reload
 systemctl --user enable --now nesdr-direwolf.service
 ```
 
+Log files still land in `~/.local/share/neo-rx/logs/`. Add a host-level `logrotate` rule (weekly, `rotate 4`, `compress`) targeting `~/.local/share/neo-rx/logs/*.log` so Direwolf and CLI logs expire after four weeks. When running under systemd you have two options:
+
+- Keep `copytruncate` in the `logrotate` stanza so Direwolf keeps writing uninterrupted.
+- Or omit `copytruncate` and add a `postrotate systemctl --user restart nesdr-direwolf.service` block so the service reopens a fresh file when rotation occurs.
+
 Check status with `systemctl --user status nesdr-direwolf.service`. Disable with `systemctl --user disable --now nesdr-direwolf.service`.
 
 ---
 
-Direwolf should now accept KISS TCP connections from the CLI and forward decoded packets to APRS-IS using your credentials. Use `tail -f ~/.local/share/neo-igate/logs/direwolf.log` or `direwolf -t 0` output to monitor packet activity.
+Direwolf should now accept KISS TCP connections from the CLI and forward decoded packets to APRS-IS using your credentials. Use `tail -f ~/.local/share/neo-rx/logs/direwolf.log` or `direwolf -t 0` output to monitor packet activity.

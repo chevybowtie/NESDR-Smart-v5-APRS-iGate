@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 # Launch Direwolf using rtl_fm as the audio source.
 # The script expects a rendered Direwolf config file and ensures
-# logs are captured under ~/.local/share/neo-igate/logs by default.
+# logs are captured under ~/.local/share/neo-rx/logs by default.
 
 set -euo pipefail
 
-CONFIG_PATH=${CONFIG_PATH:-$HOME/.config/neo-igate/direwolf.conf}
+CONFIG_PATH=${CONFIG_PATH:-$HOME/.config/neo-rx/direwolf.conf}
 AUDIO_SAMPLE_RATE=${AUDIO_SAMPLE_RATE:-22050}
 GAIN=${GAIN:-35}
 FREQUENCY_HZ=${FREQUENCY_HZ:-144390000}
 RTL_DEVICE_INDEX=${RTL_DEVICE_INDEX:-0}
 RTL_PPM=${RTL_PPM:-0}
-LOG_DIR=${LOG_DIR:-$HOME/.local/share/neo-igate/logs}
+LOG_DIR=${LOG_DIR:-$HOME/.local/share/neo-rx/logs}
 LOG_FILE=${LOG_FILE:-$LOG_DIR/direwolf.log}
 
 usage() {
@@ -19,13 +19,13 @@ usage() {
 Usage: $0 [config_path]
 
 Environment overrides:
-  CONFIG_PATH        Path to Direwolf config (default: ~/.config/neo-igate/direwolf.conf)
+  CONFIG_PATH        Path to Direwolf config (default: ~/.config/neo-rx/direwolf.conf)
   AUDIO_SAMPLE_RATE  rtl_fm / Direwolf audio sample rate (default: 22050)
   FREQUENCY_HZ       Center frequency in Hz (default: 144390000)
   GAIN               RTL-SDR gain in dB or "auto" (default: 35)
   RTL_DEVICE_INDEX   rtl_fm device index (default: 0)
   RTL_PPM            Frequency correction in ppm (default: 0)
-  LOG_DIR            Directory for Direwolf logs (default: ~/.local/share/neo-igate/logs)
+  LOG_DIR            Directory for Direwolf logs (default: ~/.local/share/neo-rx/logs)
   LOG_FILE           File to append Direwolf logs (default: LOG_DIR/direwolf.log)
 EOF
 }
@@ -53,7 +53,7 @@ done
 
 if [[ ! -f "$CONFIG_PATH" ]]; then
   echo "Error: Direwolf config not found at $CONFIG_PATH" >&2
-  echo "Render the template in docs/templates/direwolf.conf or rerun 'neo-igate setup'." >&2
+  echo "Render the template in docs/templates/direwolf.conf or rerun 'neo-rx setup'." >&2
   exit 1
 fi
 

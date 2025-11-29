@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=69", "build>=1.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "neo-wspr"
+version = "0.2.7"
+description = "Neo-RX WSPR monitoring functionality"
+authors = [{ name = "Paul Sturm" }]
+
+requires-python = ">=3.11"
+license = "LicenseRef-Proprietary"
+keywords = ["wspr", "ham-radio", "sdr"]
+classifiers = [
+	"Programming Language :: Python :: 3",
+	"Programming Language :: Python :: 3 :: Only",
+	"Programming Language :: Python :: 3.11",
+	"Programming Language :: Python :: 3.12",
+	"Operating System :: POSIX :: Linux",
+	"Topic :: Communications :: Ham Radio"
+]
+dependencies = [
+	"neo-core==0.2.7",
+	"requests>=2.31,<3",
+]
+
+[project.urls]
+Homepage = "https://github.com/chevybowtie/NESDR-Smart-v5-APRS-iGate"
+
+[project.optional-dependencies]
+dev = [
+	"pytest>=8.3",
+	"pytest-cov>=5.0",
+	"ruff>=0.6",
+]
+
+[tool.setuptools]
+package-dir = {"neo_wspr" = "."}
+packages = ["neo_wspr", "neo_wspr.wspr", "neo_wspr.commands"]
+
+[tool.setuptools.package-data]
+neo_wspr = ["wspr/bin/wsprd"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["../../tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 88
+src = [".", "../../tests"]

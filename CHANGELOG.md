@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.3] - 2025-11-27
+
+### Changed
+- Modularization: Completed split into `neo_core`, `neo_aprs`, `neo_wspr`, and `neo_telemetry` with shims for backward compatibility under `neo_rx`.
+- CLI version: `neo-rx --version` now reads from local `pyproject.toml` when running from source, ensuring accurate version reporting during development.
+
+### Fixed
+- APRS listen tests aligned with q-construct placement in TNC2 frames.
+- Diagnostics logging captured via `neo_aprs.commands.diagnostics` for text mode output checks.
+- MQTT testability: telemetry shim exposes `time` and `mqtt`; implementation prefers shim-injected namespaces for deterministic tests.
+- WSPR uploader JSON: when `--heartbeat` is requested, JSON includes `"heartbeat_sent": true`.
+- RTL-SDR compatibility: added lightweight `rtlsdr` stub and `_compat.prepare_rtlsdr()` to avoid external import failures in tests.
+
+### Testing
+- All tests pass (228/228) after updating imports to new package layout and adjusting CLI/APRS expectations.
+
 ## [0.2.2] - 2025-11-25
 
 ### Fixed
@@ -20,7 +36,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 - The `listen` command now logs a startup banner that includes the packaged version, callsign, and APRS-IS endpoint, making it easy to confirm the running build from captured logs.
-- Text-mode `diagnostics` runs emit a matching `neo-igate diagnostics v…` banner so operators and support logs clearly identify the tool version without switching to JSON output.
+- Text-mode diagnostics runs emit a matching `neo-rx aprs diagnostics v…` banner so operators and support logs clearly identify the tool version without switching to JSON output.
 
 ### Testing & Tooling
 - Extended CLI and diagnostics tests to assert the new version banners so future regressions are caught automatically.
@@ -29,17 +45,17 @@ All notable changes to this project will be documented in this file.
 ## [0.2.0] - 2025-11-01
 
 ### Breaking
-- Renamed the project and installable package from `nesdr-igate` to `neo-igate`, including the CLI entry point and Python import paths.
+- Renamed the project and installable package from `nesdr-igate` to `neo-rx`, including the CLI entry point and Python import paths.
 
 ### Added
-- Added a persistent listener log at `~/.local/share/neo-igate/logs/neo-igate.log` with UTC timestamps while keeping stdout output unchanged.
-- While `neo-igate listen` runs, pressing `s` now prints a 24-hour station activity summary overlay that survives restarts by reading the listener log.
+- Added a persistent listener log at `~/.local/share/neo-rx/logs/neo-rx.log` with UTC timestamps while keeping stdout output unchanged.
+- While `neo-rx aprs listen` runs, pressing `s` now prints a 24-hour station activity summary that survives restarts by reading the listener log.
 - Introduced optional software TOCALL rewriting for APRS-IS uplink traffic to better identify packets originated by the local station.
 - Added opt-in colorized output for CLI commands and diagnostics with explicit `--color`/`--no-color` flags and `NO_COLOR` environment support.
 
 ### Changed
-- Stats lines now include UTC timestamps and prompt operators about the new summary overlay after establishing the APRS-IS connection.
-- Centralized version reporting through `neo_igate.__version__` and ensured the CLI writes both to stdout and the persistent log file.
+- Stats lines now include UTC timestamps and prompt operators about the new summary after establishing the APRS-IS connection.
+- Centralized version reporting through `neo_rx.__version__` and ensured the CLI writes both to stdout and the persistent log file.
 
 ### Fixed
 - Improved diagnostics for Direwolf installation and connectivity checks, providing clearer messaging when dependencies are missing or misconfigured.
