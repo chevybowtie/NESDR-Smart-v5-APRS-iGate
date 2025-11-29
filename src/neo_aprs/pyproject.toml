@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "neo-aprs"
-version = "0.2.10"
+version = "0.2.12"
 description = "Neo-RX APRS iGate functionality"
 authors = [{ name = "Paul Sturm" }]
 requires-python = ">=3.11"
@@ -19,7 +19,7 @@ classifiers = [
 	"Topic :: Communications :: Ham Radio"
 ]
 dependencies = [
-	"neo-core==0.2.10",
+	"neo-core==0.2.12",
 	"aprslib>=0.7.2,<0.9",
 ]
 

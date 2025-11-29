@@ -100,8 +100,22 @@ jobs:
       - name: Test metapackage installation
         run: |
           python -m pip install --upgrade pip build
+          # Build metapackage and all subpackages so local wheels satisfy deps
           python -m build
-          python -m pip install dist/neo_rx-*.whl
+          python -m build src/neo_core
+          python -m build src/neo_telemetry
+          python -m build src/neo_aprs
+          python -m build src/neo_wspr
+
+          # Install neo-rx using local wheels for our packages, PyPI for external deps
+          python -m pip install \
+            --find-links dist \
+            --find-links src/neo_core/dist \
+            --find-links src/neo_telemetry/dist \
+            --find-links src/neo_aprs/dist \
+            --find-links src/neo_wspr/dist \
+            dist/neo_rx-*.whl
+
           neo-rx --help
           neo-rx aprs --help
           neo-rx wspr --help

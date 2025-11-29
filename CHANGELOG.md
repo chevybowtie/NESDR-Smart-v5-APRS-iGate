@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+
+## [0.2.12] - 2025-11-29
+
+### Fixed
+- Updated github workflow integrations job
+
+## [0.2.11] - 2025-11-29
+
+### Fixed
+- Updated github workflow integrations job
+
+
 ## [0.2.10] - 2025-11-29
 
 ### Added
