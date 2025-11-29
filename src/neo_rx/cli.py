@@ -209,11 +209,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     # APRS namespaced commands
     if aprs_listen is not None:
-        aprs_parser = subparsers.add_parser(
-            "aprs", help="APRS iGate commands"
-        )
+        aprs_parser = subparsers.add_parser("aprs", help="APRS iGate commands")
         aprs_subparsers = aprs_parser.add_subparsers(dest="aprs_command", required=True)
-        
+
         aprs_listen_parser = aprs_subparsers.add_parser(
             "listen", help="Run the SDR capture and APRS iGate pipeline"
         )
@@ -286,11 +284,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     # WSPR namespaced commands
     if wspr_listen is not None:
-        wspr_parser = subparsers.add_parser(
-            "wspr", help="WSPR monitoring commands"
-        )
+        wspr_parser = subparsers.add_parser("wspr", help="WSPR monitoring commands")
         wspr_subparsers = wspr_parser.add_subparsers(dest="wspr_command", required=True)
-        
+
         wspr_listen_parser = wspr_subparsers.add_parser(
             "listen", help="Run WSPR monitoring listener"
         )

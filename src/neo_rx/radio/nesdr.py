@@ -5,7 +5,7 @@ from __future__ import annotations
 import importlib
 from typing import Iterable
 
-from .base import RadioBackend, RadioError, RadioSettings, RadioStatus
+
 
 
 def _prepare_rtlsdr() -> None:
@@ -53,7 +53,12 @@ class NESDRBackend(RadioBackend):
                 "pyrtlsdr (rtlsdr module) is not installed; please `pip install pyrtlsdr`."
             ) from _RTLSDR_IMPORT_ERROR
         try:
-            self._sdr = RtlSdr(device_index=self._device_index)
+            # pyrtlsdr's RtlSdr historically accepted a positional index argument.
+            # Some type stubs (or versions) don't expose a `device_index` keyword,
+            # so pass positionally to satisfy IDE/type-checkers while remaining
+            # compatible with runtime behavior.
+            # type: ignore[call-arg]
+            self._sdr = RtlSdr(self._device_index)  # type: ignore[call-arg]
         except Exception as exc:  # pragma: no cover - hardware-specific failures
             raise RadioError(
                 f"Failed to open NESDR device index {self._device_index}: {exc}"

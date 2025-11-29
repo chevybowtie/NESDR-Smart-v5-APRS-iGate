@@ -270,9 +270,7 @@ def run_listen(args: Namespace) -> int:
                 frame = client.read_frame(timeout=1.0)
             except TimeoutError:
                 _report_audio_error(audio_errors)
-                _handle_keyboard_commands(
-                    command_queue, summary_log_path, stop_event
-                )
+                _handle_keyboard_commands(command_queue, summary_log_path, stop_event)
                 continue
             except KISSClientError as exc:
                 logger.error("KISS client error: %s", exc)
@@ -323,9 +321,7 @@ def run_listen(args: Namespace) -> int:
                 break
 
             _report_audio_error(audio_errors)
-            _handle_keyboard_commands(
-                command_queue, summary_log_path, stop_event
-            )
+            _handle_keyboard_commands(command_queue, summary_log_path, stop_event)
 
             if (
                 not getattr(args, "once", False)
@@ -419,15 +415,13 @@ def _get_source_callsign(tnc2_packet: str | bytes) -> str | None:
 @overload
 def _append_q_construct(
     tnc2_line: str, igate_callsign: str, q_type: str = "qAR"
-) -> str:
-    ...
+) -> str: ...
 
 
 @overload
 def _append_q_construct(
     tnc2_line: bytes | bytearray, igate_callsign: str, q_type: str = "qAR"
-) -> bytes:
-    ...
+) -> bytes: ...
 
 
 def _append_q_construct(

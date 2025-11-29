@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from neo_aprs.commands.listen import _append_q_construct
 
+
 def test_append_q_construct_bytes_adds_qhop() -> None:
     # Packet without existing q-construct should get qAR,<IGATE> appended
     tnc2 = b"KJ5EVH-7>APRS,WIDE1-1,WIDE2-1:PAYLOAD"

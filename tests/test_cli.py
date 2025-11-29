@@ -24,8 +24,10 @@ try:
 except ImportError:
     CONFIG_ENV_VAR = "NEO_RX_CONFIG_PATH"  # type: ignore
     StationConfig = object  # type: ignore
+
     def save_config(*args, **kwargs):  # type: ignore
         return None
+
 
 import neo_rx.cli as cli
 
@@ -44,7 +46,7 @@ def test_cli_aprs_listen_help(capsys) -> None:
     """Verify neo-rx aprs listen --help works."""
     with pytest.raises(SystemExit) as excinfo:
         cli.main(["aprs", "listen", "--help"])
-    
+
     assert excinfo.value.code == 0
     captured = capsys.readouterr()
     assert "neo-rx aprs listen" in captured.out
@@ -58,7 +60,7 @@ def test_cli_wspr_listen_help(capsys) -> None:
     """Verify neo-rx wspr listen --help works."""
     with pytest.raises(SystemExit) as excinfo:
         cli.main(["wspr", "listen", "--help"])
-    
+
     assert excinfo.value.code == 0
     captured = capsys.readouterr()
     assert "neo-rx wspr listen" in captured.out
@@ -71,7 +73,7 @@ def test_cli_aprs_diagnostics_help(capsys) -> None:
     """Verify neo-rx aprs diagnostics --help works."""
     with pytest.raises(SystemExit) as excinfo:
         cli.main(["aprs", "diagnostics", "--help"])
-    
+
     assert excinfo.value.code == 0
     captured = capsys.readouterr()
     assert "neo-rx aprs diagnostics" in captured.out
@@ -83,7 +85,7 @@ def test_cli_wspr_diagnostics_help(capsys) -> None:
     """Verify neo-rx wspr diagnostics --help works."""
     with pytest.raises(SystemExit) as excinfo:
         cli.main(["wspr", "diagnostics", "--help"])
-    
+
     assert excinfo.value.code == 0
     captured = capsys.readouterr()
     assert "neo-rx wspr diagnostics" in captured.out
@@ -96,7 +98,7 @@ def test_cli_aprs_setup_help(capsys) -> None:
     """Verify neo-rx aprs setup --help works."""
     with pytest.raises(SystemExit) as excinfo:
         cli.main(["aprs", "setup", "--help"])
-    
+
     assert excinfo.value.code == 0
     captured = capsys.readouterr()
     assert "neo-rx aprs setup" in captured.out
