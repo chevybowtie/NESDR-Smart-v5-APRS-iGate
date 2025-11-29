@@ -178,8 +178,26 @@ Useful flags:
 - `--config PATH` to point at an alternate configuration file
 - `--instance-id NAME` to isolate data/logs for concurrent runs
 - `--device-id SERIAL` to select a specific RTL-SDR device
+- `--log-level {debug,info,warning,error}` to control console output verbosity
 
-Logs and probe outputs are stored beneath `~/.local/share/neo-rx/logs/aprs/` by default (or `~/.local/share/neo-rx/instances/<id>/logs/aprs/` when using `--instance-id`).
+### Console output and logging
+
+By default, the listener runs at `INFO` log level, which displays:
+- Startup messages (version, callsign, server connection)
+- Each received frame with port and TNC2 packet preview
+- APRS-IS connection status and errors
+- Periodic statistics (every 60 seconds)
+- Interactive prompts (press `s` for 24-hour summary, `q` to quit)
+
+All console output is simultaneously written to `~/.local/share/neo-rx/logs/aprs/neo-rx.log` (or `~/.local/share/neo-rx/instances/<id>/logs/aprs/neo-rx.log` when using `--instance-id`) with ISO 8601 timestamps.
+
+To reduce console noise while keeping file logs intact, use `--log-level warning` or `--log-level error`. To see detailed debug information (useful for troubleshooting), use `--log-level debug`.
+
+You can also set the log level via the `NEO_RX_LOG_LEVEL` environment variable:
+```bash
+NEO_RX_LOG_LEVEL=debug neo-rx aprs listen
+```
+
 
 ## 6. WSPR Monitoring (optional)
 If you installed WSPR support, you can monitor WSPR bands for propagation reports:
