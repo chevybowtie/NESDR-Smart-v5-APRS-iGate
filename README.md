@@ -32,8 +32,11 @@ WSPR decoding is supported via the bundled `wsprd` binary (from WSJT-X). No addi
 
 The WSPR feature uses the bundled `wsprd` for IQ data decoding.
 
-## 1. Create and activate a virtual environment
+## 1. Clone the repo and create a virtual environment
 ```bash
+git clone https://github.com/chevybowtie/NESDR-Smart-v5-APRS-iGate.git
+cd NESDR-Smart-v5-APRS-iGate
+
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
