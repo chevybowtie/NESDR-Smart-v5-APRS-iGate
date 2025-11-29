@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+- Developer & release documentation: `docs/developer.md` and `docs/release_guide.md` with venv setup, smoke-test steps, and Makefile-driven release examples.
+
+### Changed
+- Clarified release workflow and `Makefile` flags (`DRY_RUN`, `SKIP`, `FORCE`, `UPLOAD`) in documentation.
+- Packaging guidance added to explain the `neo_wspr.wspr.bin` setuptools warning and how to silence it if desired.
+
+### Fixed
+- APRS handling: added typing overloads and fixed `_append_q_construct` to preserve correct `str` vs `bytes` behavior and avoid IDE/type-checker complaints.
+- NESDR backend: adjusted `RtlSdr` instantiation to use a positional argument and added a targeted `# type: ignore[call-arg]` to reconcile runtime API with type checking.
+
+### Testing
+- Recreated development virtual environment and performed editable installs for subpackages in dependency order.
+- Ran full local test suite and built wheels for all packages.
+- Performed smoke tests by installing the built wheels into an ephemeral venv (`.venv-smoke`) and verified imports and CLI behavior (`neo-rx --version`).
+
+### Release
+- Performed a local release build for `0.2.8` (no upload): built sdists/wheels, created tags `neo-core-v0.2.8`, `neo-telemetry-v0.2.8`, `neo-aprs-v0.2.8`, `neo-wspr-v0.2.8`, `neo-rx-v0.2.8`, and pushed branch + tags to `origin`.
+- To publish artifacts to PyPI, run the release target with `UPLOAD=1` (ensure credentials are configured and you understand `SKIP`/`FORCE` semantics).
+
 ## [0.2.3] - 2025-11-27
 
 ### Changed
