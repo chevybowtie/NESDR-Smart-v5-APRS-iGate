@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from neo_aprs.commands.listen import _append_q_construct
 
 
