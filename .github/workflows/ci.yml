@@ -87,6 +87,9 @@ jobs:
 
   integration:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: [3.11, 3.12, 3.13]
     needs: test
     
     steps:
@@ -95,10 +98,19 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.12'
+          python-version: ${{ matrix.python }}
       
       - name: Install librtlsdr dependencies
-        run: sudo apt-get update && sudo apt-get install -y librtlsdr0 librtlsdr-dev
+        run: |
+          sudo apt-get update 
+          sudo apt-get install -y git cmake build-essential libusb-1.0-0-dev pkg-config autoconf automake libtool
+          git clone https://github.com/osmocom/rtl-sdr.git 
+          cd rtl-sdr 
+          mkdir build && cd build
+          cmake .. -DDETACH_KERNEL_DRIVER=ON
+          make -j$(nproc)
+          sudo make install
+          sudo ldconfig
       
       - name: Test metapackage installation
         run: |
