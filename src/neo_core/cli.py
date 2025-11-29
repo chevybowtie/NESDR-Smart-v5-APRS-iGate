@@ -1,5 +1,8 @@
 import argparse
+import logging
+import os
 import sys
+import time
 from typing import List
 
 # Temporary imports to delegate to existing implementation during refactor
@@ -120,16 +123,69 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
+    # Configure logging (stdout + file) similarly to legacy CLI
+    def _resolve_log_level(candidate: str | None) -> int:
+        aliases = {
+            "critical": logging.CRITICAL,
+            "error": logging.ERROR,
+            "warning": logging.WARNING,
+            "info": logging.INFO,
+            "debug": logging.DEBUG,
+        }
+        for value in (candidate, os.getenv("NEO_RX_LOG_LEVEL")):
+            if not value:
+                continue
+            stripped = value.strip()
+            if not stripped:
+                continue
+            lower = stripped.lower()
+            if lower in aliases:
+                return aliases[lower]
+            if stripped.isdigit():
+                return int(stripped)
+        return logging.INFO
+
+    def _configure_logging(level_name: str | None) -> None:
+        stream_handler = logging.StreamHandler(sys.stdout)
+        stream_handler.setFormatter(logging.Formatter("%(message)s"))
+        handlers: list[logging.Handler] = [stream_handler]
+
+        try:
+            # Create APRS logs directory consistent with legacy behavior
+            base = os.getenv("NEO_RX_DATA_DIR")
+            if base:
+                from pathlib import Path
+
+                base_path = Path(base)
+            else:
+                # Fallback to legacy location via neo_rx.config
+                from neo_rx import config as config_module
+
+                base_path = config_module.get_data_dir()
+            log_dir = base_path / "logs" / "aprs"
+            log_dir.mkdir(parents=True, exist_ok=True)
+            log_file = log_dir / "neo-rx.log"
+            file_handler = logging.FileHandler(log_file, encoding="utf-8")
+            file_formatter = logging.Formatter(
+                "%(asctime)sZ %(message)s", datefmt="%Y-%m-%dT%H:%M:%S"
+            )
+            file_formatter.converter = time.gmtime
+            file_handler.setFormatter(file_formatter)
+            handlers.append(file_handler)
+        except Exception:
+            pass
+
+        logging.basicConfig(level=_resolve_log_level(level_name), handlers=handlers, force=True)
+
     # Propagate instance/data directory overrides via environment so that
     # downstream modules use the same namespacing without signature changes.
     if getattr(args, "instance_id", None):
-        import os
-
         os.environ.setdefault("NEO_RX_INSTANCE_ID", str(args.instance_id))
     if getattr(args, "data_dir", None):
-        import os
-
         os.environ.setdefault("NEO_RX_DATA_DIR", str(args.data_dir))
+
+    # Ensure logging is configured before delegating to subcommands
+    _configure_logging(getattr(args, "log_level", None))
 
     # Delegate to existing neo_rx CLI until mode-specific refactor completes
     if args.mode == "aprs":

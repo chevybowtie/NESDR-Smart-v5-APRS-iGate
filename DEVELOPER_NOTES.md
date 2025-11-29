@@ -46,23 +46,26 @@
 - Versions must stay synchronized across all five packages
 
 ### Release workflow
-- Use automated release script: `make release VERSION=x.y.z [DRY_RUN=1] [UPLOAD=1]`
-  - Auto-syncs versions across all package `pyproject.toml` files
-  - Updates `CHANGELOG.md` with release date
-  - Commits changes: "Release x.y.z"
-  - Builds wheels and source tarballs for all five packages
-  - Creates annotated git tags: `neo-core-vx.y.z`, `neo-aprs-vx.y.z`, etc.
-  - Optionally uploads to PyPI with `UPLOAD=1`
-- For re-runs or rebuilds without version bump: `make release VERSION=x.y.z SKIP=1 [FORCE=1]`
-  - `SKIP=1`: bypasses version-already-exists guard
-  - `FORCE=1`: re-creates git tags if they exist
-- Verify release: `make verify-release` or `scripts/verify_release.sh`
-  - Builds in clean venv, installs wheels, validates imports and CLI commands
 
-### Manual version sync
-- Sync all packages to a version: `make sync-versions VERSION=x.y.z`
-- Or directly: `.venv/bin/python scripts/sync_versions.py x.y.z`
-- Verify sync status: `.venv/bin/python scripts/sync_versions.py --show`
+See `docs/release_guide.md` for complete release instructions, including:
+- Automatic release via `make release` (recommended)
+- Manual step-by-step release process
+- Branch management and GitHub PR workflow
+- PyPI publishing options
+
+Quick reference:
+```bash
+# Create release branch
+git checkout -b release/x.y.z
+
+# Verify, build, and tag (versions are auto-synced by release script)
+make verify-release
+make release VERSION=x.y.z
+
+# Push and create PR on GitHub
+git push origin release/x.y.z
+git push origin --tags
+```
 
 ### Build system configuration
 - All packages use:
@@ -71,20 +74,9 @@
 - Rationale: `setuptools` is widely supported; `build` provides isolated builds matching PyPI behavior
 - Each subpackage uses flat layout with explicit `[tool.setuptools]` package mappings
 
-### Release artifacts
-- Built distributions in `dist/`:
-  - Wheels (`.whl`): prebuilt, fast to install, no compilation needed
-  - Source tarballs (`.tar.gz`): for source installs and PyPI archival
-- Git artifacts:
-  - Version bump commit
-  - Five annotated tags per release (one per package)
-- Metadata:
-  - Synchronized version fields across all `pyproject.toml` files
-  - `CHANGELOG.md` entry with release date
-
 ### User installation
-- Install metapackage (recommended): `pip install --find-links dist neo-rx==x.y.z`
-- Install specific subpackage: `pip install --find-links dist neo-aprs==x.y.z`
+- Install metapackage (recommended): `pip install neo-rx`
+- Install specific subpackage: `pip install neo-aprs`
 - Offline install: `pip install --no-index --find-links dist neo-rx==x.y.z`
 - Verify: `neo-rx --version`, `neo-rx aprs diagnostics --json`
 
