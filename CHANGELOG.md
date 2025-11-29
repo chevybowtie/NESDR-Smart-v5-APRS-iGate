@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [0.2.10] - 2025-11-29
 
 ### Added
 - Developer & release documentation: `docs/developer.md` and `docs/release_guide.md` with venv setup, smoke-test steps, and Makefile-driven release examples.
