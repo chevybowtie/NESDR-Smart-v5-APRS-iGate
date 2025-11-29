@@ -107,8 +107,8 @@ jobs:
           python -m build src/neo_aprs
           python -m build src/neo_wspr
 
-          # Install neo-rx from local wheels only (no PyPI)
-          python -m pip install --no-index \
+          # Install neo-rx using local wheels for our packages, PyPI for external deps
+          python -m pip install \
             --find-links dist \
             --find-links src/neo_core/dist \
             --find-links src/neo_telemetry/dist \
