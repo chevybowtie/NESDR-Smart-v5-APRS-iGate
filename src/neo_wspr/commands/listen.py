@@ -8,8 +8,14 @@ from __future__ import annotations
 import logging
 import time
 from argparse import Namespace
+import sys
+import threading
+from queue import Queue, Empty
 
 from neo_core import config as config_module
+from neo_core.term import start_keyboard_listener, process_commands
+from pathlib import Path
+from datetime import datetime, timezone
 
 LOG = logging.getLogger(__name__)
 
@@ -97,13 +103,50 @@ def run_listen(args: Namespace) -> int:
         uploader=uploader,
     )
 
+    # Minimal keyboard listener for interactive commands
+    stop_event = threading.Event()
+    command_queue: "Queue[str]" = Queue()
+    kb_thread = start_keyboard_listener(stop_event, command_queue, name="neo-rx-wspr-keyboard")
+
+    def _emit_wspr_summary() -> None:
+        spots_path = run_dir / "wspr_spots.jsonl"
+        if not spots_path.exists():
+            print("\nNo WSPR spots file available yet; try again after captures.\n", flush=True)
+            return
+        try:
+            total = 0
+            latest: float | None = None
+            with spots_path.open("r", encoding="utf-8") as fh:
+                for line in fh:
+                    if not line.strip():
+                        continue
+                    total += 1
+                    latest = float(spots_path.stat().st_mtime)
+            ts = datetime.fromtimestamp(latest or spots_path.stat().st_mtime, tz=timezone.utc)
+            print(
+                f"\nWSPR activity summary\nSpots file: {spots_path}\nTotal spots: {total}\nLast update: {ts.strftime('%Y-%m-%d %H:%MZ')}\n",
+                flush=True,
+            )
+        except Exception:
+            pass
+
     capture.start()
     try:
-        while capture.is_running():
+        while capture.is_running() and not stop_event.is_set():
             time.sleep(1)
+            process_commands(
+                command_queue,
+                {
+                    "q": lambda: (print("\nExiting WSPR monitor...\n", flush=True), stop_event.set(), capture.stop()),
+                    "v": lambda: (print(f"\nneo-rx {__import__('neo_rx').__version__}\n", flush=True) if hasattr(__import__('neo_rx'), '__version__') else print("\nneo-rx\n", flush=True)),
+                    "s": _emit_wspr_summary,
+                },
+            )
     except KeyboardInterrupt:
         LOG.info("WSPR monitoring interrupted by user")
     finally:
         capture.stop()
+        if kb_thread and kb_thread.is_alive():
+            kb_thread.join(timeout=1)
 
     return 0

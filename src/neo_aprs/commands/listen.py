@@ -16,6 +16,7 @@ from queue import Empty, Queue
 from typing import Optional, overload
 
 from neo_core import config as config_module
+from neo_core.term import start_keyboard_listener, process_commands
 from neo_aprs.aprs.ax25 import AX25DecodeError, kiss_payload_to_tnc2  # type: ignore[import]
 from neo_aprs.aprs.aprsis_client import (  # type: ignore[import]
     APRSISClient,
@@ -101,7 +102,7 @@ def run_listen(args: Namespace) -> int:
 
     stop_event = threading.Event()
     command_queue: "Queue[str]" = Queue()
-    keyboard_thread = _start_keyboard_listener(stop_event, command_queue)
+    keyboard_thread = start_keyboard_listener(stop_event, command_queue, name="neo-rx-aprs-keyboard")
     summary_log_path = config_module.get_logs_dir("aprs") / "neo-rx.log"
 
     def _pump_audio() -> None:
@@ -490,6 +491,15 @@ def _append_q_construct(
     combined = ",".join([dest] + new_path)
     return f"{src}>{combined}:{info}"
 
+# Backward compatibility: tests rely on _start_keyboard_listener existing.
+# Delegate to shared implementation in neo_core.term.
+def _start_keyboard_listener(
+    stop_event: threading.Event, command_queue: "Queue[str]"
+) -> threading.Thread | None:  # pragma: no cover - thin wrapper
+    from neo_core.term import start_keyboard_listener as _delegate
+
+    return _delegate(stop_event, command_queue, name="neo-rx-aprs-keyboard")
+
 
 def _resolve_direwolf_config(config_dir: Path) -> Optional[Path]:
     candidate = config_dir / "direwolf.conf"
@@ -529,86 +539,19 @@ def _report_audio_error(queue: "Queue[Exception]") -> None:
     logger.error("Audio pipeline error: %s", exc)
 
 
-def _start_keyboard_listener(
-    stop_event: threading.Event, command_queue: "Queue[str]"
-) -> threading.Thread | None:
-    # If threading.Event has been monkeypatched without a wait method (as in certain tests),
-    # avoid starting the keyboard listener to prevent blocking or crashes.
-    try:
-        test_event = threading.Event()
-        if not hasattr(test_event, "wait"):
-            return None
-    except Exception:
-        return None
-
-    if not sys.stdin.isatty():
-        return None
-    try:
-        import select
-        import termios
-        import tty
-    except ImportError:
-        return None
-
-    try:
-        fd = sys.stdin.fileno()
-    except (OSError, ValueError):
-        return None
-
-    try:
-        old_settings = termios.tcgetattr(fd)
-    except termios.error:
-        return None
-
-    try:
-        tty.setcbreak(fd)
-    except termios.error:
-        return None
-
-    def worker() -> None:
-        try:
-            while not stop_event.is_set():
-                try:
-                    readable, _, _ = select.select([sys.stdin], [], [], 0.1)
-                except (OSError, ValueError):
-                    break
-                if sys.stdin in readable:
-                    try:
-                        chunk = sys.stdin.read(1)
-                    except (OSError, ValueError):
-                        break
-                    if chunk:
-                        command_queue.put(chunk)
-        finally:
-            try:
-                termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
-            except termios.error:
-                pass
-
-    thread = _REAL_THREAD(target=worker, name="neo-rx-keyboard", daemon=True)
-    thread.start()
-    return thread
-
-
 def _handle_keyboard_commands(
     command_queue: "Queue[str]",
     log_path: Path,
     stop_event: threading.Event | None = None,
 ) -> None:
-    while True:
-        try:
-            command = command_queue.get_nowait()
-        except Empty:
-            break
-        if command.lower() == "s":
-            summary = _summarize_recent_activity(log_path)
-            # Print summary directly to stdout to avoid duplicating it in the log file.
-            print("\n" + summary + "\n", flush=True)
-        elif command.lower() == "q":
-            print("\nExiting iGate...\n", flush=True)
-            if stop_event is not None:
-                stop_event.set()
-            break
+    process_commands(
+        command_queue,
+        {
+            "s": lambda: print("\n" + _summarize_recent_activity(log_path) + "\n", flush=True),
+            "q": (lambda: (print("\nExiting iGate...\n", flush=True), stop_event.set())) if stop_event is not None else (lambda: print("\nExiting iGate...\n", flush=True)),
+            "v": lambda: print(f"\n{_SOFTWARE_NAME} {_SOFTWARE_VERSION}\n", flush=True),
+        },
+    )
 
 
 @dataclass
