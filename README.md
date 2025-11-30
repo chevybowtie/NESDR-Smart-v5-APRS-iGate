@@ -289,19 +289,35 @@ neo-rx adsb listen
 
 ### Prerequisites
 
-ADS-B monitoring requires dump1090-fa, dump1090, or readsb to be installed and running. These tools decode ADS-B signals from RTL-SDR and produce JSON output that neo-rx reads.
+ADS-B monitoring requires a decoder daemon that owns the SDR and writes `aircraft.json`:
 
-On Debian/Ubuntu systems:
+- `readsb` (recommended)
+- `dump1090-fa` or `dump1090` (alternative)
+
+neo-rx reads the JSON these daemons produce; it does not tune the SDR in ADS-B mode.
+
+On Debian/Ubuntu systems (readsb):
 ```bash
-sudo apt install dump1090-fa
-sudo systemctl start dump1090-fa
+sudo apt install readsb
+sudo systemctl enable --now readsb
+```
+Optionally, install the ADS-B Exchange feeder (handles network reporting):
+```bash
+curl -L -o /tmp/axfeed.sh https://adsbexchange.com/feed.sh
+sudo bash /tmp/axfeed.sh
+```
+Typical services involved:
+```bash
+systemctl list-units 'dump1090*' 'readsb*' 'adsbexchange*'
+# expect: readsb.service (running), adsbexchange-feed.service (running),
+#         adsbexchange-mlat.service (auto-restart if not configured)
 ```
 
 ### ADS-B commands
 
 ```bash
 # Start ADS-B monitoring
-neo-rx adsb listen [--json-path /run/dump1090-fa/aircraft.json]
+neo-rx adsb listen [--json-path /run/readsb/aircraft.json]
 
 # Run diagnostics
 neo-rx adsb diagnostics [--verbose] [--json]
@@ -311,10 +327,21 @@ neo-rx adsb setup
 ```
 
 Useful flags:
-- `--json-path PATH` to specify dump1090 JSON location (default: `/run/dump1090-fa/aircraft.json`)
+- `--json-path PATH` to specify decoder JSON location (auto-detects common paths like `/run/readsb/aircraft.json` and `/run/dump1090-fa/aircraft.json`)
 - `--poll-interval SECONDS` to set update frequency (default: 1.0)
 - `--quiet` to suppress aircraft display output
 - `--instance-id NAME` to isolate data/logs for concurrent runs
+
+Live map
+--------
+
+If you installed `tar1090` (commonly bundled with readsb setups), you can view a
+live map of local traffic at:
+
+- http://localhost/tar1090/
+
+neo-rx reads from the same decoder backend; the map is independent and provides
+a rich browser-based view alongside the terminal table.
 
 ### ADS-B Exchange Integration
 

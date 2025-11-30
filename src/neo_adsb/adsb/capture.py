@@ -210,6 +210,7 @@ class AdsbCapture:
         self._reporter = reporter
         self._station_config = station_config
         self._callbacks: list[Callable[[list[AircraftState]], None]] = []
+        self._consecutive_empty = 0
 
     def add_callback(self, callback: Callable[[list[AircraftState]], None]) -> None:
         """Register a callback to be invoked with aircraft updates."""
@@ -257,9 +258,30 @@ class AdsbCapture:
 
         while not self._stop_event.is_set():
             try:
+                # Debug logging for JSON file state
+                if LOG.isEnabledFor(logging.DEBUG):
+                    try:
+                        stat = self._client.json_path.stat()
+                        mtime = datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat()
+                        LOG.debug(
+                            "aircraft.json: size=%d bytes, mtime=%s",
+                            stat.st_size,
+                            mtime,
+                        )
+                    except FileNotFoundError:
+                        LOG.debug("aircraft.json not found at %s", self._client.json_path)
+
                 aircraft = self._client.poll()
+                LOG.debug("Decoded %d aircraft records", len(aircraft))
 
                 if aircraft:
+                    if self._consecutive_empty > 0:
+                        LOG.info(
+                            "Aircraft stream resumed after %d empty polls",
+                            self._consecutive_empty,
+                        )
+                    self._consecutive_empty = 0
+
                     # Log aircraft to file
                     self._log_aircraft(aircraft)
 
@@ -273,6 +295,17 @@ class AdsbCapture:
                             callback(aircraft)
                         except Exception as exc:
                             LOG.warning("Callback error: %s", exc)
+                else:
+                    self._consecutive_empty += 1
+                    if self._consecutive_empty in (5, 15, 30):
+                        LOG.warning(
+                            "No aircraft detected for %d consecutive polls (%.0fs). "
+                            "Check: (1) decoder running: systemctl status readsb dump1090-fa, "
+                            "(2) SDR connected: rtl_test -t, "
+                            "(3) antenna connected and positioned for line-of-sight",
+                            self._consecutive_empty,
+                            self._consecutive_empty * self._poll_interval_s,
+                        )
 
                 # Periodically clear stale aircraft
                 if time.monotonic() - last_stale_check > stale_check_interval:

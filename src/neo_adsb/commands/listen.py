@@ -6,16 +6,37 @@ Monitors aircraft via dump1090/readsb and displays traffic.
 from __future__ import annotations
 
 import logging
+import os
 import time
 from argparse import Namespace
 import threading
 from queue import Queue
 from datetime import datetime, timezone
+from pathlib import Path
 
 from neo_core import config as config_module
 from neo_core.term import start_keyboard_listener, process_commands
 
 LOG = logging.getLogger(__name__)
+
+
+def _find_aircraft_json() -> str:
+    """Find aircraft.json from common ADS-B decoders.
+    
+    Checks readsb, dump1090-fa, and dump1090 in order.
+    Returns the first existing file, or readsb default if none found.
+    """
+    candidates = [
+        "/run/readsb/aircraft.json",
+        "/run/dump1090-fa/aircraft.json",
+        "/run/dump1090/aircraft.json",
+    ]
+    for path in candidates:
+        if os.path.exists(path):
+            LOG.debug("Found aircraft.json at: %s", path)
+            return path
+    LOG.debug("No aircraft.json found; defaulting to readsb location")
+    return "/run/readsb/aircraft.json"
 
 
 def run_listen(args: Namespace) -> int:
@@ -33,17 +54,44 @@ def run_listen(args: Namespace) -> int:
     data_dir = config_module.get_mode_data_dir("adsb")
     data_dir.mkdir(parents=True, exist_ok=True)
 
-    # Determine JSON path from args or config
+    # Determine JSON path from args or config, with auto-detection
     json_path = getattr(args, "json_path", None)
     if not json_path and cfg:
         json_path = getattr(cfg, "adsb_json_path", None)
-    if not json_path:
-        json_path = "/run/dump1090-fa/aircraft.json"
+    
+    # If no explicit path or configured path doesn't exist, auto-detect
+    if not json_path or not os.path.exists(json_path):
+        if json_path:
+            LOG.debug("Configured path %s not found; auto-detecting", json_path)
+        json_path = _find_aircraft_json()
+        LOG.info("Auto-detected aircraft.json: %s", json_path)
 
     LOG.info("Starting ADS-B monitoring")
-    LOG.info("Reading from: %s", json_path)
+    LOG.info("JSON source: %s", json_path)
+    LOG.info("Note: ADS-B mode uses dump1090/readsb; neo-rx does not control the SDR")
     LOG.info("ADS-B data directory: %s", data_dir)
     LOG.info("Application logs: %s", config_module.get_logs_dir("adsb"))
+
+    # Validate JSON file exists and check freshness
+    json_file = Path(json_path)
+    if not json_file.exists():
+        LOG.error("aircraft.json not found at %s", json_path)
+        LOG.error("Is readsb/dump1090 running? Check: systemctl status readsb dump1090-fa")
+        LOG.error("Detected decoders: systemctl list-units 'dump1090*' 'readsb*'")
+        return 1
+
+    try:
+        stat = json_file.stat()
+        age_sec = time.time() - stat.st_mtime
+        LOG.info("aircraft.json: size=%d bytes, age=%.1fs", stat.st_size, age_sec)
+        if age_sec > 10:
+            LOG.warning(
+                "aircraft.json hasn't been updated in %.1fs - decoder may not be running",
+                age_sec,
+            )
+            LOG.warning("Check decoder status: journalctl -u readsb -u dump1090-fa --since '5 min ago'")
+    except Exception as exc:
+        LOG.warning("Could not stat %s: %s", json_path, exc)
 
     # Set up publisher if MQTT is enabled
     publisher = None
@@ -75,6 +123,8 @@ def run_listen(args: Namespace) -> int:
         "total_aircraft": 0,
         "unique_aircraft": set(),
         "start_time": datetime.now(timezone.utc),
+        "display_paused": False,
+        "pause_until": 0.0,
     }
 
     def _on_aircraft(aircraft_list):
@@ -84,18 +134,21 @@ def run_listen(args: Namespace) -> int:
         for ac in aircraft_list:
             stats["unique_aircraft"].add(ac.hex_id)
 
-        # Display aircraft
+        # Display aircraft only if not paused
         if aircraft_list and not getattr(args, "quiet", False):
-            _display_aircraft(aircraft_list)
+            if not stats["display_paused"] and time.monotonic() > stats["pause_until"]:
+                _display_aircraft(aircraft_list)
 
     def _emit_version() -> None:
         """Display the neo-rx version."""
+        # Pause display updates for 3 seconds
+        stats["pause_until"] = time.monotonic() + 3.0
         try:
             import neo_rx
             version = getattr(neo_rx, "__version__", "unknown")
-            print(f"\nneo-rx {version}\n", flush=True)
+            print(f"\n{'=' * 40}\nneo-rx {version}\n{'=' * 40}\n", flush=True)
         except ImportError:
-            print("\nneo-rx\n", flush=True)
+            print(f"\n{'=' * 40}\nneo-rx\n{'=' * 40}\n", flush=True)
 
     capture.add_callback(_on_aircraft)
 
@@ -107,17 +160,22 @@ def run_listen(args: Namespace) -> int:
     )
 
     def _emit_summary() -> None:
+        # Pause display updates for 5 seconds
+        stats["pause_until"] = time.monotonic() + 5.0
         runtime = datetime.now(timezone.utc) - stats["start_time"]
         print(
-            f"\nADS-B activity summary\n"
+            f"\n{'=' * 50}\n"
+            f"ADS-B activity summary\n"
             f"Runtime: {runtime}\n"
             f"Current aircraft: {stats['total_aircraft']}\n"
-            f"Unique aircraft seen: {len(stats['unique_aircraft'])}\n",
+            f"Unique aircraft seen: {len(stats['unique_aircraft'])}\n"
+            f"{'=' * 50}\n",
             flush=True,
         )
 
     capture.start()
     print("\nADS-B monitoring started. Press 's' for summary, 'q' to quit.\n")
+    print("View live traffic: http://localhost/tar1090/\n", flush=True)
 
     try:
         while capture.is_running() and not stop_event.is_set():
@@ -150,6 +208,7 @@ def _display_aircraft(aircraft_list: list) -> None:
     header = f"{'ICAO':<8} {'Flight':<10} {'Alt(ft)':<8} {'Spd(kt)':<8} {'Track':<6} {'Lat':>10} {'Lon':>11} {'RSSI':>6}"
     print("\033[2J\033[H")  # Clear screen and move cursor to top
     print(f"ADS-B Monitor - {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%SZ')}")
+    print("Map: http://localhost/tar1090/")
     print("-" * 80)
     print(header)
     print("-" * 80)
