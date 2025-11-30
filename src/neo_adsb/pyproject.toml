@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=69", "build>=1.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "neo-adsb"
+version = "0.2.12"
+description = "Neo-RX ADS-B listener with optional ADS-B Exchange reporting"
+authors = [{ name = "Paul Sturm" }]
+requires-python = ">=3.11"
+license = "LicenseRef-Proprietary"
+keywords = ["adsb", "ads-b", "aircraft", "sdr", "rtl-sdr", "flight-tracker"]
+classifiers = [
+	"Programming Language :: Python :: 3",
+	"Programming Language :: Python :: 3 :: Only",
+	"Programming Language :: Python :: 3.11",
+	"Programming Language :: Python :: 3.12",
+	"Operating System :: POSIX :: Linux",
+	"Topic :: Communications :: Ham Radio"
+]
+dependencies = [
+	"neo-core==0.2.12",
+	"requests>=2.31,<3",
+]
+
+[project.urls]
+Homepage = "https://github.com/chevybowtie/NESDR-Smart-v5-APRS-iGate"
+
+[project.optional-dependencies]
+dev = [
+	"pytest>=8.3",
+	"pytest-cov>=5.0",
+	"ruff>=0.6",
+]
+
+[tool.setuptools]
+package-dir = {"neo_adsb" = "."}
+packages = ["neo_adsb", "neo_adsb.adsb", "neo_adsb.commands"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["../../tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 88
+src = [".", "../../tests"]
