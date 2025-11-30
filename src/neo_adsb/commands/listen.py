@@ -88,6 +88,15 @@ def run_listen(args: Namespace) -> int:
         if aircraft_list and not getattr(args, "quiet", False):
             _display_aircraft(aircraft_list)
 
+    def _emit_version() -> None:
+        """Display the neo-rx version."""
+        try:
+            import neo_rx
+            version = getattr(neo_rx, "__version__", "unknown")
+            print(f"\nneo-rx {version}\n", flush=True)
+        except ImportError:
+            print("\nneo-rx\n", flush=True)
+
     capture.add_callback(_on_aircraft)
 
     # Minimal keyboard listener for interactive commands
@@ -121,13 +130,7 @@ def run_listen(args: Namespace) -> int:
                         stop_event.set(),
                         capture.stop(),
                     ),
-                    "v": lambda: (
-                        print(
-                            f"\nneo-rx {__import__('neo_rx').__version__}\n", flush=True
-                        )
-                        if hasattr(__import__("neo_rx"), "__version__")
-                        else print("\nneo-rx\n", flush=True)
-                    ),
+                    "v": _emit_version,
                     "s": _emit_summary,
                 },
             )
