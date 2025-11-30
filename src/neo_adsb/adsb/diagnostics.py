@@ -111,7 +111,7 @@ def check_dump1090_installed() -> DiagnosticResult:
         status="ERROR",
         message="No dump1090/readsb decoder found",
         details={
-            "install_hint": "Install dump1090-fa: sudo apt install dump1090-fa"
+            "install_hint": "Install readsb: see https://github.com/wiedehopf/adsb-scripts/wiki/Automatic-installation-for-readsb"
         },
     )
 
@@ -149,7 +149,7 @@ def check_dump1090_running() -> DiagnosticResult:
         message="No dump1090/readsb service is running",
         details={
             "checked_services": services,
-            "hint": "Start the service: sudo systemctl start dump1090-fa",
+            "hint": "Install and start readsb: see https://github.com/wiedehopf/adsb-scripts/wiki/Automatic-installation-for-readsb",
         },
     )
 
