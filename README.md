@@ -351,6 +351,29 @@ curl -L -o /tmp/axfeed.sh https://adsbexchange.com/feed.sh
 sudo bash /tmp/axfeed.sh
 ```
 
+**Python 3.13/3.12 Users:** The MLAT client requires the `asyncore` module, which was removed in Python 3.12+. After installing the feeder, if the `adsbexchange-mlat` service fails to start, fix the venv:
+
+```bash
+# Option 1: Install asyncore backport
+sudo /usr/local/share/adsbexchange/venv/bin/pip install pyasyncore
+sudo systemctl restart adsbexchange-mlat
+
+# Option 2: Recreate venv with Python 3.11 (if available)
+sudo apt install python3.11 python3.11-venv
+sudo rm -rf /usr/local/share/adsbexchange/venv
+sudo python3.11 -m venv /usr/local/share/adsbexchange/venv
+sudo /usr/local/share/adsbexchange/venv/bin/pip install --upgrade pip setuptools wheel
+cd /usr/local/share/adsbexchange/mlat-client-git
+sudo /usr/local/share/adsbexchange/venv/bin/pip install .
+sudo systemctl restart adsbexchange-mlat
+```
+
+Verify MLAT is running:
+```bash
+sudo systemctl status adsbexchange-mlat
+neo-rx adsb diagnostics --verbose
+```
+
 neo-rx provides status monitoring for ADS-B Exchange services:
 ```bash
 neo-rx adsb diagnostics --verbose

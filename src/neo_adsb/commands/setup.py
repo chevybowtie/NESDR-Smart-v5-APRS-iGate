@@ -95,25 +95,29 @@ def run_setup(args: Namespace) -> int:
     longitude = float(lon_input) if lon_input else None
 
     # ADS-B Exchange setup
-    print("\n" + "-" * 40)
-    print("ADS-B Exchange Integration (optional)")
-    print("-" * 40)
+    print(\"\\n\" + \"-\" * 40)
+    print(\"ADS-B Exchange Integration (optional)\")
+    print(\"-\" * 40)
 
     from neo_adsb.adsb.reporter import AdsbExchangeReporter
 
     reporter = AdsbExchangeReporter()
     if reporter.is_installed():
         status = reporter.get_status()
-        print("\nADS-B Exchange feedclient is installed.")
-        print(f"  Feed service: {'active' if status.feed_service_active else 'inactive'}")
-        print(f"  MLAT service: {'active' if status.mlat_service_active else 'inactive'}")
+        print(\"\\nADS-B Exchange feedclient is installed.\")
+        print(f\"  Feed service: {'active' if status.feed_service_active else 'inactive'}\")
+        print(f\"  MLAT service: {'active' if status.mlat_service_active else 'inactive'}\")
         if status.username:
-            print(f"  Username: {status.username}")
-    else:
-        print("\nADS-B Exchange feedclient is not installed.")
-        print("To install, run:")
-        print("  curl -L -o /tmp/axfeed.sh https://adsbexchange.com/feed.sh")
-        print("  sudo bash /tmp/axfeed.sh")
+            print(f\"  Username: {status.username}\")
+        
+        # Check for MLAT Python environment issues
+        import subprocess
+        import sys
+        venv_python = Path(\"/usr/local/share/adsbexchange/venv/bin/python\")
+        if venv_python.exists():
+            try:
+                # Check Python version
+                result = subprocess.run(\n                    [str(venv_python), \"--version\"],\n                    capture_output=True,\n                    text=True,\n                    timeout=5,\n                )\n                py_ver = result.stdout.strip() if result.returncode == 0 else \"unknown\"\n                \n                # Check asyncore availability\n                asyncore_check = subprocess.run(\n                    [str(venv_python), \"-c\", \"import asyncore\"],\n                    capture_output=True,\n                    timeout=5,\n                )\n                pyasyncore_check = subprocess.run(\n                    [str(venv_python), \"-c\", \"import pyasyncore\"],\n                    capture_output=True,\n                    timeout=5,\n                )\n                \n                if asyncore_check.returncode != 0 and pyasyncore_check.returncode != 0:\n                    print(\"\\n  ⚠️  WARNING: MLAT Python environment issue detected\")\n                    print(f\"     MLAT venv uses {py_ver} but asyncore is missing\")\n                    if \"3.13\" in py_ver or \"3.12\" in py_ver:\n                        print(\"\\n  Fix: Install asyncore backport:\")\n                        print(\"     sudo /usr/local/share/adsbexchange/venv/bin/pip install pyasyncore\")\n                        print(\"\\n  Alternative: Recreate venv with Python 3.11:\")\n                        print(\"     sudo rm -rf /usr/local/share/adsbexchange/venv\")\n                        print(\"     sudo python3.11 -m venv /usr/local/share/adsbexchange/venv\")\n                        print(\"     sudo /usr/local/share/adsbexchange/venv/bin/pip install setuptools wheel\")\n                        print(\"     cd /usr/local/share/adsbexchange/mlat-client-git\")\n                        print(\"     sudo /usr/local/share/adsbexchange/venv/bin/pip install .\")\n                        print(\"     sudo systemctl restart adsbexchange-mlat\")\n            except Exception:\n                pass\n    else:\n        print(\"\\nADS-B Exchange feedclient is not installed.\")\n        print(\"To install, run:\")\n        print(\"  curl -L -o /tmp/axfeed.sh https://adsbexchange.com/feed.sh\")\n        print(\"  sudo bash /tmp/axfeed.sh\")\n        \n        # Warn about Python 3.13 if that's what they're running\n        import sys\n        if sys.version_info >= (3, 12):\n            print(\"\\n  ⚠️  Note: You're running Python 3.13/3.12\")\n            print(\"     MLAT requires Python 3.11 or the pyasyncore backport\")\n            print(\"     After installing the feeder, you may need to fix the venv\")\n            print(\"     Run 'neo-rx adsb diagnostics' to check MLAT status\")
 
     # Save configuration summary
     print("\n" + "=" * 60)
