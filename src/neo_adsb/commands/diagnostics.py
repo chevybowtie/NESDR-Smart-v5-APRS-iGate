@@ -44,8 +44,18 @@ def run_diagnostics_cmd(args: Namespace) -> int:
         print(f"\n{check.name}: {status_str}")
         print(f"  {check.message}")
 
+        # Always show installation hints for errors/warnings
+        if check.details:
+            hint = check.details.get("install_hint") or check.details.get("hint")
+            if hint and check.status != "OK":
+                print(f"  → {hint}")
+
+        # Show all details in verbose mode
         if verbose and check.details:
             for key, value in check.details.items():
+                # Skip hints in verbose since we already showed them
+                if key in ("install_hint", "hint"):
+                    continue
                 if isinstance(value, dict):
                     print(f"    {key}:")
                     for k, v in value.items():

@@ -339,14 +339,20 @@ def check_adsbexchange_services() -> DiagnosticResult:
             name="adsbexchange_services",
             status="WARNING",
             message="Some ADS-B Exchange services not running",
-            details=services,
+            details={
+                **services,
+                "hint": "Start services: sudo systemctl start adsbexchange-feed adsbexchange-mlat",
+            },
         )
     else:
         return DiagnosticResult(
             name="adsbexchange_services",
             status="WARNING",
             message="ADS-B Exchange services not running",
-            details=services,
+            details={
+                **services,
+                "hint": "Start services: sudo systemctl start adsbexchange-feed adsbexchange-mlat",
+            },
         )
 
 
