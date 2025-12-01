@@ -1,7 +1,7 @@
 """ADS-B diagnostics helpers.
 
 This module provides diagnostic checks for ADS-B functionality:
-- dump1090/readsb installation and status
+- readsb/dump1090 installation and status
 - ADS-B Exchange feedclient status
 - RTL-SDR availability for 1090 MHz
 """
@@ -65,64 +65,63 @@ class DiagnosticsReport:
 
 
 def check_dump1090_installed() -> DiagnosticResult:
-    """Check if dump1090 or readsb is installed."""
-    # Check for dump1090-fa (FlightAware version)
-    dump1090_fa = shutil.which("dump1090-fa")
-    if dump1090_fa:
-        return DiagnosticResult(
-            name="dump1090",
-            status="OK",
-            message="dump1090-fa is installed",
-            details={"path": dump1090_fa, "variant": "dump1090-fa"},
-        )
-
-    # Check for dump1090-mutability
-    dump1090_mut = shutil.which("dump1090-mutability")
-    if dump1090_mut:
-        return DiagnosticResult(
-            name="dump1090",
-            status="OK",
-            message="dump1090-mutability is installed",
-            details={"path": dump1090_mut, "variant": "dump1090-mutability"},
-        )
-
-    # Check for readsb
+    """Check if readsb or dump1090 is installed (prefer readsb)."""
+    # Prefer readsb
     readsb = shutil.which("readsb")
     if readsb:
         return DiagnosticResult(
-            name="dump1090",
+            name="decoder",
             status="OK",
             message="readsb is installed",
             details={"path": readsb, "variant": "readsb"},
         )
 
-    # Check for generic dump1090
+    # Alternatives
+    dump1090_fa = shutil.which("dump1090-fa")
+    if dump1090_fa:
+        return DiagnosticResult(
+            name="decoder",
+            status="OK",
+            message="dump1090-fa is installed",
+            details={"path": dump1090_fa, "variant": "dump1090-fa"},
+        )
+
+    dump1090_mut = shutil.which("dump1090-mutability")
+    if dump1090_mut:
+        return DiagnosticResult(
+            name="decoder",
+            status="OK",
+            message="dump1090-mutability is installed",
+            details={"path": dump1090_mut, "variant": "dump1090-mutability"},
+        )
+
     dump1090 = shutil.which("dump1090")
     if dump1090:
         return DiagnosticResult(
-            name="dump1090",
+            name="decoder",
             status="OK",
             message="dump1090 is installed",
             details={"path": dump1090, "variant": "dump1090"},
         )
 
     return DiagnosticResult(
-        name="dump1090",
+        name="decoder",
         status="ERROR",
-        message="No dump1090/readsb decoder found",
+        message="No ADS-B decoder found (readsb or dump1090)",
         details={
-            "install_hint": "Install readsb: see https://github.com/wiedehopf/adsb-scripts/wiki/Automatic-installation-for-readsb"
+            "install_hint": "Install readsb (recommended): https://github.com/wiedehopf/adsb-scripts/wiki/Automatic-installation-for-readsb",
+            "alternatives": ["dump1090-fa", "dump1090-mutability", "dump1090"],
         },
     )
 
 
 def check_dump1090_running() -> DiagnosticResult:
-    """Check if dump1090/readsb service is running."""
+    """Check if readsb/dump1090 service is running (prefer readsb)."""
     services = [
+        "readsb",
         "dump1090-fa",
         "dump1090",
         "dump1090-mutability",
-        "readsb",
     ]
 
     for service in services:
@@ -144,25 +143,26 @@ def check_dump1090_running() -> DiagnosticResult:
             continue
 
     return DiagnosticResult(
-        name="dump1090_service",
+        name="decoder_service",
         status="ERROR",
-        message="No dump1090/readsb service is running",
+        message="No ADS-B decoder service is running",
         details={
             "checked_services": services,
-            "hint": "Install and start readsb: see https://github.com/wiedehopf/adsb-scripts/wiki/Automatic-installation-for-readsb",
+            "hint": "Enable and start readsb: sudo systemctl enable --now readsb",
         },
     )
 
 
-def check_dump1090_json(json_path: str | Path = "/run/dump1090-fa/aircraft.json") -> DiagnosticResult:
-    """Check if dump1090 JSON output is available and valid."""
+def check_dump1090_json(json_path: str | Path = "/run/readsb/aircraft.json") -> DiagnosticResult:
+    """Check if decoder JSON output is available and valid (prefer readsb)."""
     path = Path(json_path)
 
     if not path.exists():
         # Check alternative paths
         alt_paths = [
-            Path("/run/dump1090/aircraft.json"),
             Path("/run/readsb/aircraft.json"),
+            Path("/run/dump1090-fa/aircraft.json"),
+            Path("/run/dump1090/aircraft.json"),
             Path("/run/dump1090-mutability/aircraft.json"),
         ]
         for alt_path in alt_paths:
@@ -171,12 +171,12 @@ def check_dump1090_json(json_path: str | Path = "/run/dump1090-fa/aircraft.json"
                 break
         else:
             return DiagnosticResult(
-                name="dump1090_json",
+                name="decoder_json",
                 status="ERROR",
-                message="dump1090 JSON output not found",
+                message="aircraft.json not found",
                 details={
                     "checked_paths": [str(json_path)] + [str(p) for p in alt_paths],
-                    "hint": "Ensure dump1090 service is running and configured correctly",
+                    "hint": "Ensure readsb or dump1090 is running",
                 },
             )
 
@@ -187,9 +187,9 @@ def check_dump1090_json(json_path: str | Path = "/run/dump1090-fa/aircraft.json"
         now_timestamp = data.get("now", 0)
 
         return DiagnosticResult(
-            name="dump1090_json",
+            name="decoder_json",
             status="OK",
-            message=f"dump1090 JSON available with {aircraft_count} aircraft",
+            message=f"aircraft.json available with {aircraft_count} aircraft",
             details={
                 "path": str(path),
                 "aircraft_count": aircraft_count,
@@ -198,16 +198,16 @@ def check_dump1090_json(json_path: str | Path = "/run/dump1090-fa/aircraft.json"
         )
     except json.JSONDecodeError as exc:
         return DiagnosticResult(
-            name="dump1090_json",
+            name="decoder_json",
             status="ERROR",
-            message=f"Invalid JSON in dump1090 output: {exc}",
+            message=f"Invalid JSON in decoder output: {exc}",
             details={"path": str(path)},
         )
     except OSError as exc:
         return DiagnosticResult(
-            name="dump1090_json",
+            name="decoder_json",
             status="ERROR",
-            message=f"Cannot read dump1090 JSON: {exc}",
+            message=f"Cannot read decoder JSON: {exc}",
             details={"path": str(path)},
         )
 
