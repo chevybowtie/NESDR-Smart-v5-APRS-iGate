@@ -175,7 +175,7 @@ def run_listen(args: Namespace) -> int:
 
     capture.start()
     print("\nADS-B monitoring started. Press 's' for summary, 'q' to quit.\n")
-    print("View live traffic: http://localhost/tar1090/\n", flush=True)
+    print("View live traffic: http://localhost/tar1090/, view your contribution: https://adsbexchange.com/myip/\n", flush=True)
 
     try:
         while capture.is_running() and not stop_event.is_set():
@@ -208,7 +208,7 @@ def _display_aircraft(aircraft_list: list) -> None:
     header = f"{'ICAO':<8} {'Flight':<10} {'Alt(ft)':<8} {'Spd(kt)':<8} {'Track':<6} {'Lat':>10} {'Lon':>11} {'RSSI':>6}"
     print("\033[2J\033[H")  # Clear screen and move cursor to top
     print(f"ADS-B Monitor - {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%SZ')}")
-    print("Map: http://localhost/tar1090/")
+    print("Map: http://localhost/tar1090/, your data: https://adsbexchange.com/myip/")
     print("-" * 80)
     print(header)
     print("-" * 80)
