@@ -390,6 +390,76 @@ Check your feed status:
 
 ADS-B data is stored beneath `~/.local/share/neo-rx/adsb/` by default.
 
+## MQTT Publishing
+
+Neo-RX can publish runtime data to an MQTT broker for dashboarding or downstream processing. Enable and configure MQTT in your main `config.toml` under the `[mqtt]` table. Each mode publishes to a distinct topic by default.
+
+### Configure MQTT (global)
+
+Add the following to your config (used by all modes):
+
+```toml
+[mqtt]
+enabled = true           # set true to publish
+host = "localhost"       # broker host
+port = 1883               # broker port
+topic = "neo_rx/{mode}"  # optional base topic; modes override
+```
+
+If you prefer environment variables, you can also set:
+
+```bash
+export NEO_RX_MQTT__ENABLED=true
+export NEO_RX_MQTT__HOST=localhost
+export NEO_RX_MQTT__PORT=1883
+export NEO_RX_MQTT__TOPIC=neo_rx/{mode}
+```
+
+### APRS
+
+- Default topic: `neo_rx/aprs/frames`
+- Payloads: decoded frame summaries suitable for dashboards (callsign, path, type). Exact content may vary by release.
+- Enable via `[mqtt]` config (global). APRS will honor the broker settings and publish when enabled.
+
+Run and subscribe:
+
+```bash
+neo-rx aprs listen
+mosquitto_sub -h localhost -p 1883 -t 'neo_rx/aprs/frames' -v
+```
+
+### WSPR
+
+- Default topic: `neo_rx/wspr/spots`
+- Payloads: spot JSON including reporter callsign, grid, frequency, SNR, drift, timestamp.
+- When `[wspr].uploader_enabled = true`, publishing continues alongside uploader queueing.
+
+Run and subscribe:
+
+```bash
+neo-rx wspr listen
+mosquitto_sub -h localhost -p 1883 -t 'neo_rx/wspr/spots' -v
+```
+
+### ADS-B
+
+- Default topic: `neo_rx/adsb/aircraft`
+- Payloads: per-aircraft JSON with `hex`, `flight`, `altitude_ft`, `latitude`, `longitude`.
+- neo-rx reads `aircraft.json` from `readsb`/`dump1090`; publishing does not control the SDR.
+
+Run and subscribe:
+
+```bash
+neo-rx adsb listen
+mosquitto_sub -h localhost -p 1883 -t 'neo_rx/adsb/aircraft' -v
+```
+
+### Notes
+
+- Topics: You can override the default topic via `[mqtt].topic`. Some modes may append a suffix (e.g., `adsb/aircraft`).
+- Broker auth/TLS: If your broker requires authentication or TLS, run it behind a local bridge or adapt the telemetry publisher to include credentials (future enhancement).
+- Performance: Messages are small and published at the poll cadence (typically 1 Hz). Use per-instance IDs to isolate streams from concurrent runs.
+
 ## Concurrent operation
 
 Run APRS, WSPR, and ADS-B simultaneously on different SDRs:
