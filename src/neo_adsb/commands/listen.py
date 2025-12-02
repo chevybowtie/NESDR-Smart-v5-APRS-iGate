@@ -54,6 +54,36 @@ def run_listen(args: Namespace) -> int:
     data_dir = config_module.get_mode_data_dir("adsb")
     data_dir.mkdir(parents=True, exist_ok=True)
 
+    # Ensure per-mode file logging is active (in case CLI didn't configure it)
+    try:
+        log_dir = config_module.get_logs_dir("adsb")
+        log_dir.mkdir(parents=True, exist_ok=True)
+        log_file = log_dir / "neo-rx.log"
+        has_file_handler = False
+        root_logger = logging.getLogger()
+        for h in list(root_logger.handlers) + list(LOG.handlers):
+            try:
+                from logging import FileHandler
+
+                if isinstance(h, FileHandler):
+                    # If any FileHandler already targets our adsb log file, keep it
+                    if getattr(h, "baseFilename", None) == str(log_file):
+                        has_file_handler = True
+                        break
+            except Exception:
+                continue
+        if not has_file_handler:
+            fh = logging.FileHandler(log_file, encoding="utf-8")
+            fmt = logging.Formatter(
+                "%(asctime)sZ %(message)s", datefmt="%Y-%m-%dT%H:%M:%S"
+            )
+            fmt.converter = time.gmtime
+            fh.setFormatter(fmt)
+            root_logger.addHandler(fh)
+    except Exception:
+        # Continue without file logging if setup fails
+        pass
+
     # Determine JSON path from args or config, with auto-detection
     json_path = getattr(args, "json_path", None)
     if not json_path and cfg:
@@ -70,7 +100,7 @@ def run_listen(args: Namespace) -> int:
     LOG.info("JSON source: %s", json_path)
     LOG.info("Note: ADS-B mode uses dump1090/readsb; neo-rx does not control the SDR")
     LOG.info("ADS-B data directory: %s", data_dir)
-    LOG.info("Application logs: %s", config_module.get_logs_dir("adsb"))
+    LOG.info("Application logs: %s", config_module.get_logs_dir("adsb") / "neo-rx.log")
 
     # Validate JSON file exists and check freshness
     json_file = Path(json_path)

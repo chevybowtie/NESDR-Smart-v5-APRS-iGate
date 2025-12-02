@@ -198,13 +198,13 @@ def main(argv: list[str] | None = None) -> int:
                 return int(stripped)
         return logging.INFO
 
-    def _configure_logging(level_name: str | None) -> None:
+    def _configure_logging(level_name: str | None, mode: str | None) -> None:
         stream_handler = logging.StreamHandler(sys.stdout)
         stream_handler.setFormatter(logging.Formatter("%(message)s"))
         handlers: list[logging.Handler] = [stream_handler]
 
         try:
-            # Create APRS logs directory consistent with legacy behavior
+            # Create mode-specific logs directory (aprs/wspr/adsb)
             base = os.getenv("NEO_RX_DATA_DIR")
             if base:
                 from pathlib import Path
@@ -215,7 +215,10 @@ def main(argv: list[str] | None = None) -> int:
                 from neo_rx import config as config_module
 
                 base_path = config_module.get_data_dir()
-            log_dir = base_path / "logs" / "aprs"
+            subdir = (mode or "aprs").strip().lower()
+            if subdir not in {"aprs", "wspr", "adsb"}:
+                subdir = "aprs"
+            log_dir = base_path / "logs" / subdir
             log_dir.mkdir(parents=True, exist_ok=True)
             log_file = log_dir / "neo-rx.log"
             file_handler = logging.FileHandler(log_file, encoding="utf-8")
@@ -238,7 +241,7 @@ def main(argv: list[str] | None = None) -> int:
         os.environ.setdefault("NEO_RX_DATA_DIR", str(args.data_dir))
 
     # Ensure logging is configured before delegating to subcommands
-    _configure_logging(getattr(args, "log_level", None))
+    _configure_logging(getattr(args, "log_level", None), getattr(args, "mode", None))
 
     # Delegate to existing neo_rx CLI until mode-specific refactor completes
     if args.mode == "aprs":
