@@ -109,9 +109,9 @@ python3 -m venv "$VERIFY_VENV"
 "$VERIFY_VENV/bin/python" -m pip install --upgrade pip
 
 # Install all wheels from dist/
-echo "Installing all wheels from dist/ in dependency order (local only)..."
-# Install strictly from local artifacts to avoid PyPI lookup
-"$VERIFY_VENV/bin/python" -m pip install --no-index --find-links="$WD/dist" \
+echo "Installing all wheels from dist/ in dependency order (prefer local)..."
+# Install from local wheels, allow PyPI for dependencies
+"$VERIFY_VENV/bin/python" -m pip install --find-links="$WD/dist" \
   neo-core neo-telemetry neo-aprs neo-wspr neo-adsb neo-rx
 
 echo "Running smoke tests from installed artifacts"
