@@ -331,6 +331,7 @@ Useful flags:
 - `--poll-interval SECONDS` to set update frequency (default: 1.0)
 - `--quiet` to suppress aircraft display output
 - `--instance-id NAME` to isolate data/logs for concurrent runs
+- `--config PATH` to point at your `config.toml` (ensures MQTT settings load)
 
 Live map
 --------
@@ -390,6 +391,12 @@ Check your feed status:
 
 ADS-B data is stored beneath `~/.local/share/neo-rx/adsb/` by default.
 
+When MQTT is enabled, ADS-B publishes per-aircraft JSON to `neo_rx/adsb/aircraft`. Verify with:
+
+```bash
+mosquitto_sub -h <broker-host> -p 1883 -t 'neo_rx/adsb/aircraft' -v
+```
+
 ## MQTT Publishing
 
 Neo-RX can publish runtime data to an MQTT broker for dashboarding or downstream processing. Enable and configure MQTT in your main `config.toml` under the `[mqtt]` table. Each mode publishes to a distinct topic by default.
@@ -402,7 +409,7 @@ Add the following to your config (used by all modes):
 [mqtt]
 enabled = true           # set true to publish
 host = "localhost"       # broker host
-port = 1883               # broker port
+port = 1883              # broker port
 topic = "neo_rx/{mode}"  # optional base topic; modes override
 ```
 
