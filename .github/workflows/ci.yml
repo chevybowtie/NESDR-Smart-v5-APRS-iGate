@@ -106,6 +106,7 @@ jobs:
           python -m build src/neo_telemetry
           python -m build src/neo_aprs
           python -m build src/neo_wspr
+          python -m build src/neo_adsb
 
           # Install neo-rx using local wheels for our packages, PyPI for external deps
           python -m pip install \
@@ -114,6 +115,7 @@ jobs:
             --find-links src/neo_telemetry/dist \
             --find-links src/neo_aprs/dist \
             --find-links src/neo_wspr/dist \
+            --find-links src/neo_adsb/dist \
             dist/neo_rx-*.whl
 
           neo-rx --help
