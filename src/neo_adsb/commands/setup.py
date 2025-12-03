@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import logging
 from argparse import Namespace
-from pathlib import Path
 
 from neo_core import config as config_module
 
@@ -73,68 +72,103 @@ def run_setup(args: Namespace) -> int:
         or default_json_path
     )
 
-    # Validate JSON path
-    if not Path(json_path).exists():
-        print(f"\nWarning: {json_path} does not exist.")
-        print("Make sure dump1090 is running before using ADS-B features.")
-
-    # Poll interval
-    default_poll = 1.0
-    poll_input = input(f"Poll interval in seconds [{default_poll}]: ").strip()
-    try:
-        poll_interval = float(poll_input) if poll_input else default_poll
-    except ValueError:
-        poll_interval = default_poll
-
-    # Station location (for range calculations)
-    print("\nStation location (optional, for range statistics):")
-    lat_input = input("  Latitude (e.g., 37.7749): ").strip()
-    lon_input = input("  Longitude (e.g., -122.4194): ").strip()
-
-    latitude = float(lat_input) if lat_input else None
-    longitude = float(lon_input) if lon_input else None
+    print(f"Using JSON path: {json_path}")
 
     # ADS-B Exchange setup
-    print(\"\\n\" + \"-\" * 40)
-    print(\"ADS-B Exchange Integration (optional)\")
-    print(\"-\" * 40)
+    print("\n" + "-" * 40)
+    print("ADS-B Exchange Integration (optional)")
+    print("-" * 40)
+    try:
+        from neo_adsb.adsb.reporter import AdsbExchangeReporter
+    except Exception:
+        AdsbExchangeReporter = None
 
-    from neo_adsb.adsb.reporter import AdsbExchangeReporter
+    if AdsbExchangeReporter is not None:
+        reporter = AdsbExchangeReporter()
+        if reporter.is_installed():
+            status = reporter.get_status()
+            print("\nADS-B Exchange feedclient is installed.")
+            print(
+                f"  Feed service: {'active' if status.feed_service_active else 'inactive'}"
+            )
+            print(
+                f"  MLAT service: {'active' if status.mlat_service_active else 'inactive'}"
+            )
+            if getattr(status, 'username', None):
+                print(f"  Username: {status.username}")
 
-    reporter = AdsbExchangeReporter()
-    if reporter.is_installed():
-        status = reporter.get_status()
-        print(\"\\nADS-B Exchange feedclient is installed.\")
-        print(f\"  Feed service: {'active' if status.feed_service_active else 'inactive'}\")
-        print(f\"  MLAT service: {'active' if status.mlat_service_active else 'inactive'}\")
-        if status.username:
-            print(f\"  Username: {status.username}\")
-        
-        # Check for MLAT Python environment issues
-        import subprocess
-        import sys
-        venv_python = Path(\"/usr/local/share/adsbexchange/venv/bin/python\")
-        if venv_python.exists():
-            try:
-                # Check Python version
-                result = subprocess.run(\n                    [str(venv_python), \"--version\"],\n                    capture_output=True,\n                    text=True,\n                    timeout=5,\n                )\n                py_ver = result.stdout.strip() if result.returncode == 0 else \"unknown\"\n                \n                # Check asyncore availability\n                asyncore_check = subprocess.run(\n                    [str(venv_python), \"-c\", \"import asyncore\"],\n                    capture_output=True,\n                    timeout=5,\n                )\n                pyasyncore_check = subprocess.run(\n                    [str(venv_python), \"-c\", \"import pyasyncore\"],\n                    capture_output=True,\n                    timeout=5,\n                )\n                \n                if asyncore_check.returncode != 0 and pyasyncore_check.returncode != 0:\n                    print(\"\\n  ⚠️  WARNING: MLAT Python environment issue detected\")\n                    print(f\"     MLAT venv uses {py_ver} but asyncore is missing\")\n                    if \"3.13\" in py_ver or \"3.12\" in py_ver:\n                        print(\"\\n  Fix: Install asyncore backport:\")\n                        print(\"     sudo /usr/local/share/adsbexchange/venv/bin/pip install pyasyncore\")\n                        print(\"\\n  Alternative: Recreate venv with Python 3.11:\")\n                        print(\"     sudo rm -rf /usr/local/share/adsbexchange/venv\")\n                        print(\"     sudo python3.11 -m venv /usr/local/share/adsbexchange/venv\")\n                        print(\"     sudo /usr/local/share/adsbexchange/venv/bin/pip install setuptools wheel\")\n                        print(\"     cd /usr/local/share/adsbexchange/mlat-client-git\")\n                        print(\"     sudo /usr/local/share/adsbexchange/venv/bin/pip install .\")\n                        print(\"     sudo systemctl restart adsbexchange-mlat\")\n            except Exception:\n                pass\n    else:\n        print(\"\\nADS-B Exchange feedclient is not installed.\")\n        print(\"To install, run:\")\n        print(\"  curl -L -o /tmp/axfeed.sh https://adsbexchange.com/feed.sh\")\n        print(\"  sudo bash /tmp/axfeed.sh\")\n        \n        # Warn about Python 3.13 if that's what they're running\n        import sys\n        if sys.version_info >= (3, 12):\n            print(\"\\n  ⚠️  Note: You're running Python 3.13/3.12\")\n            print(\"     MLAT requires Python 3.11 or the pyasyncore backport\")\n            print(\"     After installing the feeder, you may need to fix the venv\")\n            print(\"     Run 'neo-rx adsb diagnostics' to check MLAT status\")
+            # MLAT Python environment checks (common failure on 3.12/3.13)
+            from pathlib import Path as _Path
+            import subprocess as _subprocess
 
-    # Save configuration summary
-    print("\n" + "=" * 60)
-    print("Configuration Summary")
-    print("=" * 60)
-    print(f"  JSON path: {json_path}")
-    print(f"  Poll interval: {poll_interval}s")
-    if latitude and longitude:
-        print(f"  Station location: {latitude:.4f}, {longitude:.4f}")
+            venv_python = _Path("/usr/local/share/adsbexchange/venv/bin/python")
+            if venv_python.exists():
+                try:
+                    ver = _subprocess.run(
+                        [str(venv_python), "--version"],
+                        capture_output=True,
+                        text=True,
+                        timeout=5,
+                    )
+                    py_ver = ver.stdout.strip() if ver.returncode == 0 else "unknown"
+
+                    check_asyncore = _subprocess.run(
+                        [str(venv_python), "-c", "import asyncore"],
+                        capture_output=True,
+                        timeout=5,
+                    )
+                    check_pyasyncore = _subprocess.run(
+                        [str(venv_python), "-c", "import pyasyncore"],
+                        capture_output=True,
+                        timeout=5,
+                    )
+
+                    if (
+                        check_asyncore.returncode != 0
+                        and check_pyasyncore.returncode != 0
+                    ):
+                        print("\n  ⚠️  WARNING: MLAT Python environment issue detected")
+                        print(
+                            f"     MLAT venv uses {py_ver} but asyncore/pyasyncore is missing"
+                        )
+                        if "3.13" in py_ver or "3.12" in py_ver:
+                            print("\n  Fix: Install asyncore backport:")
+                            print(
+                                "     sudo /usr/local/share/adsbexchange/venv/bin/pip install pyasyncore"
+                            )
+                            print("\n  Alternative: Recreate venv with Python 3.11:")
+                            print(
+                                "     sudo rm -rf /usr/local/share/adsbexchange/venv"
+                            )
+                            print(
+                                "     sudo python3.11 -m venv /usr/local/share/adsbexchange/venv"
+                            )
+                            print(
+                                "     sudo /usr/local/share/adsbexchange/venv/bin/pip install setuptools wheel"
+                            )
+                            print(
+                                "     cd /usr/local/share/adsbexchange/mlat-client-git"
+                            )
+                            print(
+                                "     sudo /usr/local/share/adsbexchange/venv/bin/pip install ."
+                            )
+                            print("     sudo systemctl restart adsbexchange-mlat")
+                except Exception:
+                    pass
+        else:
+            print("\nADS-B Exchange feedclient is not installed.")
+            print("To install, run:")
+            print(
+                "  curl -L -o /tmp/axfeed.sh https://adsbexchange.com/feed.sh && sudo bash /tmp/axfeed.sh"
+            )
+            import sys as _sys
+            if _sys.version_info >= (3, 12):
+                print("\n  ⚠️  Note: You're running Python 3.13/3.12")
+                print("     MLAT requires Python 3.11 or the pyasyncore backport")
+                print("     After installing the feeder, you may need to fix the venv")
+                print("     Run 'neo-rx adsb diagnostics' to check MLAT status")
     else:
-        print("  Station location: not set")
-    print()
-
-    confirm = input("Save this configuration? [Y/n]: ").strip().lower()
-    if confirm == "n":
-        print("Setup cancelled.")
-        return 0
+        print("\nReporter module unavailable; skip ADS-B Exchange checks.")
 
     # Note: ADS-B-specific config would need to be added to StationConfig
     # For now, we just validate the setup
