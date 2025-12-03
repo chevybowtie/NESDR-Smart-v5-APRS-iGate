@@ -156,27 +156,41 @@ def check_dump1090_running() -> DiagnosticResult:
 def check_dump1090_json(json_path: str | Path = "/run/readsb/aircraft.json") -> DiagnosticResult:
     """Check if decoder JSON output is available and valid (prefer readsb)."""
     path = Path(json_path)
+    default_paths = [
+        "/run/readsb/aircraft.json",
+        "/run/dump1090-fa/aircraft.json",
+        "/run/dump1090/aircraft.json",
+        "/run/dump1090-mutability/aircraft.json",
+    ]
+    using_default = str(json_path) in default_paths
 
     if not path.exists():
-        # Check alternative paths
-        alt_paths = [
-            Path("/run/readsb/aircraft.json"),
-            Path("/run/dump1090-fa/aircraft.json"),
-            Path("/run/dump1090/aircraft.json"),
-            Path("/run/dump1090-mutability/aircraft.json"),
-        ]
-        for alt_path in alt_paths:
-            if alt_path.exists():
-                path = alt_path
-                break
+        # Only check alternative paths if user didn't specify a custom path
+        if using_default:
+            alt_paths = [Path(p) for p in default_paths if p != str(json_path)]
+            for alt_path in alt_paths:
+                if alt_path.exists():
+                    path = alt_path
+                    break
+            else:
+                return DiagnosticResult(
+                    name="dump1090_json",
+                    status="ERROR",
+                    message="aircraft.json not found",
+                    details={
+                        "checked_paths": [str(json_path)] + [str(p) for p in alt_paths],
+                        "hint": "Ensure readsb or dump1090 is running",
+                    },
+                )
         else:
+            # Custom path specified but doesn't exist
             return DiagnosticResult(
-                name="decoder_json",
+                name="dump1090_json",
                 status="ERROR",
                 message="aircraft.json not found",
                 details={
-                    "checked_paths": [str(json_path)] + [str(p) for p in alt_paths],
-                    "hint": "Ensure readsb or dump1090 is running",
+                    "path": str(json_path),
+                    "hint": "Check the specified path or ensure decoder is running",
                 },
             )
 
@@ -187,7 +201,7 @@ def check_dump1090_json(json_path: str | Path = "/run/readsb/aircraft.json") -> 
         now_timestamp = data.get("now", 0)
 
         return DiagnosticResult(
-            name="decoder_json",
+            name="dump1090_json",
             status="OK",
             message=f"aircraft.json available with {aircraft_count} aircraft",
             details={
