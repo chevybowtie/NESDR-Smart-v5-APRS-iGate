@@ -24,6 +24,7 @@ PACKAGES=(
   "neo_telemetry"
   "neo_aprs"
   "neo_wspr"
+  "neo_adsb"
   "neo_rx"
 )
 
@@ -53,6 +54,10 @@ echo "  Installing neo-aprs..."
 # neo-wspr (depends on neo-core)
 echo "  Installing neo-wspr..."
 "$VENV_DIR/bin/python" -m pip install -e "$WD/src/neo_wspr[dev]"
+
+# neo-adsb (depends on neo-core)
+echo "  Installing neo-adsb..."
+"$VENV_DIR/bin/python" -m pip install -e "$WD/src/neo_adsb[dev]"
 
 # neo-rx (metapackage, depends on all)
 echo "  Installing neo-rx..."
@@ -104,10 +109,10 @@ python3 -m venv "$VERIFY_VENV"
 "$VERIFY_VENV/bin/python" -m pip install --upgrade pip
 
 # Install all wheels from dist/
-echo "Installing all wheels from dist/ in dependency order..."
-# Install in dependency order, allowing PyPI for dependencies
-"$VERIFY_VENV/bin/python" -m pip install --find-links="$WD/dist" \
-  neo-core neo-telemetry neo-aprs neo-wspr neo-rx
+echo "Installing all wheels from dist/ in dependency order (local only)..."
+# Install strictly from local artifacts to avoid PyPI lookup
+"$VERIFY_VENV/bin/python" -m pip install --no-index --find-links="$WD/dist" \
+  neo-core neo-telemetry neo-aprs neo-wspr neo-adsb neo-rx
 
 echo "Running smoke tests from installed artifacts"
 "$VERIFY_VENV/bin/python" -c "import neo_core; print('✓ neo_core import ok')"
