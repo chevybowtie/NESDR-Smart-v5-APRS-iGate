@@ -1,6 +1,6 @@
 PYTHON := python3
 VENV_DIR := .venv
-PACKAGES := neo_core neo_telemetry neo_aprs neo_wspr neo_rx
+PACKAGES := neo_core neo_telemetry neo_aprs neo_wspr neo_adsb neo_rx
 
 .PHONY: setup test lint format lint-fix build clean verify-release sync-versions
 
@@ -12,6 +12,7 @@ setup:
 	$(VENV_DIR)/bin/pip install -e ./src/neo_telemetry[dev]
 	$(VENV_DIR)/bin/pip install -e ./src/neo_aprs[dev,direwolf]
 	$(VENV_DIR)/bin/pip install -e ./src/neo_wspr[dev]
+	$(VENV_DIR)/bin/pip install -e ./src/neo_adsb[dev]
 	$(VENV_DIR)/bin/pip install -e .[dev,all]
 
 test:

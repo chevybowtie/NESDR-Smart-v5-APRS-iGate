@@ -7,6 +7,7 @@ Updates version numbers across all package pyproject.toml files:
 - neo-core
 - neo-aprs
 - neo-wspr
+- neo-adsb
 - neo-telemetry
 
 Usage:
@@ -28,12 +29,13 @@ PACKAGES = {
     "neo-core": "src/neo_core/pyproject.toml",
     "neo-aprs": "src/neo_aprs/pyproject.toml",
     "neo-wspr": "src/neo_wspr/pyproject.toml",
+    "neo-adsb": "src/neo_adsb/pyproject.toml",
     "neo-telemetry": "src/neo_telemetry/pyproject.toml",
 }
 
 VERSION_PATTERN = re.compile(r'^version\s*=\s*"([^"]+)"', re.MULTILINE)
 DEPENDENCY_PATTERN = re.compile(
-    r"(neo-(?:core|aprs|wspr|telemetry)(?:\[[^\]]+\])?)==([0-9.]+)"
+    r"(neo-(?:core|aprs|wspr|adsb|telemetry)(?:\[[^\]]+\])?)==([0-9.]+)"
 )
 
 

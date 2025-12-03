@@ -3,13 +3,13 @@ requires = ["setuptools>=69", "build>=1.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "neo-aprs"
+name = "neo-adsb"
 version = "0.3.0"
-description = "Neo-RX APRS iGate functionality"
+description = "Neo-RX ADS-B listener with optional ADS-B Exchange reporting"
 authors = [{ name = "Paul Sturm" }]
 requires-python = ">=3.11"
 license = "LicenseRef-Proprietary"
-keywords = ["aprs", "igate", "ham-radio"]
+keywords = ["adsb", "ads-b", "aircraft", "sdr", "rtl-sdr", "flight-tracker"]
 classifiers = [
 	"Programming Language :: Python :: 3",
 	"Programming Language :: Python :: 3 :: Only",
@@ -20,7 +20,7 @@ classifiers = [
 ]
 dependencies = [
 	"neo-core==0.3.0",
-	"aprslib>=0.7.2,<0.9",
+	"requests>=2.31,<3",
 ]
 
 [project.urls]
@@ -32,13 +32,10 @@ dev = [
 	"pytest-cov>=5.0",
 	"ruff>=0.6",
 ]
-direwolf = [
-	"sox>=1.5",
-]
 
 [tool.setuptools]
-package-dir = {"neo_aprs" = "."}
-packages = ["neo_aprs", "neo_aprs.aprs", "neo_aprs.commands"]
+package-dir = {"neo_adsb" = "."}
+packages = ["neo_adsb", "neo_adsb.adsb", "neo_adsb.commands"]
 
 [tool.pytest.ini_options]
 addopts = "-ra"

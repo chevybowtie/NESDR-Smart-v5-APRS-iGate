@@ -27,7 +27,7 @@ def _add_common_flags(p: argparse.ArgumentParser) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="neo-rx", description="Unified CLI for APRS and WSPR tools"
+        prog="neo-rx", description="Unified CLI for APRS, WSPR, and ADS-B tools"
     )
     try:
         from neo_rx import __version__
@@ -116,6 +116,59 @@ def build_parser() -> argparse.ArgumentParser:
     _add_common_flags(wspr_diag)
     wspr_diag.add_argument("--band", help="Band to validate (MHz)")
 
+    # ADS-B subcommands
+    adsb = subparsers.add_parser("adsb", help="ADS-B mode commands")
+    adsb_sub = adsb.add_subparsers(dest="verb", required=True)
+
+    adsb_setup = adsb_sub.add_parser("setup", help="Run ADS-B setup wizard")
+    _add_common_flags(adsb_setup)
+    adsb_setup.add_argument(
+        "--reset",
+        action="store_true",
+        help="Delete existing configuration before starting",
+    )
+    adsb_setup.add_argument(
+        "--non-interactive",
+        action="store_true",
+        help="Load answers from a config file instead of prompting",
+    )
+
+    adsb_listen = adsb_sub.add_parser(
+        "listen", help="Monitor ADS-B traffic via dump1090/readsb"
+    )
+    _add_common_flags(adsb_listen)
+    adsb_listen.add_argument(
+        "--json-path",
+        help="Path to dump1090 aircraft.json",
+        default="/run/dump1090-fa/aircraft.json",
+    )
+    adsb_listen.add_argument(
+        "--poll-interval",
+        type=float,
+        help="Poll interval in seconds",
+        default=1.0,
+    )
+    adsb_listen.add_argument(
+        "--quiet",
+        action="store_true",
+        help="Suppress aircraft display output",
+    )
+
+    adsb_diag = adsb_sub.add_parser("diagnostics", help="Run ADS-B diagnostics")
+    _add_common_flags(adsb_diag)
+    adsb_diag.add_argument(
+        "--json-path",
+        help="Path to dump1090 aircraft.json",
+    )
+    adsb_diag.add_argument(
+        "--no-adsbexchange",
+        action="store_true",
+        help="Skip ADS-B Exchange checks",
+    )
+    adsb_diag.add_argument(
+        "--verbose", action="store_true", help="Show extended diagnostic information"
+    )
+
     return parser
 
 
@@ -145,13 +198,13 @@ def main(argv: list[str] | None = None) -> int:
                 return int(stripped)
         return logging.INFO
 
-    def _configure_logging(level_name: str | None) -> None:
+    def _configure_logging(level_name: str | None, mode: str | None) -> None:
         stream_handler = logging.StreamHandler(sys.stdout)
         stream_handler.setFormatter(logging.Formatter("%(message)s"))
         handlers: list[logging.Handler] = [stream_handler]
 
         try:
-            # Create APRS logs directory consistent with legacy behavior
+            # Create mode-specific logs directory (aprs/wspr/adsb)
             base = os.getenv("NEO_RX_DATA_DIR")
             if base:
                 from pathlib import Path
@@ -162,7 +215,10 @@ def main(argv: list[str] | None = None) -> int:
                 from neo_rx import config as config_module
 
                 base_path = config_module.get_data_dir()
-            log_dir = base_path / "logs" / "aprs"
+            subdir = (mode or "aprs").strip().lower()
+            if subdir not in {"aprs", "wspr", "adsb"}:
+                subdir = "aprs"
+            log_dir = base_path / "logs" / subdir
             log_dir.mkdir(parents=True, exist_ok=True)
             log_file = log_dir / "neo-rx.log"
             file_handler = logging.FileHandler(log_file, encoding="utf-8")
@@ -185,7 +241,7 @@ def main(argv: list[str] | None = None) -> int:
         os.environ.setdefault("NEO_RX_DATA_DIR", str(args.data_dir))
 
     # Ensure logging is configured before delegating to subcommands
-    _configure_logging(getattr(args, "log_level", None))
+    _configure_logging(getattr(args, "log_level", None), getattr(args, "mode", None))
 
     # Delegate to existing neo_rx CLI until mode-specific refactor completes
     if args.mode == "aprs":
@@ -234,6 +290,23 @@ def main(argv: list[str] | None = None) -> int:
             return run_diagnostics(args)
         else:
             parser.error("Unknown WSPR verb")
+    elif args.mode == "adsb":
+        if args.verb == "listen":
+            from neo_adsb.commands.listen import run_listen as adsb_run_listen  # type: ignore[import]
+
+            return adsb_run_listen(args)
+        elif args.verb == "setup":
+            from neo_adsb.commands.setup import run_setup as adsb_run_setup  # type: ignore[import]
+
+            return adsb_run_setup(args)
+        elif args.verb == "diagnostics":
+            from neo_adsb.commands.diagnostics import (  # type: ignore[import]
+                run_diagnostics_cmd as adsb_run_diagnostics,
+            )
+
+            return adsb_run_diagnostics(args)
+        else:
+            parser.error("Unknown ADS-B verb")
     else:
         parser.error("Unknown mode")
 

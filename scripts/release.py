@@ -31,6 +31,7 @@ PACKAGES = [
     "neo-telemetry",
     "neo-aprs",
     "neo-wspr",
+    "neo-adsb",
     "neo-rx",
 ]
 
@@ -39,6 +40,7 @@ PACKAGE_PATHS = {
     "neo-telemetry": "src/neo_telemetry",
     "neo-aprs": "src/neo_aprs",
     "neo-wspr": "src/neo_wspr",
+    "neo-adsb": "src/neo_adsb",
     "neo-rx": ".",
 }
 
@@ -240,6 +242,7 @@ def commit_changes(root: Path, version: str, dry_run: bool) -> None:
         "src/neo_core/pyproject.toml",
         "src/neo_aprs/pyproject.toml",
         "src/neo_wspr/pyproject.toml",
+        "src/neo_adsb/pyproject.toml",
         "src/neo_telemetry/pyproject.toml",
     ]
     run_command(["git", "add", *files_to_add], cwd=root, capture=False)

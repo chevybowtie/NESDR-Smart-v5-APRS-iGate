@@ -1,14 +1,15 @@
 # Neo-RX
 
-Multi-mode command-line utility for turning an SDR (for example a NESDR Smart v5 RTL-SDR) into a turn-key APRS iGate or WSPR monitor.
+Multi-mode command-line utility for turning an SDR (for example a NESDR Smart v5 RTL-SDR) into a turn-key APRS iGate, WSPR monitor, or ADS-B aircraft tracker.
 
 Features:
 - **APRS iGate**: Receive-only APRS with APRS-IS uplink via Direwolf
 - **WSPR monitoring**: Multi-band propagation tracking with WSPRnet integration
-- **Concurrent operation**: Run APRS and WSPR simultaneously on different SDRs
+- **ADS-B monitoring**: Aircraft tracking with optional ADS-B Exchange reporting
+- **Concurrent operation**: Run APRS, WSPR, and ADS-B simultaneously on different SDRs
 - **Config layering**: Multi-file configuration with precedence (defaults < mode < env < CLI)
 - **Per-instance isolation**: Independent data/log directories via `--instance-id`
-- **Multi-package architecture**: Modular design with separate packages for core, telemetry, APRS, and WSPR functionality
+- **Multi-package architecture**: Modular design with separate packages for core, telemetry, APRS, WSPR, and ADS-B functionality
 
 ## Prerequisites
 - Linux host with Python 3.11 or newer
@@ -32,8 +33,11 @@ WSPR decoding is supported via the bundled `wsprd` binary (from WSJT-X). No addi
 
 The WSPR feature uses the bundled `wsprd` for IQ data decoding.
 
-## 1. Create and activate a virtual environment
+## 1. Clone the repo and create a virtual environment
 ```bash
+git clone https://github.com/chevybowtie/NESDR-Smart-v5-APRS-iGate.git
+cd NESDR-Smart-v5-APRS-iGate
+
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
@@ -55,6 +59,9 @@ pip install neo-aprs
 # Core + WSPR only
 pip install neo-wspr
 
+# Core + ADS-B only
+pip install neo-adsb
+
 # Core + telemetry (MQTT publishing)
 pip install neo-telemetry
 ```
@@ -69,6 +76,7 @@ pip install -e ./src/neo_core[dev]
 pip install -e ./src/neo_telemetry[dev]
 pip install -e ./src/neo_aprs[dev,direwolf]
 pip install -e ./src/neo_wspr[dev]
+pip install -e ./src/neo_adsb[dev]
 
 # Install metapackage CLI
 pip install -e .[dev,all]
@@ -81,6 +89,7 @@ make setup
 
 ### Optional extras
 - `direwolf`: Adds `sox` for Direwolf audio helpers (APRS only)
+- `adsb`: ADS-B aircraft tracking with ADS-B Exchange integration
 - `dev`: Formatting, linting, and test tooling
 - `all`: All optional dependencies for full functionality
 
@@ -270,9 +279,197 @@ Uploader logs live under `~/.local/share/neo-rx/logs/wspr/` (or per-instance whe
 
 > **Safety gate:** `neo-rx wspr upload` refuses to contact WSPRnet unless `[wspr].uploader_enabled = true`, preventing accidental network submissions.
 
+## 7. ADS-B Monitoring (optional)
+
+Monitor aircraft traffic using dump1090/readsb with optional ADS-B Exchange reporting:
+
+```bash
+neo-rx adsb listen
+```
+
+### Prerequisites
+
+ADS-B monitoring requires a decoder daemon that owns the SDR and writes `aircraft.json`:
+
+- `readsb` (recommended)
+- `dump1090-fa` or `dump1090` (alternative)
+
+neo-rx reads the JSON these daemons produce; it does not tune the SDR in ADS-B mode.
+
+On Debian/Ubuntu systems (readsb):
+```bash
+sudo apt install readsb
+sudo systemctl enable --now readsb
+```
+Optionally, install the ADS-B Exchange feeder (handles network reporting):
+```bash
+curl -L -o /tmp/axfeed.sh https://adsbexchange.com/feed.sh
+sudo bash /tmp/axfeed.sh
+```
+Typical services involved:
+```bash
+systemctl list-units 'dump1090*' 'readsb*' 'adsbexchange*'
+# expect: readsb.service (running), adsbexchange-feed.service (running),
+#         adsbexchange-mlat.service (auto-restart if not configured)
+```
+
+### ADS-B commands
+
+```bash
+# Start ADS-B monitoring
+neo-rx adsb listen [--json-path /run/readsb/aircraft.json]
+
+# Run diagnostics
+neo-rx adsb diagnostics [--verbose] [--json]
+
+# Interactive setup
+neo-rx adsb setup
+```
+
+Useful flags:
+- `--json-path PATH` to specify decoder JSON location (auto-detects common paths like `/run/readsb/aircraft.json` and `/run/dump1090-fa/aircraft.json`)
+- `--poll-interval SECONDS` to set update frequency (default: 1.0)
+- `--quiet` to suppress aircraft display output
+- `--instance-id NAME` to isolate data/logs for concurrent runs
+- `--config PATH` to point at your `config.toml` (ensures MQTT settings load)
+
+Live map
+--------
+
+If you installed `tar1090` (commonly bundled with readsb setups), you can view a
+live map of local traffic at:
+
+- http://localhost/tar1090/
+
+neo-rx reads from the same decoder backend; the map is independent and provides
+a rich browser-based view alongside the terminal table.
+
+### ADS-B Exchange Integration
+
+For feeding data to ADS-B Exchange, install the official feedclient:
+```bash
+curl -L -o /tmp/axfeed.sh https://adsbexchange.com/feed.sh
+sudo bash /tmp/axfeed.sh
+```
+
+**Python 3.13/3.12 Users:** The MLAT client requires the `asyncore` module, which was removed in Python 3.12+. After installing the feeder, if the `adsbexchange-mlat` service fails to start, fix the venv:
+
+```bash
+# Option 1: Install asyncore backport
+sudo /usr/local/share/adsbexchange/venv/bin/pip install pyasyncore
+sudo systemctl restart adsbexchange-mlat
+
+# Option 2: Recreate venv with Python 3.11 (if available)
+sudo apt install python3.11 python3.11-venv
+sudo rm -rf /usr/local/share/adsbexchange/venv
+sudo python3.11 -m venv /usr/local/share/adsbexchange/venv
+sudo /usr/local/share/adsbexchange/venv/bin/pip install --upgrade pip setuptools wheel
+cd /usr/local/share/adsbexchange/mlat-client-git
+sudo /usr/local/share/adsbexchange/venv/bin/pip install .
+sudo systemctl restart adsbexchange-mlat
+```
+
+Verify MLAT is running:
+```bash
+sudo systemctl status adsbexchange-mlat
+neo-rx adsb diagnostics --verbose
+```
+
+neo-rx provides status monitoring for ADS-B Exchange services:
+```bash
+neo-rx adsb diagnostics --verbose
+```
+
+This will show:
+- dump1090/readsb installation and status
+- ADS-B Exchange feedclient installation
+- Feed and MLAT service status
+
+Check your feed status:
+- https://www.adsbexchange.com/myip
+- https://map.adsbexchange.com/mlat-map
+
+ADS-B data is stored beneath `~/.local/share/neo-rx/adsb/` by default.
+
+When MQTT is enabled, ADS-B publishes per-aircraft JSON to `neo_rx/adsb/aircraft`. Verify with:
+
+```bash
+mosquitto_sub -h <broker-host> -p 1883 -t 'neo_rx/adsb/aircraft' -v
+```
+
+## MQTT Publishing
+
+Neo-RX can publish runtime data to an MQTT broker for dashboarding or downstream processing. Enable and configure MQTT in your main `config.toml` under the `[mqtt]` table. Each mode publishes to a distinct topic by default.
+
+### Configure MQTT (global)
+
+Add the following to your config (used by all modes):
+
+```toml
+[mqtt]
+enabled = true           # set true to publish
+host = "localhost"       # broker host
+port = 1883              # broker port
+topic = "neo_rx/{mode}"  # optional base topic; modes override
+```
+
+If you prefer environment variables, you can also set:
+
+```bash
+export NEO_RX_MQTT__ENABLED=true
+export NEO_RX_MQTT__HOST=localhost
+export NEO_RX_MQTT__PORT=1883
+export NEO_RX_MQTT__TOPIC=neo_rx/{mode}
+```
+
+### APRS
+
+- Default topic: `neo_rx/aprs/frames`
+- Payloads: decoded frame summaries suitable for dashboards (callsign, path, type). Exact content may vary by release.
+- Enable via `[mqtt]` config (global). APRS will honor the broker settings and publish when enabled.
+
+Run and subscribe:
+
+```bash
+neo-rx aprs listen
+mosquitto_sub -h localhost -p 1883 -t 'neo_rx/aprs/frames' -v
+```
+
+### WSPR
+
+- Default topic: `neo_rx/wspr/spots`
+- Payloads: spot JSON including reporter callsign, grid, frequency, SNR, drift, timestamp.
+- When `[wspr].uploader_enabled = true`, publishing continues alongside uploader queueing.
+
+Run and subscribe:
+
+```bash
+neo-rx wspr listen
+mosquitto_sub -h localhost -p 1883 -t 'neo_rx/wspr/spots' -v
+```
+
+### ADS-B
+
+- Default topic: `neo_rx/adsb/aircraft`
+- Payloads: per-aircraft JSON with `hex`, `flight`, `altitude_ft`, `latitude`, `longitude`.
+- neo-rx reads `aircraft.json` from `readsb`/`dump1090`; publishing does not control the SDR.
+
+Run and subscribe:
+
+```bash
+neo-rx adsb listen
+mosquitto_sub -h localhost -p 1883 -t 'neo_rx/adsb/aircraft' -v
+```
+
+### Notes
+
+- Topics: You can override the default topic via `[mqtt].topic`. Some modes may append a suffix (e.g., `adsb/aircraft`).
+- Broker auth/TLS: If your broker requires authentication or TLS, run it behind a local bridge or adapt the telemetry publisher to include credentials (future enhancement).
+- Performance: Messages are small and published at the poll cadence (typically 1 Hz). Use per-instance IDs to isolate streams from concurrent runs.
+
 ## Concurrent operation
 
-Run APRS and WSPR simultaneously on different SDRs:
+Run APRS, WSPR, and ADS-B simultaneously on different SDRs:
 
 ```bash
 # Terminal 1: APRS iGate on first SDR
@@ -280,14 +477,18 @@ neo-rx aprs listen --device-id 00000001 --instance-id aprs-east
 
 # Terminal 2: WSPR monitor on second SDR
 neo-rx wspr listen --device-id 00000002 --instance-id wspr-20m
+
+# Terminal 3: ADS-B monitor on third SDR (via dump1090)
+neo-rx adsb listen --instance-id adsb-local
 ```
 
 Each instance maintains isolated data and log directories:
 - APRS: `~/.local/share/neo-rx/instances/aprs-east/aprs/` (data), `~/.local/share/neo-rx/instances/aprs-east/logs/aprs/` (logs)
 - WSPR: `~/.local/share/neo-rx/instances/wspr-20m/wspr/` (data), `~/.local/share/neo-rx/instances/wspr-20m/logs/wspr/` (logs)
+- ADS-B: `~/.local/share/neo-rx/instances/adsb-local/adsb/` (data), `~/.local/share/neo-rx/instances/adsb-local/logs/adsb/` (logs)
 
 ## Troubleshooting
-- `neo-rx aprs diagnostics` or `neo-rx wspr diagnostics` surfaces missing dependencies, SDR availability, and network reachability issues.
+- `neo-rx aprs diagnostics`, `neo-rx wspr diagnostics`, or `neo-rx adsb diagnostics` surfaces missing dependencies, SDR availability, and network reachability issues.
 - Ensure `rtl_fm`, `rtl_test`, `direwolf`, and `sox` (optional) are installed and executable.
 - Review mode-specific logs under `~/.local/share/neo-rx/logs/{aprs,wspr}/` (or per-instance paths) for detailed errors. If you want on-disk logs to expire automatically, configure host-level rotation (for example a `logrotate` rule with `weekly` + `rotate 4` against `~/.local/share/neo-rx/logs/**/*.log`). See `docs/diagnostics.md` for the sample stanza and systemd notes.
 - Re-run `neo-rx aprs setup --reset` or `neo-rx wspr setup --reset` if you need to regenerate configuration files or templates.

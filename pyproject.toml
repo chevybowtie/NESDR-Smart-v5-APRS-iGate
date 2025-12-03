@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "neo-rx"
-version = "0.2.12"
-description = "Neo-RX multi-mode radio toolkit (APRS, WSPR, telemetry)"
+version = "0.3.0"
+description = "Neo-RX multi-mode radio toolkit (APRS, WSPR, ADS-B, telemetry)"
 authors = [{ name = "Paul Sturm" }]
 readme = "README.md"
 requires-python = ">=3.11"
 license = "LicenseRef-Proprietary"
-keywords = ["aprs", "igate", "wspr", "sdr", "rtl-sdr", "ham-radio"]
+keywords = ["aprs", "igate", "wspr", "adsb", "sdr", "rtl-sdr", "ham-radio", "flight-tracker"]
 classifiers = [
 	"Programming Language :: Python :: 3",
 	"Programming Language :: Python :: 3 :: Only",
@@ -20,10 +20,11 @@ classifiers = [
 	"Topic :: Communications :: Ham Radio"
 ]
 dependencies = [
-	"neo-core==0.2.12",
-	"neo-aprs==0.2.12",
-	"neo-wspr==0.2.12",
-	"neo-telemetry==0.2.12",
+	"neo-core==0.3.0",
+	"neo-aprs==0.3.0",
+	"neo-wspr==0.3.0",
+	"neo-adsb==0.3.0",
+	"neo-telemetry==0.3.0",
 ]
 
 [project.urls]
@@ -47,10 +48,14 @@ dev = [
 	"build>=1.0",
 ]
 direwolf = [
-	"neo-aprs[direwolf]==0.2.12",
+	"neo-aprs[direwolf]==0.3.0",
 ]
 all = [
-	"neo-aprs[direwolf]==0.2.12",
+	"neo-aprs[direwolf]==0.3.0",
+	"neo-adsb==0.3.0",
+]
+adsb = [
+	"neo-adsb==0.3.0",
 ]
 
 [tool.setuptools]

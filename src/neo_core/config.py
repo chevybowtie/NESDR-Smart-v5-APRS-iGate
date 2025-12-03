@@ -100,8 +100,9 @@ def get_data_dir() -> Path:
 
     Resolution order:
     1) If ``NEO_RX_DATA_DIR`` is set, use it (expanded) as the base.
-    2) Else prefer the new XDG path (``~/.local/share/neo-rx``) unless only the
-       legacy path exists.
+    2) Else prefer the new XDG path (``~/.local/share/neo-rx``). If it does not
+       exist, it will be created. The legacy path is no longer used for new
+       runtime data/logs.
     3) If ``NEO_RX_INSTANCE_ID`` is set to a non-empty, sanitized value, append
        ``instances/<id>`` to the selected base directory.
     """
@@ -110,10 +111,10 @@ def get_data_dir() -> Path:
     if env_data:
         base = Path(env_data).expanduser()
     else:
-        # 2) Prefer new path when available
+        # 2) Always use the new path, creating it if necessary
         preferred = _preferred_data_dir()
-        legacy = _legacy_data_dir()
-        base = preferred if (preferred.exists() or not legacy.exists()) else legacy
+        preferred.mkdir(parents=True, exist_ok=True)
+        base = preferred
 
     # 3) Optional per-instance namespacing
     instance_raw = os.environ.get(INSTANCE_ENV_VAR)
