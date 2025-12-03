@@ -70,12 +70,13 @@ class MqttPublisher:
 
     def connect(self) -> None:
         LOG.debug("Connecting to MQTT broker %s:%s", self._host, self._port)
-        self._attempt_connect()
-        # start network loop to process callbacks
+        # Start network loop first so on_connect can fire during connect
         try:
             self._client.loop_start()
         except Exception:
             LOG.exception("Failed to start MQTT network loop")
+        # Attempt connect with backoff, relying on on_connect to set state
+        self._attempt_connect()
 
     def publish(self, topic: str, payload: dict) -> None:
         body = json.dumps(payload, default=str)

@@ -350,6 +350,7 @@ class AdsbCapture:
             return
         try:
             topic = getattr(self._publisher, "topic", "neo_rx/adsb/aircraft")
+            count = 0
             for ac in aircraft:
                 payload = json.dumps(
                     {
@@ -361,5 +362,8 @@ class AdsbCapture:
                     }
                 )
                 self._publisher.publish(topic, payload)
+                count += 1
+            if logging.getLogger(__name__).isEnabledFor(logging.DEBUG):
+                LOG.debug("Published %d aircraft to MQTT topic %s", count, topic)
         except Exception as exc:
             LOG.warning("Failed to publish aircraft: %s", exc)

@@ -134,7 +134,14 @@ def run_listen(args: Namespace) -> int:
                 port=getattr(cfg, "mqtt_port", 1883),
             )
             publisher.topic = getattr(cfg, "mqtt_topic", "neo_rx/adsb/aircraft")
+            LOG.info(
+                "MQTT: connecting to %s:%s, topic=%s",
+                getattr(cfg, "mqtt_host", "localhost"),
+                getattr(cfg, "mqtt_port", 1883),
+                publisher.topic,
+            )
             publisher.connect()
+            LOG.info("MQTT: connected; publishing enabled")
         except Exception:
             LOG.exception("Failed to create/connect publisher; continuing without")
 
