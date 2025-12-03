@@ -49,6 +49,7 @@ jobs:
           python -m pip install -e ./src/neo_telemetry[dev]
           python -m pip install -e ./src/neo_aprs[dev,direwolf]
           python -m pip install -e ./src/neo_wspr[dev]
+          python -m pip install -e ./src/neo_adsb[dev]
           python -m pip install -e .[dev,all]
 
       - name: Lint (ruff)
@@ -69,6 +70,7 @@ jobs:
           python -m build src/neo_telemetry
           python -m build src/neo_aprs
           python -m build src/neo_wspr
+          python -m build src/neo_adsb
 
   integration:
     runs-on: ubuntu-latest

@@ -5,10 +5,10 @@ from __future__ import annotations
 import logging
 import signal
 import subprocess
-import sys
 import threading
 import time
 from dataclasses import dataclass
+import sys  # noqa: F401 - accessed by tests via neo_aprs.commands.listen.sys
 from datetime import datetime, timedelta, timezone
 from argparse import Namespace
 from pathlib import Path
