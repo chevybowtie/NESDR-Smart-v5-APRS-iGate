@@ -15,6 +15,7 @@ All notable changes to this project will be documented in this file.
 ### Changed
 - Prefer `readsb` over `dump1090` in defaults, diagnostics, and docs; README updated with MQTT usage and ADS-B subscription example.
 - ADS-B listener UX: persistent header with tar1090 link; `v` (version) and `s` (summary) pause redraw for message visibility.
+- Improve `make` release process by switching the verification install step to local-only
 
 ### Fixed
 - MQTT connection sequencing: start paho network loop before connect to avoid "Connect did not complete yet" retries.

@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import signal
 import subprocess
+import sys
 import threading
 import time
 from dataclasses import dataclass
