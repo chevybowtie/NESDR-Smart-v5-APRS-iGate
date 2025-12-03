@@ -1,7 +1,7 @@
 """Tests for ADS-B CLI commands."""
 
 import argparse
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import pytest
 

@@ -3,7 +3,6 @@
 import tempfile
 from pathlib import Path
 
-import pytest
 
 from neo_adsb.adsb.reporter import (
     AdsbExchangeConfig,

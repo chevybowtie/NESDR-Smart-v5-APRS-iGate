@@ -8,13 +8,11 @@ from __future__ import annotations
 import logging
 import time
 from argparse import Namespace
-import sys
 import threading
-from queue import Queue, Empty
+from queue import Queue
 
 from neo_core import config as config_module
 from neo_core.term import start_keyboard_listener, process_commands
-from pathlib import Path
 from datetime import datetime, timezone
 
 LOG = logging.getLogger(__name__)
