@@ -3,7 +3,7 @@
 All notable changes to this project will be documented in this file.
 
 
-## [Unreleased]
+## [0.3.0] - 2025-12-03
 
 ### Added
 - ADS-B monitoring: `neo-rx adsb listen` reads `aircraft.json` from `readsb`/`dump1090` and displays live traffic.
