@@ -3,6 +3,27 @@
 All notable changes to this project will be documented in this file.
 
 
+## [Unreleased]
+
+### Added
+- ADS-B monitoring: `neo-rx adsb listen` reads `aircraft.json` from `readsb`/`dump1090` and displays live traffic.
+- MQTT publishing for ADS-B: per-aircraft JSON messages to `neo_rx/adsb/aircraft` when `[mqtt].enabled = true`.
+- ADS-B diagnostics: checks decoder install/running status, JSON availability, and ADS-B Exchange feeder services.
+- Auto-detection of `aircraft.json` path: prefers `/run/readsb/aircraft.json` with fallbacks to dump1090 paths.
+- Per-mode logging: logs written to `~/.local/share/neo-rx/logs/<mode>/neo-rx.log` (and per-instance paths).
+
+### Changed
+- Prefer `readsb` over `dump1090` in defaults, diagnostics, and docs; README updated with MQTT usage and ADS-B subscription example.
+- ADS-B listener UX: persistent header with tar1090 link; `v` (version) and `s` (summary) pause redraw for message visibility.
+
+### Fixed
+- MQTT connection sequencing: start paho network loop before connect to avoid "Connect did not complete yet" retries.
+- Logging paths: consistently use `~/.local/share/neo-rx/...` (no legacy `neo-igate` fallback for new runs).
+- Decoder JSON freshness checks and path detection reliability.
+
+### Removed
+- Legacy data/log path fallback to `~/.local/share/neo-igate` for new runs (now consistently uses `neo-rx`).
+
 ## [0.2.12] - 2025-11-29
 
 ### Fixed
