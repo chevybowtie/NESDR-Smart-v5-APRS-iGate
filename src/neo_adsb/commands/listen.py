@@ -200,21 +200,27 @@ def run_listen(args: Namespace) -> int:
         # Pause display updates for 5 seconds
         stats["pause_until"] = time.monotonic() + 5.0
         # Temporarily suppress INFO/DEBUG logs to avoid MQTT noise in summary
-        original_level = LOG.level
-        LOG.setLevel(logging.WARNING)
-        try:
-            runtime = datetime.now(timezone.utc) - stats["start_time"]
-            print(
-                f"\n{'=' * 50}\n"
-                f"ADS-B activity summary\n"
-                f"Runtime: {runtime}\n"
-                f"Current aircraft: {stats['total_aircraft']}\n"
-                f"Unique aircraft seen: {len(stats['unique_aircraft'])}\n"
-                f"{'=' * 50}\n",
-                flush=True,
-            )
-        finally:
-            LOG.setLevel(original_level)
+        root_logger = logging.getLogger()
+        original_level = root_logger.level
+        root_logger.setLevel(logging.WARNING)
+        
+        # Schedule restoration after the pause period
+        def restore_level():
+            root_logger.setLevel(original_level)
+        
+        timer = threading.Timer(5.0, restore_level)
+        timer.start()
+        
+        runtime = datetime.now(timezone.utc) - stats["start_time"]
+        print(
+            f"\n{'=' * 50}\n"
+            f"ADS-B activity summary\n"
+            f"Runtime: {runtime}\n"
+            f"Current aircraft: {stats['total_aircraft']}\n"
+            f"Unique aircraft seen: {len(stats['unique_aircraft'])}\n"
+            f"{'=' * 50}\n",
+            flush=True,
+        )
 
     capture.start()
     print("\nADS-B monitoring started. Press 's' for summary, 'q' to quit.\n")
