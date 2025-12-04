@@ -199,16 +199,22 @@ def run_listen(args: Namespace) -> int:
     def _emit_summary() -> None:
         # Pause display updates for 5 seconds
         stats["pause_until"] = time.monotonic() + 5.0
-        runtime = datetime.now(timezone.utc) - stats["start_time"]
-        print(
-            f"\n{'=' * 50}\n"
-            f"ADS-B activity summary\n"
-            f"Runtime: {runtime}\n"
-            f"Current aircraft: {stats['total_aircraft']}\n"
-            f"Unique aircraft seen: {len(stats['unique_aircraft'])}\n"
-            f"{'=' * 50}\n",
-            flush=True,
-        )
+        # Temporarily suppress INFO/DEBUG logs to avoid MQTT noise in summary
+        original_level = LOG.level
+        LOG.setLevel(logging.WARNING)
+        try:
+            runtime = datetime.now(timezone.utc) - stats["start_time"]
+            print(
+                f"\n{'=' * 50}\n"
+                f"ADS-B activity summary\n"
+                f"Runtime: {runtime}\n"
+                f"Current aircraft: {stats['total_aircraft']}\n"
+                f"Unique aircraft seen: {len(stats['unique_aircraft'])}\n"
+                f"{'=' * 50}\n",
+                flush=True,
+            )
+        finally:
+            LOG.setLevel(original_level)
 
     capture.start()
     print("\nADS-B monitoring started. Press 's' for summary, 'q' to quit.\n")
