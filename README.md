@@ -6,10 +6,11 @@ Features:
 - **APRS iGate**: Receive-only APRS with APRS-IS uplink via Direwolf
 - **WSPR monitoring**: Multi-band propagation tracking with WSPRnet integration
 - **ADS-B monitoring**: Aircraft tracking with optional ADS-B Exchange reporting
-- **Concurrent operation**: Run APRS, WSPR, and ADS-B simultaneously on different SDRs
+- **POCSAG monitoring**: Pager message decoding with optional MQTT publishing
+- **Concurrent operation**: Run APRS, WSPR, ADS-B, and POCSAG simultaneously on different SDRs
 - **Config layering**: Multi-file configuration with precedence (defaults < mode < env < CLI)
 - **Per-instance isolation**: Independent data/log directories via `--instance-id`
-- **Multi-package architecture**: Modular design with separate packages for core, telemetry, APRS, WSPR, and ADS-B functionality
+- **Multi-package architecture**: Modular design with separate packages for core, telemetry, APRS, WSPR, ADS-B, and POCSAG functionality
 
 ## Prerequisites
 - Linux host with Python 3.11 or newer
@@ -18,6 +19,7 @@ Features:
 	- `rtl_fm`, `rtl_test`, and `direwolf` binaries must be callable
 - (Optional) `sox` for Direwolf audio tooling (installed automatically with the `direwolf` extra)
 - (Optional) WSPR decoding (bundled with the `wspr` extra)
+- (Optional) POCSAG decoding requires `multimon-ng` for pager message decoding
 
 On Debian- or Ubuntu-based systems you can install the radio tools and Direwolf with:
 ```bash
@@ -26,6 +28,11 @@ sudo apt install rtl-sdr direwolf python3-venv
 Add `sox` if you want the optional audio helpers:
 ```bash
 sudo apt install sox
+```
+
+For POCSAG support, install multimon-ng:
+```bash
+sudo apt install multimon-ng
 ```
 
 ### WSPR Support
@@ -77,6 +84,7 @@ pip install -e ./src/neo_telemetry[dev]
 pip install -e ./src/neo_aprs[dev,direwolf]
 pip install -e ./src/neo_wspr[dev]
 pip install -e ./src/neo_adsb[dev]
+pip install -e ./src/neo_pocsag[dev]
 
 # Install metapackage CLI
 pip install -e .[dev,all]
@@ -397,6 +405,60 @@ When MQTT is enabled, ADS-B publishes per-aircraft JSON to `neo_rx/adsb/aircraft
 mosquitto_sub -h <broker-host> -p 1883 -t 'neo_rx/adsb/aircraft' -v
 ```
 
+## 8. POCSAG Monitoring (optional)
+
+Monitor pager messages using RTL-SDR and multimon-ng for POCSAG512 decoding:
+
+```bash
+neo-rx pocsag listen
+```
+
+### Prerequisites
+
+POCSAG monitoring requires:
+- `multimon-ng` for POCSAG decoding
+- RTL-SDR hardware and drivers
+
+On Debian/Ubuntu systems:
+```bash
+sudo apt install multimon-ng rtl-sdr
+```
+
+### POCSAG commands
+
+```bash
+# Start POCSAG monitoring listener
+neo-rx pocsag listen [--frequency 152840000] [--instance-id pocsag-1]
+
+# Run diagnostics
+neo-rx pocsag diagnostics [--verbose] [--json]
+
+# Interactive setup
+neo-rx pocsag setup
+```
+
+Useful flags:
+- `--frequency HZ` to set pager frequency (default: 152.840 MHz)
+- `--instance-id NAME` to isolate data/logs for concurrent runs
+- `--device-id SERIAL` to select a specific RTL-SDR device
+- `--config PATH` to point at your `config.toml`
+- `--gain DB` to set RTL-SDR gain
+- `--ppm OFFSET` to set frequency correction
+
+The POCSAG monitor will:
+1. Tune RTL-SDR to the specified pager frequency
+2. Capture audio and pipe to multimon-ng for decoding
+3. Display decoded pager messages in real-time
+4. Log messages to JSON-lines and publish to MQTT (if configured)
+
+POCSAG data is stored beneath `~/.local/share/neo-rx/pocsag/` by default (or `~/.local/share/neo-rx/instances/<id>/pocsag/` when using `--instance-id`).
+
+When MQTT is enabled, POCSAG publishes decoded messages to `neo_rx/pocsag/messages`. Verify with:
+
+```bash
+mosquitto_sub -h <broker-host> -p 1883 -t 'neo_rx/pocsag/messages' -v
+```
+
 ## MQTT Publishing
 
 Neo-RX can publish runtime data to an MQTT broker for dashboarding or downstream processing. Enable and configure MQTT in your main `config.toml` under the `[mqtt]` table. Each mode publishes to a distinct topic by default.
@@ -461,6 +523,19 @@ neo-rx adsb listen
 mosquitto_sub -h localhost -p 1883 -t 'neo_rx/adsb/aircraft' -v
 ```
 
+### POCSAG
+
+- Default topic: `neo_rx/pocsag/messages`
+- Payloads: decoded pager message JSON with `address`, `function`, `message_type`, `message`, `timestamp`.
+- Publishing occurs for each decoded pager message when MQTT is enabled.
+
+Run and subscribe:
+
+```bash
+neo-rx pocsag listen
+mosquitto_sub -h localhost -p 1883 -t 'neo_rx/pocsag/messages' -v
+```
+
 ### Notes
 
 - Topics: You can override the default topic via `[mqtt].topic`. Some modes may append a suffix (e.g., `adsb/aircraft`).
@@ -469,7 +544,7 @@ mosquitto_sub -h localhost -p 1883 -t 'neo_rx/adsb/aircraft' -v
 
 ## Concurrent operation
 
-Run APRS, WSPR, and ADS-B simultaneously on different SDRs:
+Run APRS, WSPR, ADS-B, and POCSAG simultaneously on different SDRs:
 
 ```bash
 # Terminal 1: APRS iGate on first SDR
@@ -480,18 +555,22 @@ neo-rx wspr listen --device-id 00000002 --instance-id wspr-20m
 
 # Terminal 3: ADS-B monitor on third SDR (via dump1090)
 neo-rx adsb listen --instance-id adsb-local
+
+# Terminal 4: POCSAG monitor on fourth SDR
+neo-rx pocsag listen --device-id 00000004 --instance-id pocsag-local
 ```
 
 Each instance maintains isolated data and log directories:
 - APRS: `~/.local/share/neo-rx/instances/aprs-east/aprs/` (data), `~/.local/share/neo-rx/instances/aprs-east/logs/aprs/` (logs)
 - WSPR: `~/.local/share/neo-rx/instances/wspr-20m/wspr/` (data), `~/.local/share/neo-rx/instances/wspr-20m/logs/wspr/` (logs)
 - ADS-B: `~/.local/share/neo-rx/instances/adsb-local/adsb/` (data), `~/.local/share/neo-rx/instances/adsb-local/logs/adsb/` (logs)
+- POCSAG: `~/.local/share/neo-rx/instances/pocsag-local/pocsag/` (data), `~/.local/share/neo-rx/instances/pocsag-local/logs/pocsag/` (logs)
 
 ## Troubleshooting
-- `neo-rx aprs diagnostics`, `neo-rx wspr diagnostics`, or `neo-rx adsb diagnostics` surfaces missing dependencies, SDR availability, and network reachability issues.
-- Ensure `rtl_fm`, `rtl_test`, `direwolf`, and `sox` (optional) are installed and executable.
-- Review mode-specific logs under `~/.local/share/neo-rx/logs/{aprs,wspr}/` (or per-instance paths) for detailed errors. If you want on-disk logs to expire automatically, configure host-level rotation (for example a `logrotate` rule with `weekly` + `rotate 4` against `~/.local/share/neo-rx/logs/**/*.log`). See `docs/diagnostics.md` for the sample stanza and systemd notes.
-- Re-run `neo-rx aprs setup --reset` or `neo-rx wspr setup --reset` if you need to regenerate configuration files or templates.
+- `neo-rx aprs diagnostics`, `neo-rx wspr diagnostics`, `neo-rx adsb diagnostics`, or `neo-rx pocsag diagnostics` surfaces missing dependencies, SDR availability, and network reachability issues.
+- Ensure `rtl_fm`, `rtl_test`, `direwolf`, `multimon-ng`, and `sox` (optional) are installed and executable.
+- Review mode-specific logs under `~/.local/share/neo-rx/logs/{aprs,wspr,adsb,pocsag}/` (or per-instance paths) for detailed errors. If you want on-disk logs to expire automatically, configure host-level rotation (for example a `logrotate` rule with `weekly` + `rotate 4` against `~/.local/share/neo-rx/logs/**/*.log`). See `docs/diagnostics.md` for the sample stanza and systemd notes.
+- Re-run `neo-rx aprs setup --reset`, `neo-rx wspr setup --reset`, `neo-rx adsb setup --reset`, or `neo-rx pocsag setup --reset` if you need to regenerate configuration files or templates.
 
 ## Onboarding and setup details
 

@@ -169,6 +169,36 @@ def build_parser() -> argparse.ArgumentParser:
         "--verbose", action="store_true", help="Show extended diagnostic information"
     )
 
+    # POCSAG subcommands
+    pocsag = subparsers.add_parser("pocsag", help="POCSAG mode commands")
+    pocsag_sub = pocsag.add_subparsers(dest="verb", required=True)
+
+    pocsag_setup = pocsag_sub.add_parser("setup", help="Run POCSAG setup wizard")
+    _add_common_flags(pocsag_setup)
+
+    pocsag_listen = pocsag_sub.add_parser(
+        "listen", help="Monitor POCSAG pager messages"
+    )
+    _add_common_flags(pocsag_listen)
+    pocsag_listen.add_argument(
+        "--frequency",
+        type=int,
+        help="POCSAG frequency in Hz",
+        default=152840000,
+    )
+    pocsag_listen.add_argument(
+        "--gain", type=float, help="RTL-SDR gain in dB"
+    )
+    pocsag_listen.add_argument(
+        "--ppm", type=int, help="RTL-SDR frequency correction in PPM", default=0
+    )
+    pocsag_listen.add_argument(
+        "--device-index", type=int, help="RTL-SDR device index", default=0
+    )
+
+    pocsag_diag = pocsag_sub.add_parser("diagnostics", help="Run POCSAG diagnostics")
+    _add_common_flags(pocsag_diag)
+
     return parser
 
 
@@ -307,6 +337,23 @@ def main(argv: list[str] | None = None) -> int:
             return adsb_run_diagnostics(args)
         else:
             parser.error("Unknown ADS-B verb")
+    elif args.mode == "pocsag":
+        if args.verb == "listen":
+            from neo_pocsag.commands.listen import run_listen as pocsag_run_listen  # type: ignore[import]
+
+            return pocsag_run_listen(args)
+        elif args.verb == "setup":
+            from neo_pocsag.commands.setup import run_setup as pocsag_run_setup  # type: ignore[import]
+
+            return pocsag_run_setup(args)
+        elif args.verb == "diagnostics":
+            from neo_pocsag.commands.diagnostics import (  # type: ignore[import]
+                run_diagnostics_command as pocsag_run_diagnostics,
+            )
+
+            return pocsag_run_diagnostics(args)
+        else:
+            parser.error("Unknown POCSAG verb")
     else:
         parser.error("Unknown mode")
 

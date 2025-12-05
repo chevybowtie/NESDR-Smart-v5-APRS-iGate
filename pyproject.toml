@@ -24,6 +24,7 @@ dependencies = [
 	"neo-aprs==0.3.0",
 	"neo-wspr==0.3.0",
 	"neo-adsb==0.3.0",
+	"neo-pocsag==0.3.0",
 	"neo-telemetry==0.3.0",
 ]
 
@@ -53,9 +54,13 @@ direwolf = [
 all = [
 	"neo-aprs[direwolf]==0.3.0",
 	"neo-adsb==0.3.0",
+	"neo-pocsag==0.3.0",
 ]
 adsb = [
 	"neo-adsb==0.3.0",
+]
+pocsag = [
+	"neo-pocsag==0.3.0",
 ]
 
 [tool.setuptools]
@@ -69,6 +74,9 @@ packages = [
     "neo_rx.telemetry",
     "neo_rx.templates",
     "neo_rx.wspr",
+    "neo_pocsag",
+    "neo_pocsag.pocsag",
+    "neo_pocsag.commands",
 ]
 
 [tool.pytest.ini_options]
