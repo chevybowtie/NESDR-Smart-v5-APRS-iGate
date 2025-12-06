@@ -14,9 +14,14 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 
 from neo_core.radio.capture import AudioCaptureError, RtlFmAudioCapture, RtlFmConfig
+
+try:
+    from neo_telemetry.mqtt_publisher import MqttPublisher
+except ImportError:
+    MqttPublisher = None  # type: ignore[misc,assignment]
 
 LOG = logging.getLogger(__name__)
 
@@ -60,7 +65,7 @@ class PocsagCapture:
         ppm: int = 0,
         device_index: int = 0,
         data_dir: Optional[Path] = None,
-        publisher: Optional[object] = None,
+        publisher: Optional[Any] = None,
     ) -> None:
         self._frequency_hz = frequency_hz
         self._sample_rate = sample_rate
@@ -77,6 +82,8 @@ class PocsagCapture:
         self._callbacks: list[Callable[[PocsagMessage], None]] = []
         self._stats = CaptureStats()
         self._seen_addresses: set[int] = set()
+        self._rtl_capture: Optional[RtlFmAudioCapture] = None
+        self._multimon_proc: Optional[subprocess.Popen[bytes]] = None
 
     def add_callback(self, callback: Callable[[PocsagMessage], None]) -> None:
         """Register a callback to be invoked with message updates."""
@@ -103,6 +110,17 @@ class PocsagCapture:
         LOG.info("Stopping POCSAG capture")
         self._running = False
         self._stop_event.set()
+        # Terminate processes to unblock the thread
+        if self._multimon_proc:
+            try:
+                if self._multimon_proc.stdin:
+                    self._multimon_proc.stdin.close()
+                self._multimon_proc.terminate()
+                self._multimon_proc.wait(timeout=1)
+            except (subprocess.TimeoutExpired, OSError):
+                self._multimon_proc.kill()
+        if self._rtl_capture:
+            self._rtl_capture.stop()
         if self._thread and self._thread.is_alive():
             self._thread.join(timeout=5)
             if self._thread.is_alive():
@@ -138,6 +156,7 @@ class PocsagCapture:
         try:
             LOG.info("Starting RTL-SDR capture...")
             capture.start()
+            self._rtl_capture = capture
 
             # Start multimon-ng process
             multimon_cmd = [
@@ -153,6 +172,7 @@ class PocsagCapture:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.DEVNULL,
             )
+            self._multimon_proc = multimon_proc
             LOG.info("Multimon-ng started (PID %s)", multimon_proc.pid)
 
             audio_thread = threading.Thread(
@@ -175,18 +195,20 @@ class PocsagCapture:
         except Exception as exc:
             LOG.exception("Error in POCSAG capture loop: %s", exc)
         finally:
-            capture.stop()
+            if capture:
+                capture.stop()
             if multimon_proc:
-                if multimon_proc.stdin:
+                if multimon_proc.poll() is None:
+                    if multimon_proc.stdin:
+                        try:
+                            multimon_proc.stdin.close()
+                        except OSError:
+                            pass
+                    multimon_proc.terminate()
                     try:
-                        multimon_proc.stdin.close()
-                    except OSError:
-                        pass
-                multimon_proc.terminate()
-                try:
-                    multimon_proc.wait(timeout=2)
-                except subprocess.TimeoutExpired:
-                    multimon_proc.kill()
+                        multimon_proc.wait(timeout=2)
+                    except subprocess.TimeoutExpired:
+                        multimon_proc.kill()
 
         LOG.info("POCSAG capture loop stopped")
 
@@ -194,14 +216,18 @@ class PocsagCapture:
         """Pump audio from capture to multimon process."""
         try:
             while not self._stop_event.is_set() and proc.poll() is None:
-                chunk = capture.read(4096)
+                try:
+                    chunk = capture.read(4096)
+                except AudioCaptureError:
+                    # Expected when rtl_fm is terminated during stop
+                    break
                 if not chunk:
                     continue
                 if proc.stdin:
                     try:
                         proc.stdin.write(chunk)
                         proc.stdin.flush()
-                    except BrokenPipeError:
+                    except (BrokenPipeError, ValueError):
                         break
         except Exception as exc:
             LOG.exception("Audio pump error: %s", exc)
@@ -293,6 +319,6 @@ class PocsagCapture:
                 "message": message.message,
                 "timestamp": message.timestamp.isoformat(),
             }
-            self._publisher.publish(topic, payload)
+            self._publisher.publish(topic, payload)  # type: ignore[attr-defined]
         except Exception as exc:
             LOG.warning("Failed to publish message: %s", exc)

@@ -430,6 +430,9 @@ sudo apt install multimon-ng rtl-sdr
 # Start POCSAG monitoring listener
 neo-rx pocsag listen [--frequency 152840000] [--instance-id pocsag-1]
 
+# Scan frequency range for POCSAG activity
+neo-rx pocsag scan [--start-frequency 152000000] [--end-frequency 158000000] [--step-hz 10000] [--dwell-seconds 120]
+
 # Run diagnostics
 neo-rx pocsag diagnostics [--verbose] [--json]
 
@@ -450,6 +453,12 @@ The POCSAG monitor will:
 2. Capture audio and pipe to multimon-ng for decoding
 3. Display decoded pager messages in real-time
 4. Log messages to JSON-lines and publish to MQTT (if configured)
+
+The POCSAG scanner will:
+1. Sweep through the specified frequency range in configurable steps
+2. Spend configurable time on each frequency monitoring for activity
+3. Track which frequencies have pager messages
+4. Report frequencies with detected activity, sorted by message rate
 
 POCSAG data is stored beneath `~/.local/share/neo-rx/pocsag/` by default (or `~/.local/share/neo-rx/instances/<id>/pocsag/` when using `--instance-id`).
 

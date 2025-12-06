@@ -199,6 +199,42 @@ def build_parser() -> argparse.ArgumentParser:
     pocsag_diag = pocsag_sub.add_parser("diagnostics", help="Run POCSAG diagnostics")
     _add_common_flags(pocsag_diag)
 
+    pocsag_scan = pocsag_sub.add_parser("scan", help="Scan frequency range for POCSAG activity")
+    _add_common_flags(pocsag_scan)
+    pocsag_scan.add_argument(
+        "--start-frequency",
+        type=int,
+        help="Start frequency in Hz",
+        default=152000000,
+    )
+    pocsag_scan.add_argument(
+        "--end-frequency",
+        type=int,
+        help="End frequency in Hz",
+        default=158000000,
+    )
+    pocsag_scan.add_argument(
+        "--step-hz",
+        type=int,
+        help="Frequency step size in Hz",
+        default=10000,
+    )
+    pocsag_scan.add_argument(
+        "--dwell-seconds",
+        type=int,
+        help="Time to spend on each frequency in seconds",
+        default=120,
+    )
+    pocsag_scan.add_argument(
+        "--gain", type=float, help="RTL-SDR gain in dB"
+    )
+    pocsag_scan.add_argument(
+        "--ppm", type=int, help="RTL-SDR frequency correction in PPM", default=0
+    )
+    pocsag_scan.add_argument(
+        "--device-index", type=int, help="RTL-SDR device index", default=0
+    )
+
     return parser
 
 
@@ -352,6 +388,10 @@ def main(argv: list[str] | None = None) -> int:
             )
 
             return pocsag_run_diagnostics(args)
+        elif args.verb == "scan":
+            from neo_pocsag.commands.scan import run_scan as pocsag_run_scan  # type: ignore[import]
+
+            return pocsag_run_scan(args)
         else:
             parser.error("Unknown POCSAG verb")
     else:

@@ -45,7 +45,7 @@ def run_setup(args: Namespace) -> int:
 
     # Save config
     try:
-        config_module.save_config(station_config, config_path)
+        config_module.save_config(station_config, config_path)  # type: ignore[arg-type]
         print(f"\nConfiguration saved to {config_path}")
     except Exception as exc:
         LOG.error("Failed to save config: %s", exc)

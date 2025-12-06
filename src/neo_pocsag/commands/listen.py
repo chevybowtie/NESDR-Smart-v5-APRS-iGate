@@ -91,7 +91,7 @@ def run_listen(args: Namespace) -> int:
         except Exception:
             LOG.exception("Failed to create/connect publisher; continuing without")
 
-    from neo_pocsag.pocsag.capture import PocsagCapture
+    from neo_pocsag.pocsag.capture import PocsagCapture  # type: ignore[import]
 
     capture = PocsagCapture(
         frequency_hz=frequency_hz,
