@@ -1,3 +1,58 @@
+import json
+from types import SimpleNamespace
+import tempfile
+from pathlib import Path
+
+
+def make_fake_requests_module():
+    class FakeResponse:
+        def __init__(self, status_code=200, text="OK"):
+            self.status_code = status_code
+            self.text = text
+
+    class FakeSession:
+        def __init__(self):
+            self.headers = {}
+
+        def get(self, url, params=None, timeout=None):
+            return FakeResponse(200, "OK")
+
+    mod = SimpleNamespace(Session=lambda: FakeSession())
+    return mod
+
+
+def test_uploader_queue_and_drain(tmp_path, monkeypatch):
+    from neo_wspr.wspr.uploader import WsprUploader
+
+    fake_requests = make_fake_requests_module()
+    monkeypatch.setitem(__import__("sys").modules, "neo_wspr.wspr.uploader.requests", fake_requests)
+
+    queue_path = tmp_path / "queue.jsonl"
+    u = WsprUploader(queue_path=queue_path, base_url="https://example.org", session=None)
+
+    spot1 = {"call": "A", "grid": "FN20"}
+    spot2 = {"call": "B", "grid": "FN20"}
+
+    u.enqueue_spot(spot1)
+    u.enqueue_spot(spot2)
+
+    # Monkeypatch upload_spot to succeed for first and fail for second
+    calls = {"n": 0}
+
+    def fake_upload(spot):
+        calls["n"] += 1
+        return spot.get("call") == "A"
+
+    u.upload_spot = fake_upload
+
+    res = u.drain()
+    assert res["attempted"] == 2
+    assert res["succeeded"] == 1
+    assert res["failed"] == 1
+
+    # Queue should contain the failed item
+    remaining = u._read_queue()
+    assert len(remaining) == 1 and remaining[0]["call"] == "B"
 """Tests for WSPR uploader queue and HTTP drain logic."""
 
 import http.server

@@ -1,3 +1,41 @@
+import json
+from pathlib import Path
+import pytest
+
+
+def test_compute_ppm_from_offset_basic():
+    from neo_wspr.wspr.calibrate import compute_ppm_from_offset
+
+    ppm = compute_ppm_from_offset(1_000_000.0, 100.0)
+    assert abs(ppm - 100.0) < 1e-6
+
+    with pytest.raises(ValueError):
+        compute_ppm_from_offset(0.0, 10.0)
+
+
+def test_load_spots_from_jsonl_and_estimate(tmp_path):
+    from neo_wspr.wspr.calibrate import load_spots_from_jsonl, estimate_offset_from_spots
+
+    f = tmp_path / "spots.jsonl"
+    # good line, malformed line, empty line
+    f.write_text(json.dumps({"freq_hz": 1000, "snr_db": -10}) + "\n"
+                 + "notjson\n"
+                 + "\n")
+
+    spots = load_spots_from_jsonl(f)
+    assert isinstance(spots, list) and len(spots) == 1
+
+    # estimate without expected frequency -> offset 0
+    res = estimate_offset_from_spots(spots)
+    assert res["offset_hz"] == 0.0
+
+    # with expected frequency -> compute offset and ppm
+    res2 = estimate_offset_from_spots(spots, expected_freq_hz=900.0)
+    assert "ppm" in res2
+
+    # no freqs -> raise
+    with pytest.raises(ValueError):
+        estimate_offset_from_spots([])
 import pytest
 from unittest.mock import patch, MagicMock
 from pathlib import Path
