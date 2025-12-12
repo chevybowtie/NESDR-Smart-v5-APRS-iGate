@@ -30,19 +30,15 @@ class TestAdsbCli:
     def test_adsb_listen_custom_json_path(self):
         """Test adsb listen with custom JSON path."""
         parser = build_parser()
-        args = parser.parse_args([
-            "adsb", "listen",
-            "--json-path", "/custom/aircraft.json"
-        ])
+        args = parser.parse_args(
+            ["adsb", "listen", "--json-path", "/custom/aircraft.json"]
+        )
         assert args.json_path == "/custom/aircraft.json"
 
     def test_adsb_listen_custom_poll_interval(self):
         """Test adsb listen with custom poll interval."""
         parser = build_parser()
-        args = parser.parse_args([
-            "adsb", "listen",
-            "--poll-interval", "2.5"
-        ])
+        args = parser.parse_args(["adsb", "listen", "--poll-interval", "2.5"])
         assert args.poll_interval == 2.5
 
     def test_adsb_listen_quiet_mode(self):
@@ -98,14 +94,22 @@ class TestAdsbCli:
     def test_adsb_common_flags(self):
         """Test common flags are available for adsb commands."""
         parser = build_parser()
-        args = parser.parse_args([
-            "adsb", "listen",
-            "--device-id", "12345",
-            "--instance-id", "adsb-1",
-            "--config", "/custom/config.toml",
-            "--data-dir", "/custom/data",
-            "--log-level", "debug",
-        ])
+        args = parser.parse_args(
+            [
+                "adsb",
+                "listen",
+                "--device-id",
+                "12345",
+                "--instance-id",
+                "adsb-1",
+                "--config",
+                "/custom/config.toml",
+                "--data-dir",
+                "/custom/data",
+                "--log-level",
+                "debug",
+            ]
+        )
         assert args.device_id == "12345"
         assert args.instance_id == "adsb-1"
         assert args.config == "/custom/config.toml"

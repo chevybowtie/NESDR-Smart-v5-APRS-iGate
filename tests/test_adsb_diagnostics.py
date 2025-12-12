@@ -96,13 +96,16 @@ class TestDump1090JsonCheck:
     def test_check_valid_json(self):
         """Test check with valid JSON file."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
-            json.dump({
-                "now": 1700000000.0,
-                "aircraft": [
-                    {"hex": "abc123"},
-                    {"hex": "def456"},
-                ]
-            }, f)
+            json.dump(
+                {
+                    "now": 1700000000.0,
+                    "aircraft": [
+                        {"hex": "abc123"},
+                        {"hex": "def456"},
+                    ],
+                },
+                f,
+            )
             temp_path = f.name
 
         try:

@@ -99,10 +99,14 @@ def run_listen(args: Namespace) -> int:
 
     stats_interval = 60.0
     next_stats_report = time.monotonic() + stats_interval
+    # MQTT publisher (optional)
+    publisher = None
 
     stop_event = threading.Event()
     command_queue: "Queue[str]" = Queue()
-    keyboard_thread = start_keyboard_listener(stop_event, command_queue, name="neo-rx-aprs-keyboard")
+    keyboard_thread = start_keyboard_listener(
+        stop_event, command_queue, name="neo-rx-aprs-keyboard"
+    )
     summary_log_path = config_module.get_logs_dir("aprs") / "neo-rx.log"
 
     def _pump_audio() -> None:
@@ -126,6 +130,7 @@ def run_listen(args: Namespace) -> int:
 
     def _cleanup() -> None:
         nonlocal aprs_client
+        nonlocal publisher
         stop_event.set()
         capture.stop()
         if audio_thread and audio_thread.is_alive():
@@ -135,6 +140,11 @@ def run_listen(args: Namespace) -> int:
         if aprs_client is not None:
             aprs_client.close()
             aprs_client = None
+        if publisher is not None:
+            try:
+                publisher.close()
+            except Exception:
+                logger.debug("Error closing MQTT publisher", exc_info=True)
         if direwolf_proc is not None:
             if direwolf_proc.stdin:
                 try:
@@ -235,6 +245,35 @@ def run_listen(args: Namespace) -> int:
     logger.info("Connected to Direwolf KISS port; awaiting frames...")
     frame_count = 0
 
+    # Set up MQTT publisher if requested in config
+    try:
+        if getattr(station_config, "mqtt_enabled", False):
+            try:
+                from neo_telemetry.mqtt_publisher import MqttPublisher
+
+                publisher = MqttPublisher(
+                    host=getattr(station_config, "mqtt_host", "localhost"),
+                    port=getattr(station_config, "mqtt_port", 1883),
+                )
+                publisher.topic = getattr(
+                    station_config, "mqtt_topic", "neo_rx/aprs/messages"
+                )
+                logger.info(
+                    "MQTT: connecting to %s:%s, topic=%s",
+                    getattr(station_config, "mqtt_host", "localhost"),
+                    getattr(station_config, "mqtt_port", 1883),
+                    publisher.topic,
+                )
+                publisher.connect()
+                logger.info("MQTT: connected; publishing enabled")
+            except Exception:
+                logger.exception(
+                    "Failed to create/connect publisher; continuing without MQTT"
+                )
+    except Exception:
+        # Defensive: ensure any unexpected config issues don't break listener
+        logger.debug("MQTT setup skipped or failed", exc_info=True)
+
     def _attempt_aprs_connect() -> None:
         nonlocal aprs_client
         if not aprs_enabled or aprs_config is None:
@@ -285,6 +324,11 @@ def run_listen(args: Namespace) -> int:
 
             frame_count += 1
             _display_frame(frame_count, frame.port, tnc2_packet)
+            # Publish APRS text messages (callsign + message) to MQTT if enabled
+            try:
+                _maybe_publish_mqtt(publisher, station_config, tnc2_packet)
+            except Exception:
+                logger.debug("MQTT publish helper failed", exc_info=True)
 
             if aprs_client is not None:
                 try:
@@ -491,6 +535,7 @@ def _append_q_construct(
     combined = ",".join([dest] + new_path)
     return f"{src}>{combined}:{info}"
 
+
 # Backward compatibility: tests rely on _start_keyboard_listener existing.
 # Delegate to shared implementation in neo_core.term.
 def _start_keyboard_listener(
@@ -531,6 +576,57 @@ def _display_frame(count: int, port: int, tnc2_line: str | bytes) -> None:
     logger.info("[%06d] port=%s %s", count, port, snippet)
 
 
+def _maybe_publish_mqtt(publisher, station_config, tnc2_line: str | bytes) -> None:
+    """If publisher is configured and tnc2_line represents an APRS text message,
+    publish a JSON payload with `callsign` and `message` to the publisher.topic.
+
+    Heuristic: skip obvious position reports (INFO starting with '/', '!', '=', '@').
+    Only publish when the INFO portion begins with ':' which is the common
+    marker for APRS text message frames ("::RECIPIENT:message").
+    """
+    if publisher is None:
+        return
+    try:
+        if isinstance(tnc2_line, bytes):
+            line = tnc2_line.decode("ascii", errors="replace")
+        else:
+            line = tnc2_line
+
+        if ":" not in line:
+            return
+        _, info = line.split(":", 1)
+        if not info:
+            return
+        # Skip position reports and other non-text frames
+        if info[0] in ("/", "!", "=", "@"):
+            return
+
+        # Only treat as a message when info begins with ':' (message format)
+        if not info.startswith(":"):
+            return
+
+        inner = info.lstrip(":")
+        # message frames often have recipient prefix before a second ':'
+        if ":" in inner:
+            _, msg = inner.split(":", 1)
+        else:
+            msg = inner
+
+        callsign = _get_source_callsign(line) or ""
+        msg_text = msg.strip()
+        if not msg_text:
+            return
+
+        topic = getattr(
+            publisher,
+            "topic",
+            getattr(station_config, "mqtt_topic", "neo_rx/aprs/messages"),
+        )
+        publisher.publish(topic, {"callsign": callsign, "message": msg_text})
+    except Exception:
+        logger.exception("Failed to publish APRS message to MQTT")
+
+
 def _report_audio_error(queue: "Queue[Exception]") -> None:
     try:
         exc = queue.get_nowait()
@@ -547,8 +643,12 @@ def _handle_keyboard_commands(
     process_commands(
         command_queue,
         {
-            "s": lambda: print("\n" + _summarize_recent_activity(log_path) + "\n", flush=True),
-            "q": (lambda: (print("\nExiting iGate...\n", flush=True), stop_event.set())) if stop_event is not None else (lambda: print("\nExiting iGate...\n", flush=True)),
+            "s": lambda: print(
+                "\n" + _summarize_recent_activity(log_path) + "\n", flush=True
+            ),
+            "q": (lambda: (print("\nExiting iGate...\n", flush=True), stop_event.set()))
+            if stop_event is not None
+            else (lambda: print("\nExiting iGate...\n", flush=True)),
             "v": lambda: print(f"\n{_SOFTWARE_NAME} {_SOFTWARE_VERSION}\n", flush=True),
         },
     )

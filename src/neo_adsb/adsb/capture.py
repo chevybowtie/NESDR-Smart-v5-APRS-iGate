@@ -132,7 +132,10 @@ class Dump1090Client:
 
                 # Update stats
                 self._stats.total_messages += state.messages
-                if state.altitude_ft and state.altitude_ft > self._stats.max_altitude_ft:
+                if (
+                    state.altitude_ft
+                    and state.altitude_ft > self._stats.max_altitude_ft
+                ):
                     self._stats.max_altitude_ft = state.altitude_ft
 
                 updated_aircraft.append(state)
@@ -198,7 +201,9 @@ class AdsbCapture:
         reporter: "AdsbExchangeReporter | None" = None,
         station_config: Optional[object] = None,
     ) -> None:
-        self._client = Dump1090Client(json_path=json_path, poll_interval_s=poll_interval_s)
+        self._client = Dump1090Client(
+            json_path=json_path, poll_interval_s=poll_interval_s
+        )
         self._poll_interval_s = poll_interval_s
         self._running = False
         self._thread: Optional[threading.Thread] = None
@@ -262,14 +267,18 @@ class AdsbCapture:
                 if LOG.isEnabledFor(logging.DEBUG):
                     try:
                         stat = self._client.json_path.stat()
-                        mtime = datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat()
+                        mtime = datetime.fromtimestamp(
+                            stat.st_mtime, tz=timezone.utc
+                        ).isoformat()
                         LOG.debug(
                             "aircraft.json: size=%d bytes, mtime=%s",
                             stat.st_size,
                             mtime,
                         )
                     except FileNotFoundError:
-                        LOG.debug("aircraft.json not found at %s", self._client.json_path)
+                        LOG.debug(
+                            "aircraft.json not found at %s", self._client.json_path
+                        )
 
                 aircraft = self._client.poll()
                 LOG.debug("Decoded %d aircraft records", len(aircraft))

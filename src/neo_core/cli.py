@@ -231,7 +231,9 @@ def main(argv: list[str] | None = None) -> int:
         except Exception:
             pass
 
-        logging.basicConfig(level=_resolve_log_level(level_name), handlers=handlers, force=True)
+        logging.basicConfig(
+            level=_resolve_log_level(level_name), handlers=handlers, force=True
+        )
 
     # Propagate instance/data directory overrides via environment so that
     # downstream modules use the same namespacing without signature changes.

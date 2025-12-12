@@ -104,12 +104,17 @@ def run_listen(args: Namespace) -> int:
     # Minimal keyboard listener for interactive commands
     stop_event = threading.Event()
     command_queue: "Queue[str]" = Queue()
-    kb_thread = start_keyboard_listener(stop_event, command_queue, name="neo-rx-wspr-keyboard")
+    kb_thread = start_keyboard_listener(
+        stop_event, command_queue, name="neo-rx-wspr-keyboard"
+    )
 
     def _emit_wspr_summary() -> None:
         spots_path = run_dir / "wspr_spots.jsonl"
         if not spots_path.exists():
-            print("\nNo WSPR spots file available yet; try again after captures.\n", flush=True)
+            print(
+                "\nNo WSPR spots file available yet; try again after captures.\n",
+                flush=True,
+            )
             return
         try:
             total = 0
@@ -120,7 +125,9 @@ def run_listen(args: Namespace) -> int:
                         continue
                     total += 1
                     latest = float(spots_path.stat().st_mtime)
-            ts = datetime.fromtimestamp(latest or spots_path.stat().st_mtime, tz=timezone.utc)
+            ts = datetime.fromtimestamp(
+                latest or spots_path.stat().st_mtime, tz=timezone.utc
+            )
             print(
                 f"\nWSPR activity summary\nSpots file: {spots_path}\nTotal spots: {total}\nLast update: {ts.strftime('%Y-%m-%d %H:%MZ')}\n",
                 flush=True,
@@ -135,8 +142,18 @@ def run_listen(args: Namespace) -> int:
             process_commands(
                 command_queue,
                 {
-                    "q": lambda: (print("\nExiting WSPR monitor...\n", flush=True), stop_event.set(), capture.stop()),
-                    "v": lambda: (print(f"\nneo-rx {__import__('neo_rx').__version__}\n", flush=True) if hasattr(__import__('neo_rx'), '__version__') else print("\nneo-rx\n", flush=True)),
+                    "q": lambda: (
+                        print("\nExiting WSPR monitor...\n", flush=True),
+                        stop_event.set(),
+                        capture.stop(),
+                    ),
+                    "v": lambda: (
+                        print(
+                            f"\nneo-rx {__import__('neo_rx').__version__}\n", flush=True
+                        )
+                        if hasattr(__import__("neo_rx"), "__version__")
+                        else print("\nneo-rx\n", flush=True)
+                    ),
                     "s": _emit_wspr_summary,
                 },
             )

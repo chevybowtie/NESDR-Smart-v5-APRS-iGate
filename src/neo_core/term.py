@@ -145,7 +145,12 @@ def drain_command_queue(queue: Queue[str]) -> list[str]:
     return commands
 
 
-def process_commands(queue: Queue[str], handlers: dict[str, "callable"], *, default: "callable" | None = None) -> None:
+def process_commands(
+    queue: Queue[str],
+    handlers: dict[str, "callable"],
+    *,
+    default: "callable" | None = None,
+) -> None:
     """Drain queue and dispatch to handlers by single-character key.
 
     Args:

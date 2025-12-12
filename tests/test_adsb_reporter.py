@@ -129,9 +129,7 @@ class TestAdsbExchangeReporter:
 
     def test_is_installed_not_installed(self):
         """Test is_installed when not installed."""
-        reporter = AdsbExchangeReporter(
-            config_path=Path("/nonexistent/config")
-        )
+        reporter = AdsbExchangeReporter(config_path=Path("/nonexistent/config"))
         # Will be False if neither the git path nor config path exists
         # This may be True on systems with ADS-B Exchange installed
         result = reporter.is_installed()
@@ -158,9 +156,7 @@ class TestAdsbExchangeReporter:
 
     def test_load_config_missing_file(self):
         """Test loading config when file is missing."""
-        reporter = AdsbExchangeReporter(
-            config_path=Path("/nonexistent/adsbexchange")
-        )
+        reporter = AdsbExchangeReporter(config_path=Path("/nonexistent/adsbexchange"))
         config = reporter.load_config()
         assert config is None
 
