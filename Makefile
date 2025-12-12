@@ -18,6 +18,9 @@ setup:
 test:
 	PYTHONPATH=src $(VENV_DIR)/bin/pytest
 
+coverage:
+	PYTHONPATH=src $(VENV_DIR)/bin/pytest --cov=src --cov-report=term-missing
+
 lint:
 	$(VENV_DIR)/bin/ruff check src tests
 	@echo "✓ Lint checks passed"
