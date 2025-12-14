@@ -53,7 +53,7 @@ done
 
 if [[ ! -f "$CONFIG_PATH" ]]; then
   echo "Error: Direwolf config not found at $CONFIG_PATH" >&2
-  echo "Render the template in docs/templates/direwolf.conf or rerun 'neo-rx setup'." >&2
+  echo "Render the Direwolf template via 'neo-rx aprs setup' or run the setup wizard to create $CONFIG_PATH." >&2
   exit 1
 fi
 

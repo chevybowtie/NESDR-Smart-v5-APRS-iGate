@@ -33,13 +33,13 @@ The CLI expects the Direwolf configuration at `~/.config/neo-rx/direwolf.conf` b
 
 ## 4. Render Direwolf Configuration
 
-Either run the CLI onboarding (which can render the file automatically) or copy the template manually:
+Either run the CLI onboarding (which will render the file automatically) or invoke the setup wizard to create `~/.config/neo-rx/direwolf.conf`:
 
 ```
-cp docs/templates/direwolf.conf ~/.config/neo-rx/direwolf.conf
+neo-rx aprs setup
 ```
 
-When `neo-rx aprs setup` completes, accept the prompt to create `direwolf.conf` and the wizard will prefill your callsign, APRS-IS server, passcode, and KISS port values. Manually run the copy above if you prefer to edit the template yourself.
+When `neo-rx aprs setup` completes, accept the prompt to create `direwolf.conf` and the wizard will prefill your callsign, APRS-IS server, passcode, and KISS port values. If you prefer to edit the template manually before rendering, run the setup with `--reset` to overwrite the generated file after editing.
 
 Edit the file to confirm your callsign, passcode, latitude/longitude, and beacon text. Leave `ADEVICE stdin null` if you intend to use `rtl_fm` piping via `scripts/run_direwolf.sh`.
 
