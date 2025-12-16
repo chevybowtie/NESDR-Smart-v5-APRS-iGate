@@ -6,4 +6,4 @@ Features:
 * Radiosonde Tracking (Weather Balloons) - using radiosonde_auto_rx
 * FT8 (HF Digital Mode) - wsjt-x (headless) or ft8d
 * AIS (Automatic Identification System) - "ADS-B for ships" using rtl_ais
-
+* APRS report to quantify how useful the fill-iGate is (filter on packets only handled by me)
