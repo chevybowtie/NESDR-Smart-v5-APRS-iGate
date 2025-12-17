@@ -208,30 +208,53 @@ echo "Extras: ${chosen_extras:-none}"
 if [ -d "$SRC_DIR/src" ]; then
   echo "Local packages found in $SRC_DIR/src:"
   ls -1 "$SRC_DIR/src" || true
-  for pkgpath in "$SRC_DIR/src"/*; do
-    if [ -d "$pkgpath" ]; then
-      echo "Installing local package from $pkgpath"
+
+  # Build initial ordered list: prefer neo_core first to satisfy internal deps
+  pkgdirs=("$SRC_DIR/src"/*)
+  ordered=()
+  for p in "${pkgdirs[@]}"; do
+    bn=$(basename "$p")
+    if [ "$bn" = "neo_core" ]; then
+      ordered+=("$p")
+    fi
+  done
+  for p in "${pkgdirs[@]}"; do
+    bn=$(basename "$p")
+    if [ "$bn" != "neo_core" ]; then
+      ordered+=("$p")
+    fi
+  done
+
+  # Iteratively attempt installs: if a package fails due to unmet local
+  # dependency, retry remaining packages until none change (then fail).
+  remain=("${ordered[@]}")
+  while [ ${#remain[@]} -gt 0 ]; do
+    changed=0
+    next_remain=()
+    for pkgpath in "${remain[@]}"; do
+      if [ ! -d "$pkgpath" ]; then
+        continue
+      fi
+      pkgname=$(basename "$pkgpath")
+      echo "Attempting local install: $pkgname"
       if [ "$DRY_RUN" -eq 1 ]; then
         echo "DRY RUN: $VENV_PY -m pip install -e \"$pkgpath\" -v"
+        changed=1
       else
-        if ! "$VENV_PY" -m pip install -e "$pkgpath" -v; then
-          echo "Editable install failed for $pkgpath — attempting to build a wheel as a fallback."
-          # Try to install build backend then build wheel
-          "$VENV_PY" -m pip install --upgrade build || true
-          pushd "$pkgpath" >/dev/null 2>&1 || true
-          if "$VENV_PY" -m build -w -o "$tmpdir"; then
-            wheel=$(ls "$tmpdir"/*.whl | tail -n1)
-            echo "Built wheel $wheel — installing"
-            "$VENV_PY" -m pip install "$wheel"
-          else
-            echo "Wheel build failed for $pkgpath; aborting installation." >&2
-            popd >/dev/null 2>&1 || true
-            exit 1
-          fi
-          popd >/dev/null 2>&1 || true
+        if "$VENV_PY" -m pip install -e "$pkgpath" -v; then
+          changed=1
+        else
+          echo "Local install failed for $pkgname; will retry after other installs." >&2
+          next_remain+=("$pkgpath")
         fi
       fi
+    done
+    if [ ${#next_remain[@]} -eq ${#remain[@]} ] && [ $changed -eq 0 ]; then
+      echo "Could not make progress installing local packages; remaining:" >&2
+      for p in "${next_remain[@]}"; do echo " - $p"; done
+      exit 1
     fi
+    remain=("${next_remain[@]}")
   done
 fi
 
