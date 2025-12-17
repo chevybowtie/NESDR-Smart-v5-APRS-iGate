@@ -209,16 +209,26 @@ if [ -d "$SRC_DIR/src" ]; then
   echo "Local packages found in $SRC_DIR/src:"
   ls -1 "$SRC_DIR/src" || true
 
-  # Build initial ordered list: prefer neo_core first to satisfy internal deps
+  # Only consider directories that look like Python projects (have pyproject.toml or setup.py)
   pkgdirs=("$SRC_DIR/src"/*)
-  ordered=()
+  py_pkgdirs=()
   for p in "${pkgdirs[@]}"; do
+    if [ -d "$p" ] && ( [ -f "$p/pyproject.toml" ] || [ -f "$p/setup.py" ] ); then
+      py_pkgdirs+=("$p")
+    else
+      echo "Skipping non-Python or non-packaged entry: $p"
+    fi
+  done
+
+  # Build initial ordered list: prefer neo_core first to satisfy internal deps
+  ordered=()
+  for p in "${py_pkgdirs[@]}"; do
     bn=$(basename "$p")
     if [ "$bn" = "neo_core" ]; then
       ordered+=("$p")
     fi
   done
-  for p in "${pkgdirs[@]}"; do
+  for p in "${py_pkgdirs[@]}"; do
     bn=$(basename "$p")
     if [ "$bn" != "neo_core" ]; then
       ordered+=("$p")
@@ -233,6 +243,12 @@ if [ -d "$SRC_DIR/src" ]; then
     next_remain=()
     for pkgpath in "${remain[@]}"; do
       if [ ! -d "$pkgpath" ]; then
+        continue
+      fi
+      # Skip entries that are not Python projects
+      if [ ! -f "$pkgpath/pyproject.toml" ] && [ ! -f "$pkgpath/setup.py" ]; then
+        echo "Skipping non-Python package during install: $pkgpath"
+        changed=1
         continue
       fi
       pkgname=$(basename "$pkgpath")
