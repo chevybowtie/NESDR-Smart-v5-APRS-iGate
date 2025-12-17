@@ -206,13 +206,30 @@ echo "Extras: ${chosen_extras:-none}"
 # dependencies (neo-core, neo-aprs, neo-wspr, etc.) are provided from the
 # extracted tree rather than pulled from PyPI.
 if [ -d "$SRC_DIR/src" ]; then
+  echo "Local packages found in $SRC_DIR/src:"
+  ls -1 "$SRC_DIR/src" || true
   for pkgpath in "$SRC_DIR/src"/*; do
     if [ -d "$pkgpath" ]; then
       echo "Installing local package from $pkgpath"
       if [ "$DRY_RUN" -eq 1 ]; then
-        echo "DRY RUN: $VENV_PY -m pip install -e \"$pkgpath\""
+        echo "DRY RUN: $VENV_PY -m pip install -e \"$pkgpath\" -v"
       else
-        "$VENV_PY" -m pip install -e "$pkgpath"
+        if ! "$VENV_PY" -m pip install -e "$pkgpath" -v; then
+          echo "Editable install failed for $pkgpath — attempting to build a wheel as a fallback."
+          # Try to install build backend then build wheel
+          "$VENV_PY" -m pip install --upgrade build || true
+          pushd "$pkgpath" >/dev/null 2>&1 || true
+          if "$VENV_PY" -m build -w -o "$tmpdir"; then
+            wheel=$(ls "$tmpdir"/*.whl | tail -n1)
+            echo "Built wheel $wheel — installing"
+            "$VENV_PY" -m pip install "$wheel"
+          else
+            echo "Wheel build failed for $pkgpath; aborting installation." >&2
+            popd >/dev/null 2>&1 || true
+            exit 1
+          fi
+          popd >/dev/null 2>&1 || true
+        fi
       fi
     fi
   done
