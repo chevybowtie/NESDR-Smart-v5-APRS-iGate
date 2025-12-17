@@ -48,6 +48,59 @@ run_or_echo() {
   fi
 }
 
+# Color support: enable when stdout is a tty, TERM isn't 'dumb', and NO_COLOR not set.
+# Prefer `tput` if available; otherwise fall back to basic ANSI escape sequences.
+if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
+  if command -v tput >/dev/null 2>&1; then
+    ncolors=$(tput colors 2>/dev/null || 0)
+  else
+    # assume basic color support when tput is unavailable but we're a tty
+    ncolors=8
+  fi
+else
+  ncolors=0
+fi
+
+if [ "$ncolors" -ge 8 ]; then
+  if command -v tput >/dev/null 2>&1; then
+    COLOR_RESET=$(tput sgr0)
+    COLOR_RED=$(tput setaf 1)
+    COLOR_GREEN=$(tput setaf 2)
+    COLOR_YELLOW=$(tput setaf 3)
+    COLOR_BLUE=$(tput setaf 4)
+    COLOR_CYAN=$(tput setaf 6)
+  else
+    COLOR_RESET='\033[0m'
+    COLOR_RED='\033[0;31m'
+    COLOR_GREEN='\033[0;32m'
+    COLOR_YELLOW='\033[0;33m'
+    COLOR_BLUE='\033[0;34m'
+    COLOR_CYAN='\033[0;36m'
+  fi
+else
+  COLOR_RESET=""
+  COLOR_RED=""
+  COLOR_GREEN=""
+  COLOR_YELLOW=""
+  COLOR_BLUE=""
+  COLOR_CYAN=""
+fi
+
+info() { printf "%s%s%s\n" "$COLOR_CYAN" "$*" "$COLOR_RESET"; }
+succ() { printf "%s%s%s\n" "$COLOR_GREEN" "$*" "$COLOR_RESET"; }
+warn() { printf "%s%s%s\n" "$COLOR_YELLOW" "$*" "$COLOR_RESET"; }
+err() { printf "%s%s%s\n" "$COLOR_RED" "$*" "$COLOR_RESET" >&2; }
+
+# Override run_or_echo printing to be colored when supported
+run_or_echo() {
+  if [ "$DRY_RUN" -eq 1 ]; then
+    printf "%sDRY RUN:%s %s\n" "$COLOR_YELLOW" "$COLOR_RESET" "$*"
+  else
+    printf "%s+%s %s\n" "$COLOR_GREEN" "$COLOR_RESET" "$*"
+    eval "$@"
+  fi
+}
+
 # Ensure python3 and venv helper exist (but do not apt-install automatically)
 echo "Installer target directory: $TARGET_DIR"
 
