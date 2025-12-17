@@ -69,12 +69,37 @@ fi
 
 case "$yn" in
   [Yy]*)
-    cmd="sudo apt update && sudo apt install -y $apt_suggest"
-    if [ "$DRY_RUN" -eq 1 ]; then
-      echo "DRY RUN: $cmd"
+    # Before attempting sudo, verify sudo exists and user has rights
+    if command -v sudo >/dev/null 2>&1; then
+      # Check whether current user is in the sudo group
+      in_sudo_group=0
+      if id -nG "$USER" 2>/dev/null | grep -qw sudo; then
+        in_sudo_group=1
+      fi
+
+      if [ "$in_sudo_group" -eq 0 ]; then
+        echo "Note: your user '$USER' is not in the 'sudo' group. To gain sudo rights run as root: 'usermod -aG sudo $USER' and then re-login." 
+        if [ "$ASSUME_YES" -eq 1 ]; then
+          echo "Attempting to add $USER to sudo group using sudo..."
+          run_or_echo "sudo usermod -aG sudo $USER" || true
+          echo "You may need to log out and log back in for group changes to take effect."
+        fi
+      fi
+
+      cmd="sudo apt update && sudo apt install -y $apt_suggest"
+      if [ "$DRY_RUN" -eq 1 ]; then
+        echo "DRY RUN: $cmd"
+      else
+        echo "Running: $cmd"
+        bash -c "$cmd"
+      fi
     else
-      echo "Running: $cmd"
-      bash -c "$cmd"
+      echo "Warning: 'sudo' not found on this system. The installer cannot run apt commands automatically."
+      echo "To install the suggested packages as root, run as root or use 'su -c':"
+      echo "  su -c 'apt update && apt install -y $apt_suggest'"
+      echo "After installing 'sudo', add your user to the sudo group with:"
+      echo "  su -c 'usermod -aG sudo $USER'"
+      echo "Then log out and log back in to pick up the new group membership."
     fi
     ;;
   *)
