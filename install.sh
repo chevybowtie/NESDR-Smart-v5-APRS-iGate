@@ -58,6 +58,7 @@ optional_pkgs="rtl-sdr direwolf sox"
 
 echo "The system packages suggested for Debian 13 are: $apt_suggest"
 echo "Optional packages for SDR/APRS use: $optional_pkgs"
+echo
 
 if [ "$ASSUME_YES" -ne 1 ]; then
   printf "Run suggested apt installs now? (requires sudo) [y/N]: "
@@ -66,6 +67,8 @@ if [ "$ASSUME_YES" -ne 1 ]; then
 else
   yn=Y
 fi
+
+echo
 
 case "$yn" in
   [Yy]*)
@@ -94,12 +97,14 @@ case "$yn" in
         bash -c "$cmd"
       fi
     else
+      echo
       echo "Warning: 'sudo' not found on this system. The installer cannot run apt commands automatically."
       echo "To install the suggested packages as root, run as root or use 'su -c':"
       echo "  su -c 'apt update && apt install -y $apt_suggest'"
       echo "After installing 'sudo', add your user to the sudo group with:"
       echo "  su -c 'usermod -aG sudo $USER'"
       echo "Then log out and log back in to pick up the new group membership."
+      echo
     fi
     ;;
   *)
@@ -196,6 +201,24 @@ fi
 
 echo "Installing package editable from source into virtualenv..."
 echo "Extras: ${chosen_extras:-none}"
+
+# Install local sibling packages under SRC_DIR/src/* first so internal
+# dependencies (neo-core, neo-aprs, neo-wspr, etc.) are provided from the
+# extracted tree rather than pulled from PyPI.
+if [ -d "$SRC_DIR/src" ]; then
+  for pkgpath in "$SRC_DIR/src"/*; do
+    if [ -d "$pkgpath" ]; then
+      echo "Installing local package from $pkgpath"
+      if [ "$DRY_RUN" -eq 1 ]; then
+        echo "DRY RUN: $VENV_PY -m pip install -e \"$pkgpath\""
+      else
+        "$VENV_PY" -m pip install -e "$pkgpath"
+      fi
+    fi
+  done
+fi
+
+# Finally install the top-level package (with selected extras)
 if [ "$DRY_RUN" -eq 1 ]; then
   echo "DRY RUN: $VENV_PY -m pip install -e \"$SRC_DIR$extras_spec\""
 else
