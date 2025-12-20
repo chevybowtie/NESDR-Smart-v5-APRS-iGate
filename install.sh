@@ -97,17 +97,18 @@ else
   COLOR_CYAN=""
 fi
 
-info() { printf "%s%s%s\n" "$COLOR_CYAN" "$*" "$COLOR_RESET"; }
-succ() { printf "%s%s%s\n" "$COLOR_GREEN" "$*" "$COLOR_RESET"; }
-warn() { printf "%s%s%s\n" "$COLOR_YELLOW" "$*" "$COLOR_RESET"; }
-err() { printf "%s%s%s\n" "$COLOR_RED" "$*" "$COLOR_RESET" >&2; }
+# Print using %b and concatenate so escape bytes are handled reliably
+info() { printf '%b\n' "${COLOR_CYAN}${*}${COLOR_RESET}"; }
+succ() { printf '%b\n' "${COLOR_GREEN}${*}${COLOR_RESET}"; }
+warn() { printf '%b\n' "${COLOR_YELLOW}${*}${COLOR_RESET}"; }
+err() { printf '%b\n' "${COLOR_RED}${*}${COLOR_RESET}" >&2; }
 
 # Override run_or_echo printing to be colored when supported
 run_or_echo() {
   if [ "$DRY_RUN" -eq 1 ]; then
-    printf "%sDRY RUN:%s %s\n" "$COLOR_YELLOW" "$COLOR_RESET" "$*"
+    printf '%b\n' "${COLOR_YELLOW}DRY RUN:${COLOR_RESET} $*"
   else
-    printf "%s+%s %s\n" "$COLOR_GREEN" "$COLOR_RESET" "$*"
+    printf '%b\n' "${COLOR_GREEN}+${COLOR_RESET} $*"
     eval "$@"
   fi
 }
@@ -160,6 +161,17 @@ else
   yn=Y
 fi
 
+# Debug helper: enable by running with NEO_INSTALL_DEBUG=1
+if [ "${NEO_INSTALL_DEBUG:-0}" = "1" ]; then
+  echo "DEBUG: ncolors=$ncolors"
+  if command -v tput >/dev/null 2>&1; then
+    echo "DEBUG: tput available"
+  else
+    echo "DEBUG: tput not available"
+  fi
+  printf "DEBUG: COLOR_CYAN bytes: "; printf "%s" "$COLOR_CYAN" | od -An -t x1
+  printf "DEBUG: COLOR_RESET bytes: "; printf "%s" "$COLOR_RESET" | od -An -t x1
+fi
 echo
 
 case "$yn" in
@@ -214,8 +226,8 @@ case "$yn" in
     fi
     ;;
   *)
-    echo "Skipping apt installs. To install later run:" 
-    echo "  sudo apt update && sudo apt install -y $apt_suggest"
+    warn "Skipping apt installs. To install later run:"
+    info "  sudo apt update && sudo apt install -y $apt_suggest"
     ;;
 esac
  
@@ -231,9 +243,9 @@ if [ "$DRY_RUN" -eq 1 ]; then
 else
   # Try release asset first, fall back to branch archive
   if curl -L -o "$archive_file" --fail "$RELEASE_ASSET_URL"; then
-    echo "Downloaded release asset: $RELEASE_ASSET_URL"
+    info "Downloaded release asset: $RELEASE_ASSET_URL"
   else
-    echo "Release asset not available; falling back to branch archive: $BRANCH_ARCHIVE_URL"
+    warn "Release asset not available; falling back to branch archive: $BRANCH_ARCHIVE_URL"
     curl -L -o "$archive_file" --fail "$BRANCH_ARCHIVE_URL"
   fi
 fi
@@ -252,7 +264,7 @@ if [ "$DRY_RUN" -eq 1 ]; then
 else
   first_entry=$(find "$tmpdir/extracted" -maxdepth 1 -mindepth 1 -type d | head -n1)
   if [ -z "$first_entry" ]; then
-    echo "Failed to find extracted directory." >&2
+    err "Failed to find extracted directory."
     exit 1
   fi
   SRC_DIR="$first_entry"
@@ -316,8 +328,8 @@ if [ -n "$chosen_extras" ]; then
   extras_spec="[$chosen_extras]"
 fi
 
-echo "Installing package editable from source into virtualenv..."
-echo "Extras: ${chosen_extras:-none}"
+info "Installing package editable from source into virtualenv..."
+info "Extras: ${chosen_extras:-none}"
 
 # Install local sibling packages under SRC_DIR/src/* first so internal
 # dependencies (neo-core, neo-aprs, neo-wspr, etc.) are provided from the
@@ -364,7 +376,7 @@ if [ -d "$SRC_DIR/src" ]; then
       fi
       # Skip entries that are not Python projects
       if [ ! -f "$pkgpath/pyproject.toml" ] && [ ! -f "$pkgpath/setup.py" ]; then
-        echo "Skipping non-Python package during install: $pkgpath"
+        warn "Skipping non-Python package during install: $pkgpath"
         changed=1
         continue
       fi
@@ -383,8 +395,8 @@ if [ -d "$SRC_DIR/src" ]; then
       fi
     done
     if [ ${#next_remain[@]} -eq ${#remain[@]} ] && [ $changed -eq 0 ]; then
-      echo "Could not make progress installing local packages; remaining:" >&2
-      for p in "${next_remain[@]}"; do echo " - $p"; done
+      err "Could not make progress installing local packages; remaining:"
+      for p in "${next_remain[@]}"; do err " - $p"; done
       exit 1
     fi
     remain=("${next_remain[@]}")
@@ -407,41 +419,7 @@ else
 fi
 
 # Final user-facing quick-start instructions (printed last on success)
-cat <<EOF
-==================== Neo-RX Installation Complete ====================
-
-Quick start — first steps (copy/paste):
-
-  # Activate the virtualenv created by the installer
-  . "$VENV_DIR/bin/activate"
-
-  # Run the APRS onboarding wizard (renders configs and prompts)
-  neo-rx aprs setup
-
-  # Optional: run diagnostics to validate tools and hardware
-  neo-rx aprs diagnostics --verbose
-
-  # Smoke-test (receive-only, no APRS-IS uplink)
-  neo-rx aprs listen --once --no-aprsis
-
-  # Start the APRS listener (normal operation, will attempt APRS-IS uplink if configured)
-  neo-rx aprs listen
-
-View logs (tail while running):
-  tail -f "$TARGET_DIR/logs/aprs/neo-rx.log"
-
-If you used a custom --target-dir, replace the paths above accordingly.
-
-To remove the installation:
-  rm -rf "$VENV_DIR"
-  rm -rf "$TARGET_DIR/extracted"
-
-For help and other commands:
-  neo-rx --help
-  neo-rx aprs --help
-
-=====================================================================
-EOF
+printf '%b\n' "${COLOR_GREEN}==================== Neo-RX Installation Complete ====================\n\nQuick start — first steps (copy/paste):\n\n  # Activate the virtualenv created by the installer\n  . \"$VENV_DIR/bin/activate\"\n\n  # Run the APRS onboarding wizard (renders configs and prompts)\n  neo-rx aprs setup\n\n  # Optional: run diagnostics to validate tools and hardware\n  neo-rx aprs diagnostics --verbose\n\n  # Smoke-test (receive-only, no APRS-IS uplink)\n  neo-rx aprs listen --once --no-aprsis\n\n  # Start the APRS listener (normal operation, will attempt APRS-IS uplink if configured)\n  neo-rx aprs listen\n\nView logs (tail while running):\n  tail -f \"$TARGET_DIR/logs/aprs/neo-rx.log\"\n\nIf you used a custom --target-dir, replace the paths above accordingly.\n\nTo remove the installation:\n  rm -rf \"$VENV_DIR\"\n  rm -rf \"$TARGET_DIR/extracted\"\n\nFor help and other commands:\n  neo-rx --help\n  neo-rx aprs --help\n\n=====================================================================${COLOR_RESET}"
 
 # mark the task done in todo list
 _DONE=1
