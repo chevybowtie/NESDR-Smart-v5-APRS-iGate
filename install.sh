@@ -1,6 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# If the script was invoked with `sh` (dash) rather than `bash`, re-exec
+# with the user's `bash` so bash-specific features (like $'...' escapes)
+# and color handling work reliably.
+if [ -z "${BASH_VERSION:-}" ]; then
+  if command -v bash >/dev/null 2>&1; then
+    exec bash "$0" "$@"
+  else
+    echo "Warning: bash not found; continuing with /bin/sh may disable colors and some features." >&2
+  fi
+fi
+
 # Neo-RX installer (Debian 13-targeted, interactive)
 # - Downloads the repository master archive (no git required)
 # - Creates a virtualenv, installs the package editable with selected extras
@@ -70,12 +81,12 @@ if [ "$ncolors" -ge 8 ]; then
     COLOR_BLUE=$(tput setaf 4)
     COLOR_CYAN=$(tput setaf 6)
   else
-    COLOR_RESET='\033[0m'
-    COLOR_RED='\033[0;31m'
-    COLOR_GREEN='\033[0;32m'
-    COLOR_YELLOW='\033[0;33m'
-    COLOR_BLUE='\033[0;34m'
-    COLOR_CYAN='\033[0;36m'
+    COLOR_RESET=$'\033[0m'
+    COLOR_RED=$'\033[0;31m'
+    COLOR_GREEN=$'\033[0;32m'
+    COLOR_YELLOW=$'\033[0;33m'
+    COLOR_BLUE=$'\033[0;34m'
+    COLOR_CYAN=$'\033[0;36m'
   fi
 else
   COLOR_RESET=""
