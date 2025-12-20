@@ -113,9 +113,9 @@ run_or_echo() {
 }
 
 # Ensure python3 and venv helper exist (but do not apt-install automatically)
-echo "Installer target directory: $TARGET_DIR"
+info "Installer target directory: $TARGET_DIR"
 
-echo "Attempting release asset first, then falling back to branch archive if needed."
+info "Attempting release asset first, then falling back to branch archive if needed."
 
 apt_suggest="python3 python3-venv curl tar"
 optional_pkgs="rtl-sdr direwolf sox"
@@ -148,8 +148,8 @@ prompt_extra aprs
 prompt_extra wspr
 prompt_extra direwolf
 
-echo "The system packages suggested for Debian 13 are: $apt_suggest"
-echo "Optional packages for SDR/APRS use: $optional_pkgs"
+info "The system packages suggested for Debian 13 are: $apt_suggest"
+info "Optional packages for SDR/APRS use: $optional_pkgs"
 echo
 
 if [ "$ASSUME_YES" -ne 1 ]; then
@@ -173,7 +173,7 @@ case "$yn" in
       fi
 
       if [ "$in_sudo_group" -eq 0 ]; then
-        echo "Note: your user '$USER' is not in the 'sudo' group. To gain sudo rights run as root: 'usermod -aG sudo $USER' and then re-login." 
+        warn "Note: your user '$USER' is not in the 'sudo' group. To gain sudo rights run as root: 'usermod -aG sudo $USER' and then re-login."
         if [ "$ASSUME_YES" -eq 1 ]; then
           echo "Attempting to add $USER to sudo group using sudo..."
           run_or_echo "sudo usermod -aG sudo $USER" || true
@@ -185,7 +185,7 @@ case "$yn" in
       if [ "$DRY_RUN" -eq 1 ]; then
         echo "DRY RUN: $cmd"
       else
-        echo "Running: $cmd"
+        info "Running: $cmd"
         bash -c "$cmd"
       fi
 
@@ -196,7 +196,7 @@ case "$yn" in
           if [ "$DRY_RUN" -eq 1 ]; then
             echo "DRY RUN: $opt_cmd"
           else
-            echo "Installing optional packages for Direwolf: $optional_pkgs"
+            info "Installing optional packages for Direwolf: $optional_pkgs"
             bash -c "$opt_cmd"
           fi
           ;;
@@ -204,7 +204,7 @@ case "$yn" in
       esac
     else
       echo
-      echo "Warning: 'sudo' not found on this system. The installer cannot run apt commands automatically."
+      warn "'sudo' not found on this system. The installer cannot run apt commands automatically."
       echo "To install the suggested packages as root, run as root or use 'su -c':"
       echo "  su -c 'apt update && apt install -y $apt_suggest'"
       echo "After installing 'sudo', add your user to the sudo group with:"
@@ -219,7 +219,7 @@ case "$yn" in
     ;;
 esac
  
-echo "Downloading archive..."
+info "Downloading archive..."
 mkdir -p "$TARGET_DIR"
 tmpdir=$(mktemp -d)
 trap 'rm -rf "$tmpdir"' EXIT
@@ -238,7 +238,7 @@ else
   fi
 fi
 
-echo "Extracting archive..."
+info "Extracting archive..."
 if [ "$DRY_RUN" -eq 1 ]; then
   echo "DRY RUN: mkdir -p $tmpdir/extracted && tar -tzf $archive_file | head -n 5"
 else
@@ -258,7 +258,7 @@ else
   SRC_DIR="$first_entry"
 fi
 
-echo "Source directory: $SRC_DIR"
+info "Source directory: $SRC_DIR"
 # Copy the extracted project into the target directory so editable installs
 # reference a persistent path (avoid pip recording temporary locations).
 DEST_EXTRACT="$TARGET_DIR/extracted"
@@ -272,7 +272,7 @@ else
 fi
 
 VENV_DIR="$TARGET_DIR/.venv"
-echo "Creating virtualenv at $VENV_DIR"
+info "Creating virtualenv at $VENV_DIR"
 if [ "$DRY_RUN" -eq 1 ]; then
   echo "DRY RUN: python3 -m venv $VENV_DIR"
 else
@@ -281,7 +281,7 @@ fi
 
 VENV_PY="$VENV_DIR/bin/python"
 
-echo "Upgrading pip in virtualenv"
+info "Upgrading pip in virtualenv"
 run_or_echo "$VENV_PY -m pip install --upgrade pip setuptools wheel"
 
 # Prompt for extras
@@ -323,7 +323,7 @@ echo "Extras: ${chosen_extras:-none}"
 # dependencies (neo-core, neo-aprs, neo-wspr, etc.) are provided from the
 # extracted tree rather than pulled from PyPI.
 if [ -d "$SRC_DIR/src" ]; then
-  echo "Local packages found in $SRC_DIR/src:"
+  info "Local packages found in $SRC_DIR/src:"
   ls -1 "$SRC_DIR/src" || true
 
   # Only consider directories that look like Python projects (have pyproject.toml or setup.py)
@@ -333,7 +333,7 @@ if [ -d "$SRC_DIR/src" ]; then
     if [ -d "$p" ] && ( [ -f "$p/pyproject.toml" ] || [ -f "$p/setup.py" ] ); then
       py_pkgdirs+=("$p")
     else
-      echo "Skipping non-Python or non-packaged entry: $p"
+      warn "Skipping non-Python or non-packaged entry: $p"
     fi
   done
 
@@ -369,7 +369,7 @@ if [ -d "$SRC_DIR/src" ]; then
         continue
       fi
       pkgname=$(basename "$pkgpath")
-      echo "Attempting local install: $pkgname"
+      info "Attempting local install: $pkgname"
       if [ "$DRY_RUN" -eq 1 ]; then
         echo "DRY RUN: $VENV_PY -m pip install -e \"$pkgpath\" -v"
         changed=1
@@ -377,7 +377,7 @@ if [ -d "$SRC_DIR/src" ]; then
         if "$VENV_PY" -m pip install -e "$pkgpath" -v; then
           changed=1
         else
-          echo "Local install failed for $pkgname; will retry after other installs." >&2
+          err "Local install failed for $pkgname; will retry after other installs."
           next_remain+=("$pkgpath")
         fi
       fi
@@ -395,10 +395,11 @@ fi
 if [ "$DRY_RUN" -eq 1 ]; then
   echo "DRY RUN: $VENV_PY -m pip install -e \"$SRC_DIR$extras_spec\""
 else
+  info "Installing top-level package with extras: ${chosen_extras:-none}"
   "$VENV_PY" -m pip install -e "$SRC_DIR$extras_spec"
 fi
 
-echo "Installation complete. Performing basic validation..."
+succ "Installation complete. Performing basic validation..."
 if [ "$DRY_RUN" -eq 1 ]; then
   echo "DRY RUN: $VENV_PY -m pip show neo_rx || true"
 else
