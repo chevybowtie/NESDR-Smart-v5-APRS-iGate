@@ -102,7 +102,9 @@ def run_listen(args: Namespace) -> int:
 
     stop_event = threading.Event()
     command_queue: "Queue[str]" = Queue()
-    keyboard_thread = start_keyboard_listener(stop_event, command_queue, name="neo-rx-aprs-keyboard")
+    keyboard_thread = start_keyboard_listener(
+        stop_event, command_queue, name="neo-rx-aprs-keyboard"
+    )
     summary_log_path = config_module.get_logs_dir("aprs") / "neo-rx.log"
 
     def _pump_audio() -> None:
@@ -491,6 +493,7 @@ def _append_q_construct(
     combined = ",".join([dest] + new_path)
     return f"{src}>{combined}:{info}"
 
+
 # Backward compatibility: tests rely on _start_keyboard_listener existing.
 # Delegate to shared implementation in neo_core.term.
 def _start_keyboard_listener(
@@ -547,8 +550,12 @@ def _handle_keyboard_commands(
     process_commands(
         command_queue,
         {
-            "s": lambda: print("\n" + _summarize_recent_activity(log_path) + "\n", flush=True),
-            "q": (lambda: (print("\nExiting iGate...\n", flush=True), stop_event.set())) if stop_event is not None else (lambda: print("\nExiting iGate...\n", flush=True)),
+            "s": lambda: print(
+                "\n" + _summarize_recent_activity(log_path) + "\n", flush=True
+            ),
+            "q": (lambda: (print("\nExiting iGate...\n", flush=True), stop_event.set()))
+            if stop_event is not None
+            else (lambda: print("\nExiting iGate...\n", flush=True)),
             "v": lambda: print(f"\n{_SOFTWARE_NAME} {_SOFTWARE_VERSION}\n", flush=True),
         },
     )

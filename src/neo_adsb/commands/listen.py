@@ -22,7 +22,7 @@ LOG = logging.getLogger(__name__)
 
 def _find_aircraft_json() -> str:
     """Find aircraft.json from common ADS-B decoders.
-    
+
     Checks readsb, dump1090-fa, and dump1090 in order.
     Returns the first existing file, or readsb default if none found.
     """
@@ -88,7 +88,7 @@ def run_listen(args: Namespace) -> int:
     json_path = getattr(args, "json_path", None)
     if not json_path and cfg:
         json_path = getattr(cfg, "adsb_json_path", None)
-    
+
     # If no explicit path or configured path doesn't exist, auto-detect
     if not json_path or not os.path.exists(json_path):
         if json_path:
@@ -106,7 +106,9 @@ def run_listen(args: Namespace) -> int:
     json_file = Path(json_path)
     if not json_file.exists():
         LOG.error("aircraft.json not found at %s", json_path)
-        LOG.error("Is readsb/dump1090 running? Check: systemctl status readsb dump1090-fa")
+        LOG.error(
+            "Is readsb/dump1090 running? Check: systemctl status readsb dump1090-fa"
+        )
         LOG.error("Detected decoders: systemctl list-units 'dump1090*' 'readsb*'")
         return 1
 
@@ -119,7 +121,9 @@ def run_listen(args: Namespace) -> int:
                 "aircraft.json hasn't been updated in %.1fs - decoder may not be running",
                 age_sec,
             )
-            LOG.warning("Check decoder status: journalctl -u readsb -u dump1090-fa --since '5 min ago'")
+            LOG.warning(
+                "Check decoder status: journalctl -u readsb -u dump1090-fa --since '5 min ago'"
+            )
     except Exception as exc:
         LOG.warning("Could not stat %s: %s", json_path, exc)
 
@@ -182,6 +186,7 @@ def run_listen(args: Namespace) -> int:
         stats["pause_until"] = time.monotonic() + 3.0
         try:
             import neo_rx
+
             version = getattr(neo_rx, "__version__", "unknown")
             print(f"\n{'=' * 40}\nneo-rx {version}\n{'=' * 40}\n", flush=True)
         except ImportError:
@@ -203,14 +208,14 @@ def run_listen(args: Namespace) -> int:
         root_logger = logging.getLogger()
         original_level = root_logger.level
         root_logger.setLevel(logging.WARNING)
-        
+
         # Schedule restoration after the pause period
         def restore_level():
             root_logger.setLevel(original_level)
-        
+
         timer = threading.Timer(5.0, restore_level)
         timer.start()
-        
+
         runtime = datetime.now(timezone.utc) - stats["start_time"]
         print(
             f"\n{'=' * 50}\n"
@@ -224,7 +229,10 @@ def run_listen(args: Namespace) -> int:
 
     capture.start()
     print("\nADS-B monitoring started. Press 's' for summary, 'q' to quit.\n")
-    print("View live traffic: http://localhost/tar1090/, view your contribution: https://adsbexchange.com/myip/\n", flush=True)
+    print(
+        "View live traffic: http://localhost/tar1090/, view your contribution: https://adsbexchange.com/myip/\n",
+        flush=True,
+    )
 
     try:
         while capture.is_running() and not stop_event.is_set():
@@ -256,7 +264,9 @@ def _display_aircraft(aircraft_list: list) -> None:
     # Clear and redraw - simple display without curses
     header = f"{'ICAO':<8} {'Flight':<10} {'Alt(ft)':<8} {'Spd(kt)':<8} {'Track':<6} {'Lat':>10} {'Lon':>11} {'RSSI':>6}"
     print("\033[2J\033[H")  # Clear screen and move cursor to top
-    print(f"ADS-B Monitor - {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%SZ')}")
+    print(
+        f"ADS-B Monitor - {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%SZ')}"
+    )
     print("Map: http://localhost/tar1090/, your data: https://adsbexchange.com/myip/")
     print("-" * 80)
     print(header)
@@ -278,7 +288,9 @@ def _display_aircraft(aircraft_list: list) -> None:
         lat = f"{ac.latitude:.4f}" if ac.latitude else ""
         lon = f"{ac.longitude:.4f}" if ac.longitude else ""
         rssi = f"{ac.rssi_db:.1f}" if ac.rssi_db else ""
-        print(f"{icao:<8} {flight:<10} {alt:<8} {spd:<8} {track:<6} {lat:>10} {lon:>11} {rssi:>6}")
+        print(
+            f"{icao:<8} {flight:<10} {alt:<8} {spd:<8} {track:<6} {lat:>10} {lon:>11} {rssi:>6}"
+        )
 
     print("-" * 80)
     print(f"Total aircraft: {len(aircraft_list)} | Press 's' for summary, 'q' to quit")

@@ -94,7 +94,7 @@ def run_setup(args: Namespace) -> int:
             print(
                 f"  MLAT service: {'active' if status.mlat_service_active else 'inactive'}"
             )
-            if getattr(status, 'username', None):
+            if getattr(status, "username", None):
                 print(f"  Username: {status.username}")
 
             # MLAT Python environment checks (common failure on 3.12/3.13)
@@ -137,9 +137,7 @@ def run_setup(args: Namespace) -> int:
                                 "     sudo /usr/local/share/adsbexchange/venv/bin/pip install pyasyncore"
                             )
                             print("\n  Alternative: Recreate venv with Python 3.11:")
-                            print(
-                                "     sudo rm -rf /usr/local/share/adsbexchange/venv"
-                            )
+                            print("     sudo rm -rf /usr/local/share/adsbexchange/venv")
                             print(
                                 "     sudo python3.11 -m venv /usr/local/share/adsbexchange/venv"
                             )
@@ -162,6 +160,7 @@ def run_setup(args: Namespace) -> int:
                 "  curl -L -o /tmp/axfeed.sh https://adsbexchange.com/feed.sh && sudo bash /tmp/axfeed.sh"
             )
             import sys as _sys
+
             if _sys.version_info >= (3, 12):
                 print("\n  ⚠️  Note: You're running Python 3.13/3.12")
                 print("     MLAT requires Python 3.11 or the pyasyncore backport")

@@ -6,8 +6,6 @@ import importlib
 from typing import Iterable
 
 
-
-
 def _prepare_rtlsdr() -> None:
     """Ensure rtlsdr imports without triggering deprecation warnings."""
 
