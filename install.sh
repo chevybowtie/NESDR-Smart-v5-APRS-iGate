@@ -206,6 +206,17 @@ else
 fi
 
 echo "Source directory: $SRC_DIR"
+# Copy the extracted project into the target directory so editable installs
+# reference a persistent path (avoid pip recording temporary locations).
+DEST_EXTRACT="$TARGET_DIR/extracted"
+if [ "$DRY_RUN" -eq 1 ]; then
+  echo "DRY RUN: copy extracted project $SRC_DIR -> $DEST_EXTRACT"
+else
+  mkdir -p "$DEST_EXTRACT"
+  # Use tar pipe to copy files preserving metadata without relying on rsync
+  (cd "$SRC_DIR" && tar cf - .) | (cd "$DEST_EXTRACT" && tar xpf -)
+  SRC_DIR="$DEST_EXTRACT"
+fi
 
 VENV_DIR="$TARGET_DIR/.venv"
 echo "Creating virtualenv at $VENV_DIR"
