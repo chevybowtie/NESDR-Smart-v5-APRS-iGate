@@ -352,9 +352,44 @@ else
   "$VENV_PY" -m pip show neo_rx || true
 fi
 
-echo "Next steps:"
-echo " - Render Direwolf config: $VENV_DIR/bin/neo-rx aprs setup"
-echo " - Start Direwolf helper: scripts/run_direwolf.sh"
-echo " - To remove the virtualenv: rm -rf $VENV_DIR"
+# Final user-facing quick-start instructions (printed last on success)
+cat <<EOF
+==================== Neo-RX Installation Complete ====================
+
+Quick start — first steps (copy/paste):
+
+  # Activate the virtualenv created by the installer
+  . "$VENV_DIR/bin/activate"
+
+  # Run the APRS onboarding wizard (renders configs and prompts)
+  neo-rx aprs setup
+
+  # Optional: run diagnostics to validate tools and hardware
+  neo-rx aprs diagnostics --verbose
+
+  # Smoke-test (receive-only, no APRS-IS uplink)
+  neo-rx aprs listen --once --no-aprsis
+
+  # Start the APRS listener (normal operation, will attempt APRS-IS uplink if configured)
+  neo-rx aprs listen
+
+View logs (tail while running):
+  tail -f "$TARGET_DIR/logs/aprs/neo-rx.log"
+
+If you used a custom --target-dir, replace the paths above accordingly.
+
+To remove the installation:
+  rm -rf "$VENV_DIR"
+  rm -rf "$TARGET_DIR/extracted"
+
+For help and other commands:
+  neo-rx --help
+  neo-rx aprs --help
+
+=====================================================================
+EOF
+
+# mark the task done in todo list
+_DONE=1
 
 exit 0
