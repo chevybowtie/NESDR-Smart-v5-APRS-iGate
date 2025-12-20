@@ -109,6 +109,34 @@ echo "Attempting release asset first, then falling back to branch archive if nee
 apt_suggest="python3 python3-venv curl tar"
 optional_pkgs="rtl-sdr direwolf sox"
 
+# Prompt for extras early so we can install optional system packages when
+# the user requests related features (e.g. Direwolf audio helpers).
+chosen_extras=""
+prompt_extra() {
+  name=$1
+  if [ "$ASSUME_YES" -eq 1 ]; then
+    choice=Y
+  else
+    printf "Enable extra '%s'? [Y/n]: " "$name"
+    IFS= read -r choice || true
+    choice=${choice:-Y}
+  fi
+  case "$choice" in
+    [Yy]*)
+      if [ -z "$chosen_extras" ]; then
+        chosen_extras="$name"
+      else
+        chosen_extras="$chosen_extras,$name"
+      fi
+      ;;
+    *) ;;
+  esac
+}
+
+prompt_extra aprs
+prompt_extra wspr
+prompt_extra direwolf
+
 echo "The system packages suggested for Debian 13 are: $apt_suggest"
 echo "Optional packages for SDR/APRS use: $optional_pkgs"
 echo
@@ -149,6 +177,20 @@ case "$yn" in
         echo "Running: $cmd"
         bash -c "$cmd"
       fi
+
+      # If the user enabled the 'direwolf' extra, install optional radio/audio packages
+      case ",$chosen_extras," in
+        *,direwolf,*)
+          opt_cmd="sudo apt install -y $optional_pkgs"
+          if [ "$DRY_RUN" -eq 1 ]; then
+            echo "DRY RUN: $opt_cmd"
+          else
+            echo "Installing optional packages for Direwolf: $optional_pkgs"
+            bash -c "$opt_cmd"
+          fi
+          ;;
+        *) ;;
+      esac
     else
       echo
       echo "Warning: 'sudo' not found on this system. The installer cannot run apt commands automatically."
