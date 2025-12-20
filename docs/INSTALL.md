@@ -6,7 +6,7 @@ steps for installing Neo-RX on Debian 13.
 Quick: run the installer (interactive):
 
 ```bash
-./install.sh
+https://raw.githubusercontent.com/chevybowtie/NESDR-Smart-v5-APRS-iGate/refs/heads/develop/install.sh | bash
 ```
 
 Common options:
