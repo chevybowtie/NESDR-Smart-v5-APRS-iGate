@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "neo-adsb"
-version = "0.3.0"
+version = "0.4.0"
 description = "Neo-RX ADS-B listener with optional ADS-B Exchange reporting"
 authors = [{ name = "Paul Sturm" }]
 requires-python = ">=3.11"
@@ -19,7 +19,7 @@ classifiers = [
 	"Topic :: Communications :: Ham Radio"
 ]
 dependencies = [
-	"neo-core==0.3.0",
+	"neo-core==0.4.0",
 	"requests>=2.31,<3",
 ]
 

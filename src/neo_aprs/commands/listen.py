@@ -37,6 +37,41 @@ AUDIO_SAMPLE_RATE = 22_050
 _AUDIO_CHUNK_BYTES = 4096
 _SOFTWARE_NAME = "neo-rx"
 
+# Record process start time for program uptime reporting
+_PROCESS_START_MONO = time.monotonic()
+
+
+def _read_system_uptime_seconds() -> float:
+    """Return system uptime in seconds.
+
+    On Linux read /proc/uptime; otherwise raise OSError.
+    """
+    try:
+        with open("/proc/uptime", "r", encoding="utf-8") as fh:
+            first = fh.read().split()[0]
+            return float(first)
+    except Exception as exc:
+        raise OSError("Unable to read /proc/uptime") from exc
+
+
+def _format_duration(delta: timedelta) -> str:
+    """Format a timedelta as a compact human-readable string.
+
+    Examples: "1d 02:03:04", "02:03:04", "5m 03s"
+    """
+    total_seconds = int(delta.total_seconds())
+    days, rem = divmod(total_seconds, 86400)
+    hours, rem = divmod(rem, 3600)
+    minutes, seconds = divmod(rem, 60)
+    if days:
+        return f"{days}d {hours:02d}:{minutes:02d}:{seconds:02d}"
+    if hours:
+        return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+    if minutes:
+        return f"{minutes}m {seconds:02d}s"
+    return f"{seconds}s"
+
+
 # _SOFTWARE_VERSION is provided by the package-level __version__ value.
 
 
@@ -102,7 +137,9 @@ def run_listen(args: Namespace) -> int:
 
     stop_event = threading.Event()
     command_queue: "Queue[str]" = Queue()
-    keyboard_thread = start_keyboard_listener(stop_event, command_queue, name="neo-rx-aprs-keyboard")
+    keyboard_thread = start_keyboard_listener(
+        stop_event, command_queue, name="neo-rx-aprs-keyboard"
+    )
     summary_log_path = config_module.get_logs_dir("aprs") / "neo-rx.log"
 
     def _pump_audio() -> None:
@@ -491,6 +528,7 @@ def _append_q_construct(
     combined = ",".join([dest] + new_path)
     return f"{src}>{combined}:{info}"
 
+
 # Backward compatibility: tests rely on _start_keyboard_listener existing.
 # Delegate to shared implementation in neo_core.term.
 def _start_keyboard_listener(
@@ -547,8 +585,12 @@ def _handle_keyboard_commands(
     process_commands(
         command_queue,
         {
-            "s": lambda: print("\n" + _summarize_recent_activity(log_path) + "\n", flush=True),
-            "q": (lambda: (print("\nExiting iGate...\n", flush=True), stop_event.set())) if stop_event is not None else (lambda: print("\nExiting iGate...\n", flush=True)),
+            "s": lambda: print(
+                "\n" + _summarize_recent_activity(log_path) + "\n", flush=True
+            ),
+            "q": (lambda: (print("\nExiting iGate...\n", flush=True), stop_event.set()))
+            if stop_event is not None
+            else (lambda: print("\nExiting iGate...\n", flush=True)),
             "v": lambda: print(f"\n{_SOFTWARE_NAME} {_SOFTWARE_VERSION}\n", flush=True),
         },
     )
@@ -611,16 +653,32 @@ def _summarize_recent_activity(
 
     if not stations:
         return "No stations heard in the last 24 hours."
-
     lines = [
         f"Station activity summary for {reference_time.strftime('%Y-%m-%dT%H:%M:%SZ')}",
         f"Window: last {window}",
         f"Log file: {log_path}",
-        "",
-        "── Station activity (last 24h) ──",
-        f"Unique stations: {len(stations)} | Frames: {total_frames}",
-        "",
     ]
+
+    # Include system uptime and program uptime near the top of the summary
+    try:
+        sys_uptime_seconds = _read_system_uptime_seconds()
+        sys_uptime = _format_duration(timedelta(seconds=int(sys_uptime_seconds)))
+    except Exception:
+        sys_uptime = "unknown"
+
+    prog_uptime_seconds = max(0, time.monotonic() - _PROCESS_START_MONO)
+    prog_uptime = _format_duration(timedelta(seconds=int(prog_uptime_seconds)))
+
+    lines.extend(
+        [
+            "",
+            f"System uptime: {sys_uptime} | Program uptime: {prog_uptime}",
+            "",
+            "── Station activity (last 24h) ──",
+            f"Unique stations: {len(stations)} | Frames: {total_frames}",
+            "",
+        ]
+    )
 
     sorted_items = sorted(
         stations.items(),

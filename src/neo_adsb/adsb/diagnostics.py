@@ -153,7 +153,9 @@ def check_dump1090_running() -> DiagnosticResult:
     )
 
 
-def check_dump1090_json(json_path: str | Path = "/run/readsb/aircraft.json") -> DiagnosticResult:
+def check_dump1090_json(
+    json_path: str | Path = "/run/readsb/aircraft.json",
+) -> DiagnosticResult:
     """Check if decoder JSON output is available and valid (prefer readsb)."""
     path = Path(json_path)
     default_paths = [

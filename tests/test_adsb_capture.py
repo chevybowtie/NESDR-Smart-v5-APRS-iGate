@@ -91,26 +91,29 @@ class TestDump1090Client:
     def test_poll_valid_json(self):
         """Test poll with valid JSON file."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
-            json.dump({
-                "now": 1700000000.0,
-                "aircraft": [
-                    {
-                        "hex": "abc123",
-                        "flight": "UAL123  ",
-                        "alt_geom": 35000,
-                        "gs": 450.5,
-                        "track": 180.0,
-                        "lat": 37.7749,
-                        "lon": -122.4194,
-                        "rssi": -25.5,
-                        "messages": 100,
-                    },
-                    {
-                        "hex": "def456",
-                        "alt_baro": 25000,
-                    },
-                ]
-            }, f)
+            json.dump(
+                {
+                    "now": 1700000000.0,
+                    "aircraft": [
+                        {
+                            "hex": "abc123",
+                            "flight": "UAL123  ",
+                            "alt_geom": 35000,
+                            "gs": 450.5,
+                            "track": 180.0,
+                            "lat": 37.7749,
+                            "lon": -122.4194,
+                            "rssi": -25.5,
+                            "messages": 100,
+                        },
+                        {
+                            "hex": "def456",
+                            "alt_baro": 25000,
+                        },
+                    ],
+                },
+                f,
+            )
             temp_path = f.name
 
         try:
