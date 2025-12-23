@@ -3,6 +3,26 @@
 All notable changes to this project will be documented in this file.
 
 
+## [0.4.0] - 2025-12-22
+
+### Added
+- Interactive installer core: moved canonical installer logic to `scripts/install-core.sh` (downloads release archive without requiring git, extracts persistently for editable local installs, and creates a venv).
+- Single-file wrapper `install.sh` can fetch and exec the core installer via `curl` for curl|bash workflows.
+- APRS summary: 24-hour station activity summary now includes system uptime and program (process) runtime.
+
+### Changed
+- Reworked `install.sh` to re-exec under `bash` when needed and to use a robust color-detection/fallback (reliable ANSI escapes via printf when `tput` is unavailable).
+- `uninstall.sh` now prompts before removing `~/.config/neo-rx` to avoid accidental data loss.
+
+### Fixed
+- Installer: fixed color fallback logic so colorized messages display reliably in common terminals.
+change does not break imports.
+
+### Testing
+- Full local test run: 326 tests passed.
+
+
+
 ## [0.3.0] - 2025-12-03
 
 ### Added
