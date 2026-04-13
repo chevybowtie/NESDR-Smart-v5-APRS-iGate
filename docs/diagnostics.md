@@ -1,15 +1,28 @@
 # Diagnostics Command Outline
 
-Defines the behavior of mode-specific diagnostics commands (`neo-rx aprs diagnostics`, `neo-rx wspr diagnostics`), providing status snapshots for the SDR, mode-specific services, and network connectivity.
+Defines the behavior of mode-specific diagnostics commands (`neo-rx aprs diagnostics`, `neo-rx wspr diagnostics`, `neo-rx adsb diagnostics`), providing status snapshots for the SDR, mode-specific services, configuration validation, and network connectivity.
 
 ## Command Summary
 - Usage: 
   - `neo-rx aprs diagnostics [--json] [--verbose]`
   - `neo-rx wspr diagnostics [--json] [--verbose] [--band 20m]`
+  - `neo-rx adsb diagnostics [--json] [--verbose]`
 - Default output: human-readable status table.
 - `--json`: emit structured JSON suitable for scripting.
 - `--verbose`: include extended details (logs, environment info).
 - `--instance-id NAME`: check instance-specific paths and configuration.
+
+## Device Discovery
+
+To find RTL-SDR device serial numbers before configuring your mode:
+```bash
+neo-rx adsb find-devices          # Show user-friendly format
+neo-rx adsb find-devices --json   # Show JSON for scripting
+```
+
+Available in all modes: `neo-rx {aprs,wspr,adsb} find-devices`
+
+This is critical for robust configuration: use the serial number (e.g., `67411606`) in your device settings rather than USB index (e.g., `0`). Serial number addressing persists across thermal events and USB re-enumeration.
 
 ## Checks Performed (Common)
 
@@ -18,17 +31,43 @@ Defines the behavior of mode-specific diagnostics commands (`neo-rx aprs diagnos
 - Python version and executable path.
 - Package versions (`pyrtlsdr`, `aprslib`, `numpy`, etc.).
 
-### 2. SDR Hardware
+### 2. Configuration Validation
+- **Device Addressing**: Checks if configured to use serial number (robust) vs USB index (fragile).
+  - ⚠️ **WARNING**: USB index addressing (`--device 0`) breaks after thermal events or USB re-enumeration.
+  - ✓ **RECOMMENDED**: Use serial number addressing (`--device=67411606`).
+  - Use `neo-rx adsb find-devices` to discover your device's serial number.
+- **Gain Settings**: Checks if using fixed gain vs auto-gain.
+  - ⚠️ **WARNING**: Auto-gain (`--gain auto`) can cause excessive RF amplifier power draw and thermal shutdown.
+  - ✓ **RECOMMENDED**: Use fixed gain (e.g., `--gain 35`) for stability and thermal control.
+
+### 3. SDR Hardware
 - Enumerate RTL-SDR devices (`pyrtlsdr.RtlSdr.get_device_count`).
-- If configured device index is reachable:
+- If configured device is reachable:
   - Tuner info (manufacturer, serial, gain range).
   - Attempt tune to configured frequency and read a short sample buffer.
   - Report signal strength (RSSI estimate) and DC offset metrics (if available).
 - Note: Use `--device-id SERIAL` to check specific SDRs in concurrent setups.
 
+## ADS-B-Specific Checks
+
+### 4. Decoder (readsb/dump1090)
+- Check if readsb, dump1090-fa, or dump1090 is installed.
+- Verify service is running (active and not in failure state).
+- Check for decoder output file (aircraft.json).
+  - If readsb: `/run/readsb/aircraft.json`
+  - If dump1090-fa: `/run/dump1090-fa/aircraft.json`
+
+### 5. RTL-SDR Availability
+- Query RTL-SDR device via `rtl_test -t`.
+- If device is in use or not accessible, check `/etc/default/readsb` configuration.
+
+### 6. ADS-B Exchange Integration
+- Check if ADS-B Exchange feedclient is installed.
+- Verify `adsbexchange-feed` and `adsbexchange-mlat` services are running.
+
 ## APRS-Specific Checks
 
-### 3. Direwolf / KISS
+### 7. Direwolf / KISS
 - Check connectivity to KISS host:port.
 - Send no-op FEND frame, confirm bytes received.
 - If managed Direwolf:
@@ -37,7 +76,7 @@ Defines the behavior of mode-specific diagnostics commands (`neo-rx aprs diagnos
 - If external Direwolf:
   - Suggest verifying `direwolf -t 0` output if connection fails.
 
-### 4. APRS-IS Uplink
+### 8. APRS-IS Uplink
 - Attempt TCP connection to configured APRS-IS server.
 - Perform login handshake in `-test` / no-beacon mode (or use keepalive).
 - Measure latency (connect and login response time).
@@ -45,18 +84,18 @@ Defines the behavior of mode-specific diagnostics commands (`neo-rx aprs diagnos
 
 ## WSPR-Specific Checks
 
-### 3. Decoder Binary
+### 7. Decoder Binary
 - Verify bundled `wsprd` binary is present and executable.
 - Report version information from wsprd.
 
-### 4. Upconverter Detection
+### 8. Upconverter Detection
 - Analyze recent WSPR spots (if available) to detect frequency offsets.
 - Report hint: "likely upconverter" or "direct sampling" based on frequency clusters.
 - Use `--band BAND` to focus detection on specific band data.
 
-## Configuration & Paths (Both Modes)
+## Configuration & Paths (All Modes)
 
-### 5. Configuration & Paths
+### 9. Configuration & Paths
 - Display config file path(s):
   - `~/.config/neo-rx/config.toml` (legacy)
   - `~/.config/neo-rx/defaults.toml`, `aprs.toml`, `wspr.toml` (layered)
