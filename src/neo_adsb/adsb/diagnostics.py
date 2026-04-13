@@ -142,14 +142,36 @@ def check_dump1090_running() -> DiagnosticResult:
         except (subprocess.SubprocessError, FileNotFoundError):
             continue
 
+    # Check if there's a service in failure state (hint at root cause)
+    failure_details = {
+        "checked_services": services,
+        "hint": "Enable and start readsb: sudo systemctl enable --now readsb",
+    }
+    
+    # Check if readsb is in failure state and check logs
+    try:
+        result = subprocess.run(
+            ["systemctl", "show", "readsb", "-p", "Result", "-p", "UnitFileState"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if "Result=failure" in result.stdout or "Result=exit-code" in result.stdout:
+            failure_details["probe_status"] = "Service is failing to start"
+            failure_details["hint"] = (
+                "Service is crashing on startup. Possible causes:\n"
+                "  1. RTL-SDR device not connected (try different USB ports)\n"
+                "  2. Device is in use by another process\n"
+                "  3. Check with: rtl_test -t, lsusb, or systemctl status readsb"
+            )
+    except (subprocess.SubprocessError, FileNotFoundError):
+        pass
+
     return DiagnosticResult(
         name="decoder_service",
         status="ERROR",
         message="No ADS-B decoder service is running",
-        details={
-            "checked_services": services,
-            "hint": "Enable and start readsb: sudo systemctl enable --now readsb",
-        },
+        details=failure_details,
     )
 
 
@@ -257,15 +279,40 @@ def check_rtl_sdr() -> DiagnosticResult:
                 details={"output": output[:200]},
             )
         elif "No supported" in output or "No device" in output:
-            return DiagnosticResult(
-                name="rtl_sdr",
-                status="WARNING",
-                message="No RTL-SDR device found (may be in use by dump1090)",
-                details={
-                    "output": output[:200],
-                    "hint": "If dump1090 is running, this is expected",
-                },
-            )
+            # Check if device appears via lsusb (may need permissions)
+            lsusb_info = _check_lsusb_for_rtl()
+            
+            if lsusb_info:
+                # Device is in lsusb but rtl_test can't access it
+                return DiagnosticResult(
+                    name="rtl_sdr",
+                    status="WARNING",
+                    message="RTL-SDR device found but not accessible (may be in use)",
+                    details={
+                        "lsusb": lsusb_info,
+                        "hint": "Device appears in lsusb but rtl_test cannot access it.\n"
+                        "  Likely causes:\n"
+                        "  1. Device is in use by dump1090/readsb (expected)\n"
+                        "  2. Need to run with sudo or adjust USB permissions",
+                    },
+                )
+            else:
+                # Device not found anywhere
+                return DiagnosticResult(
+                    name="rtl_sdr",
+                    status="ERROR",
+                    message="No RTL-SDR device found",
+                    details={
+                        "output": output[:200],
+                        "hint": "RTL-SDR device not detected.\n"
+                        "  Troubleshooting steps:\n"
+                        "  1. Check physical connection to USB port\n"
+                        "  2. Try different USB ports (especially root hub ports)\n"
+                        "  3. Run 'lsusb' to see if device appears there\n"
+                        "  4. Check dmesg for device enumeration messages:\n"
+                        "     sudo dmesg | tail -30",
+                    },
+                )
     except subprocess.TimeoutExpired:
         return DiagnosticResult(
             name="rtl_sdr",
@@ -287,6 +334,38 @@ def check_rtl_sdr() -> DiagnosticResult:
         message="RTL-SDR status unknown",
         details={},
     )
+
+
+def _check_lsusb_for_rtl() -> str | None:
+    """Check if RTL-SDR device appears in lsusb output.
+    
+    Returns device info if found, None otherwise.
+    """
+    lsusb = shutil.which("lsusb")
+    if not lsusb:
+        return None
+    
+    try:
+        result = subprocess.run(
+            ["lsusb"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        output = result.stdout
+        
+        # Look for common RTL-SDR USB IDs
+        # RTL2832U common IDs: 0bda:2832
+        # Nooelec Smart: often appears with vendor-specific IDs
+        rtl_patterns = ["2832", "RTL", "NESDR", "DVB"]
+        
+        for line in output.split("\n"):
+            if any(pattern in line for pattern in rtl_patterns):
+                return line.strip()
+    except (subprocess.SubprocessError, FileNotFoundError):
+        pass
+    
+    return None
 
 
 def check_adsbexchange_installed() -> DiagnosticResult:
@@ -372,6 +451,80 @@ def check_adsbexchange_services() -> DiagnosticResult:
         )
 
 
+def check_readsb_config() -> DiagnosticResult:
+    """Check readsb configuration for common issues.
+    
+    Validates:
+    - Device addressing (serial number vs index)
+    - Gain settings (auto vs fixed)
+    """
+    config_path = Path("/etc/default/readsb")
+    if not config_path.exists():
+        return DiagnosticResult(
+            name="readsb_config",
+            status="OK",
+            message="No readsb config found (using defaults)",
+            details={},
+        )
+
+    try:
+        config_content = config_path.read_text()
+        details: dict[str, Any] = {"issues": []}
+        status = "OK"
+
+        # Check for device indexing (fragile) vs serial number (robust)
+        if "--device 0" in config_content or "--device 1" in config_content:
+            details["issues"].append(
+                "Using device index (--device 0/1) instead of serial number. "
+                "Device indexing is fragile and breaks after USB re-enumeration or thermal events. "
+                "Use --device=<SERIAL> instead (e.g., --device=67411606)."
+            )
+            status = "WARNING"
+        elif "--device=" in config_content and "'--device=" not in config_content:
+            # Likely using serial number, extract it for validation
+            for line in config_content.split("\n"):
+                if "--device=" in line:
+                    details["device_addressing"] = "serial_number (robust)"
+                    break
+
+        # Check for gain auto (can cause thermal issues on RTL-SDR)
+        if "--gain auto" in config_content or "--gain auto-verbose" in config_content:
+            details["issues"].append(
+                "Using auto gain (--gain auto) which can cause excessive power draw and thermal issues. "
+                "Consider fixed gain for stability: --gain 35 or --gain 40 (typical values 20-48)."
+            )
+            status = "WARNING"
+        elif "--gain" in config_content:
+            for line in config_content.split("\n"):
+                if "--gain" in line and "=" in line:
+                    gain_val = line.split("--gain")[-1].split()[0]
+                    details["gain_setting"] = gain_val
+                    break
+
+        if not details["issues"]:
+            return DiagnosticResult(
+                name="readsb_config",
+                status="OK",
+                message="readsb config looks good",
+                details=details,
+            )
+        else:
+            return DiagnosticResult(
+                name="readsb_config",
+                status=status,
+                message=f"readsb config: {len(details['issues'])} issue(s) found",
+                details=details,
+            )
+
+    except OSError as exc:
+        return DiagnosticResult(
+            name="readsb_config",
+            status="WARNING",
+            message=f"Cannot read readsb config: {exc}",
+            details={},
+        )
+
+
 def run_diagnostics(
     check_adsbexchange: bool = True,
     json_path: str | Path | None = None,
@@ -390,6 +543,7 @@ def run_diagnostics(
     # Core checks
     report.checks.append(check_dump1090_installed())
     report.checks.append(check_dump1090_running())
+    report.checks.append(check_readsb_config())
     if json_path:
         report.checks.append(check_dump1090_json(json_path))
     else:

@@ -128,7 +128,19 @@ To validate an existing configuration without prompts, use the non-interactive m
 neo-rx aprs setup --non-interactive --config path/to/config.toml
 ```
 
-## 4. Verify the environment (optional)
+## 4. Discover RTL-SDR Device Serial Number
+
+Before running your mode, it's helpful to identify your RTL-SDR device and its serial number:
+```bash
+# Discover connected RTL-SDR devices
+neo-rx adsb find-devices
+# or: neo-rx aprs find-devices, neo-rx wspr find-devices
+```
+
+The output shows your device's serial number (e.g., `67411606`), which you'll use to configure your mode-specific settings. This ensures robust device addressing across thermal events and USB re-enumeration.
+
+## 5. Verify the environment (optional)
+
 Use diagnostics to confirm software, SDR, and network reachability:
 ```bash
 # APRS diagnostics
@@ -136,8 +148,13 @@ neo-rx aprs diagnostics --verbose
 
 # WSPR diagnostics
 neo-rx wspr diagnostics --verbose
+
+# ADS-B diagnostics
+neo-rx adsb diagnostics --verbose
 ```
 Add `--json` for machine-readable output.
+
+Diagnostics also validates your configuration (e.g., checking that you're using device serial number addressing instead of index-based, and fixed gain instead of auto-gain to prevent thermal issues).
 
 Colorized output
 ----------------

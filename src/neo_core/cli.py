@@ -82,6 +82,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--verbose", action="store_true", help="Show extended diagnostic information"
     )
 
+    aprs_find = aprs_sub.add_parser(
+        "find-devices", help="List connected RTL-SDR devices and serial numbers"
+    )
+    _add_common_flags(aprs_find)
+
     # WSPR subcommands
     wspr = subparsers.add_parser("wspr", help="WSPR mode commands")
     wspr_sub = wspr.add_subparsers(dest="verb", required=True)
@@ -115,6 +120,11 @@ def build_parser() -> argparse.ArgumentParser:
     wspr_diag = wspr_sub.add_parser("diagnostics", help="Run WSPR diagnostics")
     _add_common_flags(wspr_diag)
     wspr_diag.add_argument("--band", help="Band to validate (MHz)")
+
+    wspr_find = wspr_sub.add_parser(
+        "find-devices", help="List connected RTL-SDR devices and serial numbers"
+    )
+    _add_common_flags(wspr_find)
 
     # ADS-B subcommands
     adsb = subparsers.add_parser("adsb", help="ADS-B mode commands")
@@ -168,6 +178,11 @@ def build_parser() -> argparse.ArgumentParser:
     adsb_diag.add_argument(
         "--verbose", action="store_true", help="Show extended diagnostic information"
     )
+
+    adsb_find = adsb_sub.add_parser(
+        "find-devices", help="List connected RTL-SDR devices and serial numbers"
+    )
+    _add_common_flags(adsb_find)
 
     return parser
 
@@ -261,6 +276,12 @@ def main(argv: list[str] | None = None) -> int:
             )
 
             return aprs_run_diagnostics(args)
+        elif args.verb == "find-devices":
+            from neo_adsb.commands.find_devices import (  # type: ignore[import]
+                run_find_devices_cmd,
+            )
+
+            return run_find_devices_cmd(args)
         else:
             parser.error("Unknown APRS verb")
     elif args.mode == "wspr":
@@ -290,6 +311,12 @@ def main(argv: list[str] | None = None) -> int:
             from neo_wspr.commands.diagnostics import run_diagnostics  # type: ignore[import]
 
             return run_diagnostics(args)
+        elif args.verb == "find-devices":
+            from neo_adsb.commands.find_devices import (  # type: ignore[import]
+                run_find_devices_cmd,
+            )
+
+            return run_find_devices_cmd(args)
         else:
             parser.error("Unknown WSPR verb")
     elif args.mode == "adsb":
@@ -307,6 +334,12 @@ def main(argv: list[str] | None = None) -> int:
             )
 
             return adsb_run_diagnostics(args)
+        elif args.verb == "find-devices":
+            from neo_adsb.commands.find_devices import (  # type: ignore[import]
+                run_find_devices_cmd,
+            )
+
+            return run_find_devices_cmd(args)
         else:
             parser.error("Unknown ADS-B verb")
     else:
