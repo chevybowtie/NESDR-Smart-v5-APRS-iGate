@@ -3,6 +3,7 @@
 Multi-mode command-line utility for turning an SDR (for example a NESDR Smart v5 RTL-SDR) into a turn-key APRS iGate, WSPR monitor, or ADS-B aircraft tracker.
 
 Features:
+
 - **APRS iGate**: Receive-only APRS with APRS-IS uplink via Direwolf
 - **WSPR monitoring**: Multi-band propagation tracking with WSPRnet integration
 - **ADS-B monitoring**: Aircraft tracking with optional ADS-B Exchange reporting
@@ -12,28 +13,34 @@ Features:
 - **Multi-package architecture**: Modular design with separate packages for core, telemetry, APRS, WSPR, and ADS-B functionality
 
 ## Prerequisites
+
 - Linux host with Python 3.11 or newer
 - NESDR Smart v5 (or compatible RTL-SDR)
 - Direwolf packet modem installed and on `PATH`
-	- `rtl_fm`, `rtl_test`, and `direwolf` binaries must be callable
+  - `rtl_fm`, `rtl_test`, and `direwolf` binaries must be callable
 - (Optional) `sox` for Direwolf audio tooling (installed automatically with the `direwolf` extra)
 - (Optional) WSPR decoding (bundled with the `wspr` extra)
 
 On Debian- or Ubuntu-based systems you can install the radio tools and Direwolf with:
+
 ```bash
 sudo apt install rtl-sdr direwolf python3-venv
 ```
+
 Add `sox` if you want the optional audio helpers:
+
 ```bash
 sudo apt install sox
 ```
 
 ### WSPR Support
+
 WSPR decoding is supported via the bundled `wsprd` binary (from WSJT-X). No additional installation is required beyond the Python dependencies.
 
 The WSPR feature uses the bundled `wsprd` for IQ data decoding.
 
 ## 1. Clone the repo and create a virtual environment
+
 ```bash
 git clone https://github.com/chevybowtie/NESDR-Smart-v5-APRS-iGate.git
 cd NESDR-Smart-v5-APRS-iGate
@@ -46,12 +53,15 @@ python -m pip install --upgrade pip
 ## 2. Install project dependencies
 
 ### For end users (from PyPI or local wheels)
+
 Install the `neo-rx` metapackage, which pulls in all subpackages:
+
 ```bash
 pip install neo-rx
 ```
 
 To install specific functionality only:
+
 ```bash
 # Core + APRS only
 pip install neo-aprs
@@ -67,7 +77,9 @@ pip install neo-telemetry
 ```
 
 ### For developers (editable install from source)
+
 Install in dependency order for development:
+
 ```bash
 # Install core package first
 pip install -e ./src/neo_core[dev]
@@ -83,11 +95,13 @@ pip install -e .[dev,all]
 ```
 
 Or use the automated setup:
+
 ```bash
 make setup
 ```
 
 ### Optional extras
+
 - `direwolf`: Adds `sox` for Direwolf audio helpers (APRS only)
 - `adsb`: ADS-B aircraft tracking with ADS-B Exchange integration
 - `dev`: Formatting, linting, and test tooling
@@ -98,6 +112,7 @@ Note about APRS library: the project pins a relaxed constraint for `aprslib` in 
 ## 3. Run the interactive setup
 
 Launch the onboarding wizard to capture station details and render the initial configuration:
+
 ```bash
 # APRS setup
 neo-rx aprs setup
@@ -107,6 +122,7 @@ neo-rx wspr setup
 ```
 
 During setup you will be asked for:
+
 - Callsign-SSID and APRS-IS passcode (optionally stored in the system keyring)
 - APRS-IS server endpoint
 - Station latitude/longitude (optional but recommended)
@@ -118,12 +134,14 @@ The wizard writes `config.toml` to `~/.config/neo-rx/` (override via `NEO_RX_CON
 ### Configuration layering
 
 Neo-RX supports multi-file configuration with precedence:
+
 1. `~/.config/neo-rx/defaults.toml` - Shared defaults
 2. `~/.config/neo-rx/aprs.toml` or `~/.config/neo-rx/wspr.toml` - Mode-specific overrides
 3. Environment variables (e.g., `NEO_RX_APRS__SERVER=localhost`)
 4. CLI flags (e.g., `--config`, `--data-dir`, `--instance-id`)
 
 To validate an existing configuration without prompts, use the non-interactive mode:
+
 ```bash
 neo-rx aprs setup --non-interactive --config path/to/config.toml
 ```
@@ -131,6 +149,7 @@ neo-rx aprs setup --non-interactive --config path/to/config.toml
 ## 4. Discover RTL-SDR Device Serial Number
 
 Before running your mode, it's helpful to identify your RTL-SDR device and its serial number:
+
 ```bash
 # Discover connected RTL-SDR devices
 neo-rx adsb find-devices
@@ -142,6 +161,7 @@ The output shows your device's serial number (e.g., `67411606`), which you'll us
 ## 5. Verify the environment (optional)
 
 Use diagnostics to confirm software, SDR, and network reachability:
+
 ```bash
 # APRS diagnostics
 neo-rx aprs diagnostics --verbose
@@ -152,11 +172,13 @@ neo-rx wspr diagnostics --verbose
 # ADS-B diagnostics
 neo-rx adsb diagnostics --verbose
 ```
+
 Add `--json` for machine-readable output.
 
 Diagnostics also validates your configuration (e.g., checking that you're using device serial number addressing instead of index-based, and fixed gain instead of auto-gain to prevent thermal issues).
 
 Colorized output
+
 ----------------
 
 The textual diagnostics output can optionally be colorized for interactive
@@ -164,8 +186,7 @@ terminals so status tokens (OK / WARNING / ERROR) are easier to scan:
 
 - `--color` forces colorized output (even when stdout is not a TTY)
 - `--no-color` disables colorized output
-- The runtime also respects the `NO_COLOR` environment variable as a
-	conventional opt-out.
+- The runtime also respects the `NO_COLOR` environment variable as a conventional opt-out.
 
 Examples:
 
@@ -181,24 +202,25 @@ NO_COLOR=1 neo-rx aprs diagnostics --verbose
 ```
 
 Notes:
-- JSON output produced with `--json` is always plain and machine-readable
-	(no ANSI color codes are injected).
-- When colors are enabled the status labels in the human-readable report are
-	marked with ANSI color sequences; these may be visible when capturing
-	logs to files, so prefer `--json` for automated tooling or CI.
+
+- JSON output produced with `--json` is always plain and machine-readable (no ANSI color codes are injected).
+- When colors are enabled the status labels in the human-readable report are marked with ANSI color sequences; these may be visible when capturing logs to files, so prefer `--json` for automated tooling or CI.
 
 ## 5. Start listening
+
 ```bash
 neo-rx aprs listen
 ```
 
 The listener will:
+
 1. Launch `rtl_fm` and pipe audio into Direwolf
 2. Read KISS frames from Direwolf
 3. Decode AX.25 payloads for console display
 4. Forward packets to APRS-IS using the configured credentials
 
 Useful flags:
+
 - `--no-aprsis` to operate receive-only without APRS-IS uplink
 - `--once` to process a single frame batch (helpful for smoke tests)
 - `--config PATH` to point at an alternate configuration file
@@ -209,6 +231,7 @@ Useful flags:
 ### Console output and logging
 
 By default, the listener runs at `INFO` log level, which displays:
+
 - Startup messages (version, callsign, server connection)
 - Each received frame with port and TNC2 packet preview
 - APRS-IS connection status and errors
@@ -220,18 +243,21 @@ All console output is simultaneously written to `~/.local/share/neo-rx/logs/aprs
 To reduce console noise while keeping file logs intact, use `--log-level warning` or `--log-level error`. To see detailed debug information (useful for troubleshooting), use `--log-level debug`.
 
 You can also set the log level via the `NEO_RX_LOG_LEVEL` environment variable:
+
 ```bash
 NEO_RX_LOG_LEVEL=debug neo-rx aprs listen
 ```
 
-
 ## 6. WSPR Monitoring (optional)
+
 If you installed WSPR support, you can monitor WSPR bands for propagation reports:
+
 ```bash
 neo-rx wspr listen
 ```
 
 The WSPR monitor will:
+
 1. Cycle through WSPR bands (80m, 40m, 20m, 30m, 10m, 6m, 2m, 70cm) with 2-minute intervals
 2. Capture IQ samples from the RTL-SDR
 3. Decode signals using `wsprd`
@@ -258,6 +284,7 @@ neo-rx wspr diagnostics [--band 20m]
 ```
 
 Useful flags:
+
 - `--band {80m,40m,30m,20m,10m,6m,2m,70cm}` to monitor a single band
 - `--instance-id NAME` to isolate data/logs for concurrent runs
 - `--device-id SERIAL` to select a specific RTL-SDR device
@@ -314,16 +341,21 @@ ADS-B monitoring requires a decoder daemon that owns the SDR and writes `aircraf
 neo-rx reads the JSON these daemons produce; it does not tune the SDR in ADS-B mode.
 
 On Debian/Ubuntu systems (readsb):
+
 ```bash
 sudo apt install readsb
 sudo systemctl enable --now readsb
 ```
+
 Optionally, install the ADS-B Exchange feeder (handles network reporting):
+
 ```bash
 curl -L -o /tmp/axfeed.sh https://adsbexchange.com/feed.sh
 sudo bash /tmp/axfeed.sh
 ```
+
 Typical services involved:
+
 ```bash
 systemctl list-units 'dump1090*' 'readsb*' 'adsbexchange*'
 # expect: readsb.service (running), adsbexchange-feed.service (running),
@@ -344,19 +376,21 @@ neo-rx adsb setup
 ```
 
 Useful flags:
+
 - `--json-path PATH` to specify decoder JSON location (auto-detects common paths like `/run/readsb/aircraft.json` and `/run/dump1090-fa/aircraft.json`)
 - `--poll-interval SECONDS` to set update frequency (default: 1.0)
 - `--quiet` to suppress aircraft display output
 - `--instance-id NAME` to isolate data/logs for concurrent runs
 - `--config PATH` to point at your `config.toml` (ensures MQTT settings load)
 
-Live map
+### Live map
+
 --------
 
 If you installed `tar1090` (commonly bundled with readsb setups), you can view a
 live map of local traffic at:
 
-- http://localhost/tar1090/
+- <http://localhost/tar1090/>
 
 neo-rx reads from the same decoder backend; the map is independent and provides
 a rich browser-based view alongside the terminal table.
@@ -364,6 +398,7 @@ a rich browser-based view alongside the terminal table.
 ### ADS-B Exchange Integration
 
 For feeding data to ADS-B Exchange, install the official feedclient:
+
 ```bash
 curl -L -o /tmp/axfeed.sh https://adsbexchange.com/feed.sh
 sudo bash /tmp/axfeed.sh
@@ -387,24 +422,28 @@ sudo systemctl restart adsbexchange-mlat
 ```
 
 Verify MLAT is running:
+
 ```bash
 sudo systemctl status adsbexchange-mlat
 neo-rx adsb diagnostics --verbose
 ```
 
 neo-rx provides status monitoring for ADS-B Exchange services:
+
 ```bash
 neo-rx adsb diagnostics --verbose
 ```
 
 This will show:
+
 - dump1090/readsb installation and status
 - ADS-B Exchange feedclient installation
 - Feed and MLAT service status
 
 Check your feed status:
-- https://www.adsbexchange.com/myip
-- https://map.adsbexchange.com/mlat-map
+
+- <https://www.adsbexchange.com/myip>
+- <https://map.adsbexchange.com/mlat-map>
 
 ADS-B data is stored beneath `~/.local/share/neo-rx/adsb/` by default.
 
@@ -500,11 +539,13 @@ neo-rx adsb listen --instance-id adsb-local
 ```
 
 Each instance maintains isolated data and log directories:
+
 - APRS: `~/.local/share/neo-rx/instances/aprs-east/aprs/` (data), `~/.local/share/neo-rx/instances/aprs-east/logs/aprs/` (logs)
 - WSPR: `~/.local/share/neo-rx/instances/wspr-20m/wspr/` (data), `~/.local/share/neo-rx/instances/wspr-20m/logs/wspr/` (logs)
 - ADS-B: `~/.local/share/neo-rx/instances/adsb-local/adsb/` (data), `~/.local/share/neo-rx/instances/adsb-local/logs/adsb/` (logs)
 
 ## Troubleshooting
+
 - `neo-rx aprs diagnostics`, `neo-rx wspr diagnostics`, or `neo-rx adsb diagnostics` surfaces missing dependencies, SDR availability, and network reachability issues.
 - Ensure `rtl_fm`, `rtl_test`, `direwolf`, and `sox` (optional) are installed and executable.
 - Review mode-specific logs under `~/.local/share/neo-rx/logs/{aprs,wspr}/` (or per-instance paths) for detailed errors. If you want on-disk logs to expire automatically, configure host-level rotation (for example a `logrotate` rule with `weekly` + `rotate 4` against `~/.local/share/neo-rx/logs/**/*.log`). See `docs/diagnostics.md` for the sample stanza and systemd notes.
