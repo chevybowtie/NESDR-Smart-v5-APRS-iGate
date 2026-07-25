@@ -2,7 +2,7 @@ PYTHON := python3
 VENV_DIR := .venv
 PACKAGES := neo_core neo_telemetry neo_aprs neo_wspr neo_adsb neo_rx
 
-.PHONY: setup test lint format lint-fix build clean verify-release sync-versions
+.PHONY: setup test lint format lint-fix mypy build clean verify-release sync-versions
 
 setup:
 	$(PYTHON) -m venv $(VENV_DIR)
@@ -30,6 +30,10 @@ lint-fix:
 	$(VENV_DIR)/bin/ruff check src tests --fix
 	$(VENV_DIR)/bin/ruff format src tests
 	@echo "✓ Lint issues fixed and code formatted"
+
+mypy:
+	$(VENV_DIR)/bin/mypy src/
+	@echo "✓ Type checks passed"
 
 build:
 	@echo "Building all packages..."

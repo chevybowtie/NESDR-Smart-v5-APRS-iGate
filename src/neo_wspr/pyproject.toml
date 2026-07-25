@@ -16,12 +16,13 @@ classifiers = [
 	"Programming Language :: Python :: 3 :: Only",
 	"Programming Language :: Python :: 3.11",
 	"Programming Language :: Python :: 3.12",
+	"Programming Language :: Python :: 3.13",
 	"Operating System :: POSIX :: Linux",
 	"Topic :: Communications :: Ham Radio"
 ]
 dependencies = [
 	"neo-core==0.5.0",
-	"requests>=2.31,<3",
+	"requests>=2.32,<3",
 ]
 
 [project.urls]
@@ -29,9 +30,9 @@ Homepage = "https://github.com/chevybowtie/NESDR-Smart-v5-APRS-iGate"
 
 [project.optional-dependencies]
 dev = [
-	"pytest>=8.3",
-	"pytest-cov>=5.0",
-	"ruff>=0.6",
+	"pytest>=9.0",
+	"pytest-cov>=7.0",
+	"ruff>=0.14",
 ]
 
 [tool.setuptools]

@@ -133,7 +133,7 @@ def _check_environment() -> Section:
 
     packages = {}
     missing: list[str] = []
-    for package in ("numpy", "pyrtlsdr", "aprslib"):
+    for package in ("numpy", "pyrtlsdr"):
         try:
             packages[package] = importlib_metadata.version(package)
         except importlib_metadata.PackageNotFoundError:
