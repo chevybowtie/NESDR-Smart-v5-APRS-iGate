@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0] - 2026-04-13
+
+### Added
+- Device discovery: `neo-rx {aprs,wspr,adsb} find-devices` lists connected RTL-SDR devices with serial numbers, for robust device addressing across thermal events and USB re-enumeration.
+- ADS-B diagnostics: expanded checks for device addressing (serial vs. index) and gain settings (fixed vs. auto) to help prevent thermal shutdown.
 
 ## [0.4.0] - 2025-12-22
 
@@ -16,7 +21,6 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 - Installer: fixed color fallback logic so colorized messages display reliably in common terminals.
-change does not break imports.
 
 ### Testing
 - Full local test run: 326 tests passed.
