@@ -10,7 +10,7 @@
 
 - Formatting: `ruff format` (PEP 8 style) with 4-space indentation, trailing commas enabled.
 - Linting: `ruff check` is the gatekeeper; treat warnings as errors before committing.
-- Type checking: `pyright` runs in strict mode for command modules; general modules aim for `--pythonversion 3.11` compliance.
+- Type checking: `make mypy` runs `mypy` against `src/` (configured in `pyproject.toml`, targeting Python 3.11). `pyrightconfig.json` is also present for editor-integrated checking in `basic` mode.
 - Git hooks (optional): add pre-commit with `pre-commit install` to run formatting and lint checks automatically.
 
 ## Logging and Observability
@@ -43,14 +43,15 @@
 
 ### Multi-package architecture
 
-- Project is organized into five coordinated packages:
+- Project is organized into six coordinated packages:
   - `neo-core`: shared utilities, configuration, radio capture
   - `neo-telemetry`: MQTT publishing and on-disk queue
   - `neo-aprs`: APRS protocol, KISS/APRS-IS clients, listen command
   - `neo-wspr`: WSPR decoding, calibration, scan/upload commands
+  - `neo-adsb`: ADS-B decoding, diagnostics, and device discovery
   - `neo-rx`: metapackage CLI entry point, pulls all subpackages
 - Each package lives under `src/<package_name>/` with its own `pyproject.toml`
-- Versions must stay synchronized across all five packages
+- Versions must stay synchronized across all six packages (`scripts/sync_versions.py` drives this)
 
 ### Release workflow
 
@@ -86,8 +87,8 @@ git push origin --tags
 
 ### User installation
 
-- Install metapackage (recommended): `pip install neo-rx`
-- Install specific subpackage: `pip install neo-aprs`
+- Not published to PyPI (`LicenseRef-Proprietary`). Install via the `install.sh` curl one-liner (see `docs/INSTALL.md`) or build local wheels with `make build` and `pip install dist/neo_rx-*.whl`.
+- Install specific subpackage from a local build: `pip install dist/neo_aprs-*.whl`
 - Offline install: `pip install --no-index --find-links dist neo-rx==x.y.z`
 - Verify: `neo-rx --version`, `neo-rx aprs diagnostics --json`
 
@@ -96,7 +97,7 @@ git push origin --tags
 - License format: All packages use SPDX string `"LicenseRef-Proprietary"` (setuptools table format deprecated)
 - Subpackage readmes: Removed to silence `twine check` warnings (metapackage includes README.md)
 - Transient warnings: Some deps may reference `pkg_resources`; pin `setuptools<81` if problematic
-- `aprslib>=0.8` not on PyPI (Nov 2025); relax requirement to `>=0.7.2,<0.9` for compatibility
+- `aprslib` is no longer a dependency; `neo-aprs` ships its own minimal APRS-IS client (`neo_aprs/aprs/aprsis_client.py`)
 - `types-keyring` unpublished; use runtime `keyring` package and document typing via `pyright` config
 
 ### CI implications

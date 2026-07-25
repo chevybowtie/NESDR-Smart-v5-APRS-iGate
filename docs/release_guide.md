@@ -4,11 +4,12 @@ Complete instructions for creating and publishing a new release of the Neo-RX mu
 
 ## Overview
 
-The Neo-RX project consists of five coordinated packages that must be released together:
+The Neo-RX project consists of six coordinated packages that must be released together:
 - `neo-core`: shared utilities, configuration, radio capture
 - `neo-telemetry`: MQTT publishing and on-disk queue
 - `neo-aprs`: APRS protocol, KISS/APRS-IS clients, listen command
 - `neo-wspr`: WSPR decoding, calibration, scan/upload commands
+- `neo-adsb`: ADS-B decoding, diagnostics, and device discovery
 - `neo-rx`: metapackage CLI entry point, pulls all subpackages
 
 All packages must maintain synchronized versions. This guide provides two approaches:
@@ -66,7 +67,7 @@ Run verification in a clean ephemeral venv:
 make verify-release
 ```
 
-This creates `.venv-check`, builds all five packages, installs wheels, and validates:
+This creates `.venv-check`, builds all six packages, installs wheels, and validates:
 - Imports work for all packages
 - CLI commands execute (`neo-rx --version`, `neo-rx aprs --help`, etc.)
 - Package metadata is correct
@@ -96,11 +97,11 @@ make release VERSION=0.2.9
 ```
 
 This will:
-- **Automatically sync versions** across all five packages to 0.2.9
+- **Automatically sync versions** across all six packages to 0.2.9
 - Update `CHANGELOG.md` with release date
 - Commit: `"Release 0.2.9"`
-- Build wheels and source distributions for all five packages
-- Create five annotated git tags: `neo-core-v0.2.9`, `neo-aprs-v0.2.9`, `neo-wspr-v0.2.9`, `neo-telemetry-v0.2.9`, `neo-rx-v0.2.9`
+- Build wheels and source distributions for all six packages
+- Create six annotated git tags: `neo-core-v0.2.9`, `neo-aprs-v0.2.9`, `neo-wspr-v0.2.9`, `neo-adsb-v0.2.9`, `neo-telemetry-v0.2.9`, `neo-rx-v0.2.9`
 - Output artifacts to `dist/` and `src/*/dist/`
 
 **Note**: Tags are created locally only. Push them in the next step.
@@ -159,7 +160,7 @@ git checkout -b release/0.2.9
 
 ### 2. Sync package versions
 
-Update version in all five `pyproject.toml` files:
+Update version in all six `pyproject.toml` files:
 
 ```bash
 # Automated sync
@@ -176,6 +177,7 @@ git add src/neo_core/pyproject.toml \
         src/neo_telemetry/pyproject.toml \
         src/neo_aprs/pyproject.toml \
         src/neo_wspr/pyproject.toml \
+        src/neo_adsb/pyproject.toml \
         pyproject.toml
 git commit -m "chore: sync versions to 0.2.9"
 ```
@@ -238,6 +240,7 @@ python -m build src/neo_core
 python -m build src/neo_telemetry
 python -m build src/neo_aprs
 python -m build src/neo_wspr
+python -m build src/neo_adsb
 ```
 
 Artifacts appear in:
@@ -246,6 +249,7 @@ Artifacts appear in:
 - `src/neo_telemetry/dist/` (neo_telemetry wheels and tarball)
 - `src/neo_aprs/dist/` (neo_aprs wheels and tarball)
 - `src/neo_wspr/dist/` (neo_wspr wheels and tarball)
+- `src/neo_adsb/dist/` (neo_adsb wheels and tarball)
 
 ### 6. Create git tags
 
@@ -256,6 +260,7 @@ git tag -a neo-core-v0.2.9 -m "neo-core 0.2.9"
 git tag -a neo-telemetry-v0.2.9 -m "neo-telemetry 0.2.9"
 git tag -a neo-aprs-v0.2.9 -m "neo-aprs 0.2.9"
 git tag -a neo-wspr-v0.2.9 -m "neo-wspr 0.2.9"
+git tag -a neo-adsb-v0.2.9 -m "neo-adsb 0.2.9"
 git tag -a neo-rx-v0.2.9 -m "neo-rx 0.2.9"
 ```
 
@@ -269,7 +274,7 @@ python -m venv .venv-smoke
 source .venv-smoke/bin/activate
 
 # Install runtime dependencies first (not in wheels)
-pip install tomli-w numpy pyrtlsdr aprslib
+pip install tomli-w numpy pyrtlsdr requests
 
 # Install all built wheels
 pip install dist/neo_rx-0.2.9-py3-none-any.whl
@@ -280,7 +285,7 @@ neo-rx aprs --help
 neo-rx wspr --help
 
 # Test imports
-python -c "import neo_core; import neo_aprs; import neo_wspr; import neo_telemetry; import neo_rx"
+python -c "import neo_core; import neo_aprs; import neo_wspr; import neo_adsb; import neo_telemetry; import neo_rx"
 
 # Cleanup
 deactivate
@@ -322,6 +327,7 @@ python -m twine upload src/neo_core/dist/*
 python -m twine upload src/neo_telemetry/dist/*
 python -m twine upload src/neo_aprs/dist/*
 python -m twine upload src/neo_wspr/dist/*
+python -m twine upload src/neo_adsb/dist/*
 ```
 
 Requires PyPI credentials in `~/.pypirc` or `TWINE_USERNAME`/`TWINE_PASSWORD` environment variables.
@@ -390,10 +396,10 @@ Delete tags locally and remotely, then recreate:
 
 ```bash
 # Delete local tags
-git tag -d neo-core-v0.2.9 neo-telemetry-v0.2.9 neo-aprs-v0.2.9 neo-wspr-v0.2.9 neo-rx-v0.2.9
+git tag -d neo-core-v0.2.9 neo-telemetry-v0.2.9 neo-aprs-v0.2.9 neo-wspr-v0.2.9 neo-adsb-v0.2.9 neo-rx-v0.2.9
 
 # Delete remote tags
-git push origin --delete neo-core-v0.2.9 neo-telemetry-v0.2.9 neo-aprs-v0.2.9 neo-wspr-v0.2.9 neo-rx-v0.2.9
+git push origin --delete neo-core-v0.2.9 neo-telemetry-v0.2.9 neo-aprs-v0.2.9 neo-wspr-v0.2.9 neo-adsb-v0.2.9 neo-rx-v0.2.9
 
 # Recreate
 make release VERSION=0.2.9 FORCE=1
@@ -422,8 +428,8 @@ Common issues:
 
 If wheels don't install or CLI fails:
 
-1. Check for missing runtime dependencies (tomli-w, numpy, pyrtlsdr, aprslib)
-2. Verify all five wheels were built correctly
+1. Check for missing runtime dependencies (tomli-w, numpy, pyrtlsdr, requests)
+2. Verify all six wheels were built correctly
 3. Test imports individually to isolate the problem package
 4. Review build logs for warnings about missing files
 
@@ -469,7 +475,7 @@ Runtime dependencies (not in wheels, install separately for smoke tests):
 - `tomli-w>=1.1`
 - `numpy>=2.0`
 - `pyrtlsdr>=0.3.0`
-- `aprslib>=0.7.2,<0.9`
+- `requests>=2.32,<3`
 
 Development dependencies:
 - `pytest`, `pytest-cov`, `pytest-mock`

@@ -13,6 +13,7 @@ pip install -e ./src/neo_core[dev]
 pip install -e ./src/neo_telemetry[dev]
 pip install -e ./src/neo_aprs[dev,direwolf]
 pip install -e ./src/neo_wspr[dev]
+pip install -e ./src/neo_adsb[dev]
 pip install -e .[dev,all]
 ```
 
@@ -35,7 +36,7 @@ python3 -m venv .venv-smoke
 # install only the wheels built from this repo
 .venv-smoke/bin/pip install --no-deps dist/*.whl src/*/dist/*.whl
 # install any runtime deps reported on import
-.venv-smoke/bin/pip install tomli_w numpy pyrtlsdr aprslib
+.venv-smoke/bin/pip install tomli_w numpy pyrtlsdr requests
 # quick import checks
 .venv-smoke/bin/python -c "import importlib; importlib.import_module('neo_rx'); print('neo_rx OK')"
 # CLI smoke
