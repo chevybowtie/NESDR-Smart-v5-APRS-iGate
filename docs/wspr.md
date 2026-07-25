@@ -38,13 +38,14 @@ These settings allow reception of WSPR bands (80m, 40m, 30m, 10m) by shifting HF
 
 ## High-level Architecture
 
-- `src/neo_rx/wspr/`
+- `src/neo_wspr/wspr/`
   - `capture.py` — capture orchestration and scheduler
   - `decoder.py` — wrapper for `wsprd` subprocess and parser
-  - `uploader.py` — optional wsprnet uploader (opt-in)
+  - `uploader.py` — WSPRnet uploader (opt-in via `[wspr].uploader_enabled`)
   - `diagnostics.py` — upconverter heuristics and checks
   - `calibrate.py` — ppm measurement and application logic
   - `publisher.py` — MQTT publisher integration (uses telemetry abstraction)
+- `src/neo_wspr/commands/` — CLI command wiring (`listen.py`, `scan.py`, `calibrate.py`, `upload.py`, `diagnostics.py`)
 
 ## Upconverter detection
 
@@ -59,63 +60,35 @@ heuristics:
 - Computation: the tool computes parts-per-million (ppm) correction by
   comparing the median observed frequency of decoded spots against an
   median SNR and observation count.
--- Apply vs persist: `--calibrate --apply` will run the local calibration
-  flow and call ``apply_ppm_to_radio(ppm)`` in ``calibrate.py`` to apply the
-  correction to supported radios (RTL-SDR). Use ``--write-config`` to persist
-  the computed correction into ``config.toml`` (this performs a safe save).
-  To persist the computed correction into the persistent `config.toml`,
-  use `--write-config` alongside `--apply` (this performs a safe save).
-- Safe saves & backups: before writing a new `ppm_correction` value the
-  tool creates a timestamped backup of the existing config file. Backups
-  are stored under the configuration directory in a `backups/` folder
-  alongside the config file. Backup filenames are of the form:
-
-  `config.toml.bak-YYYYMMDDTHHMMSSZ`
-
-  where the timestamp is UTC (timezone-aware). This prevents accidental
-  data loss and makes it straightforward to restore previous settings.
-- CLI feedback: when a change is persisted the CLI prints the path to
-  the saved configuration so operators can confirm where the write
-  occurred (and which backup was created if needed).
-
-Implementation notes:
-- The code exposes ``persist_ppm_to_config(ppm, config_path=None)`` to
-  perform the safe save and ``apply_ppm_to_radio(ppm)`` as a radio-driver
-  integration point. The function applies ppm corrections to RTL-SDR devices
-  and includes error handling; ensure hardware access when using ``--apply``.
-- Backups are automatically created; retention/rotation is left as an
-  enhancement (could prune old backups after N days or keep only the
-  last N backups).
+- Library support: `src/neo_wspr/wspr/calibrate.py` provides `apply_ppm_to_radio(ppm)`
+  (applies a correction to an RTL-SDR tuner) and `persist_ppm_to_config(ppm, config_path=None)`
+  (safe-saves `ppm_correction` into `config.toml`, writing a timestamped backup
+  first under a `backups/` folder alongside the config file, e.g.
+  `config.toml.bak-YYYYMMDDTHHMMSSZ`).
+- **Current CLI behavior**: `neo-rx wspr calibrate` is not yet wired to `--apply`/`--write-config`
+  flags — it estimates the PPM offset from saved spots and logs the recommended
+  `ppm_correction` value for you to add to `config.toml` by hand. Applying/persisting
+  automatically from the CLI is tracked as a follow-up (see `docs/ROADMAP.md`).
 
 Example usage:
 
 ```bash
-# Run calibration using saved spots (no apply):
-neo-rx wspr --calibrate
+# Estimate PPM offset from saved spots for a given band
+neo-rx wspr calibrate --band 20m
 
-# Run calibration and apply correction to the radio (stub only):
-neo-rx wspr --calibrate --apply
-
-# Run calibration, apply correction, and persist to the config (safe-save)
-neo-rx wspr --calibrate --apply --write-config
-
-# Specify a custom config file or spots file when needed:
-neo-rx wspr --calibrate --apply --write-config --config /path/to/config.toml \
-    --spots-file /path/to/wspr_spots.jsonl --expected-freq 14080000
+# Use a specific spots file instead of the default data-dir location
+neo-rx wspr calibrate --samples /path/to/wspr_spots.jsonl --config /path/to/config.toml
 ```
 
-  Restore from backup:
+Restore from backup (once a correction has been persisted, manually or via the library functions above):
 
-  ```bash
-  # To inspect available backups:
-  ls "$(dirname $(neo-rx wspr --config 2>/dev/null || echo ~/.config/neo-rx))/backups/"
+```bash
+# To inspect available backups:
+ls ~/.config/neo-rx/backups/
 
-  # To restore the most recent backup for the active config:
-  cp /path/to/config/backups/config.toml.bak-YYYYMMDDTHHMMSSZ /path/to/config/config.toml
-
-  # Or move it into place (atomic replace):
-  mv /path/to/config/backups/config.toml.bak-YYYYMMDDTHHMMSSZ /path/to/config/config.toml
-  ```
+# To restore the most recent backup for the active config:
+cp ~/.config/neo-rx/backups/config.toml.bak-YYYYMMDDTHHMMSSZ ~/.config/neo-rx/config.toml
+```
 
 ## Decoder Approach
 
@@ -173,17 +146,16 @@ to prevent corruption on unexpected shutdown.
   the uploader enforces a simple exponential backoff window so repeated failures
   don't hammer WSPRnet, and it surfaces the first error message via `last_error`
   in the returned stats.
-- `upload_spot(spot)`: implemented to perform an HTTP request; the queue
-  and drain logic are functional, but the uploader requires production-grade
-  API authentication, parameter validation, and rate-limit handling before
-  being used in a live deployment.
+- `upload_spot(spot)`: performs the WSPRnet HTTPS GET submission (via `requests`)
+  using the same query parameters as `rtlsdr-wsprd`; queue, drain, and upload
+  are all fully implemented.
 - `send_heartbeat(...)`: issues a `wsprstat` heartbeat (matching `rtlsdr-wsprd`)
   so stations can publish a “no uploads this slot” beacon when desired.
 
 **Example usage:**
 
 ```python
-from neo_rx.wspr.uploader import WsprUploader
+from neo_wspr.wspr.uploader import WsprUploader
 
 uploader = WsprUploader(queue_path="/path/to/queue.jsonl")
 uploader.enqueue_spot({"call": "K1ABC", "freq_hz": 14080000, "snr_db": -12})
@@ -202,6 +174,7 @@ neo-rx wspr upload --json
 
 # Force a wsprstat heartbeat when no uploads occur (opt-in)
 neo-rx wspr upload --heartbeat
+```
 
 JSON drain output always includes `attempted`, `succeeded`, `failed`, and
 `last_error` (which is `null` when the last run succeeded). When `--heartbeat`
@@ -229,7 +202,6 @@ exceptions without digging through debug logs.
 - **Troubleshooting:** If `last_error` reports missing metadata, re-run `neo-rx aprs setup`
   to populate `[wspr]` fields or inspect recent spots for malformed timestamps. Network
   failures leave entries queued; check firewall/CA bundles before deleting anything.
-```
 
 ## Testing
 
@@ -273,7 +245,7 @@ M6: Tests, docs, CI updates, optional Docker Compose example (2 days) ✓
 - `drain()` method: attempt uploads, keep failures/unattempted for retry
 - CLI `--upload` command with optional `--json` output
 - 9 comprehensive queue/drain tests
-- ⚠️ `upload_spot()` is a stub; real WSPRnet HTTP submission required before production use
+- `upload_spot()` performs the real WSPRnet HTTPS submission (see Implementation Status below)
 
 **M6 (Testing & Documentation):**
 - 187 passing tests (decoder, capture, scan, MQTT, diagnostics, uploader, JSON outputs)
@@ -296,120 +268,28 @@ M6: Tests, docs, CI updates, optional Docker Compose example (2 days) ✓
 | Config/calibration | 5 | Persist, backup creation, PPM application |
 | RTL-SDR compatibility | 7 | Patching, version handling, import fixes |
 
-### Remaining Stubs (Non-Production)
+### Implementation Status
 
-These functions have CLI wiring and test infrastructure but require external dependencies or driver integration:
+All items originally tracked as stubs are now implemented:
 
 1. **`apply_ppm_to_radio(ppm)` in `calibrate.py`** ✅ **RESOLVED**
    - Status: Implemented with RTL-SDR integration, error handling, and unit tests. Applies PPM correction to tuner in real-time.
 
-2. **`upload_spot(spot)` in `uploader.py`**
-   - Currently: Logs the spot; returns success
-   - Required: WSPRnet HTTP client + API authentication + endpoint
-     - we should look at https://github.com/garymcm/wsprnet_api/blob/master/README.md for the API
-     - not sure this is useful, be we should examine real-time data access via the wspr.live service which provides a ClickHouse-based database with a public API for querying WSPR spots 
-   - Status: Queue management fully functional; HTTP submission is stubbed
-   - Blocking: ⚠️ **Production deployment requires real implementation**
+2. **`upload_spot(spot)` in `uploader.py`** ✅ **RESOLVED**
+   - Status: Submits spots to WSPRnet via an HTTPS GET request (`requests`), matching the `rtlsdr-wsprd` query-parameter contract. Queue, drain, retry/backoff, and heartbeat are all functional (`src/neo_wspr/wspr/uploader.py`).
 
 3. **`WsprCapture` real-time capture** ✅ **RESOLVED**
    - Status: Fully implemented with RTL-SDR integration, threading for background capture, multi-band cycling (80m/40m/30m/10m), IQ sample capture, and piping to wsprd subprocess.
    - Features: Device detection, frequency tuning, 2-minute band cycles, error handling, and spot publishing to MQTT/JSON-lines.
 
 4. **External dependency: `wsprd` binary** ✅ **RESOLVED**
-   - Status: Binary bundled with the `wspr` extra (extracted from WSJT-X deb package); no external installation required.
-   - Implementation: `scripts/install_wsprd.sh` downloads and extracts the binary to `src/neo_rx/wspr/bin/wsprd`.
-
-### Future Enhancements (Blocking Production Deployment)
-
-1. **WSPRnet HTTP integration:** Replace `upload_spot()` stub with real API submission (REST + authentication). ⚠️ **Required before production use.**
-2. **Credential management:** Securely store/rotate WSPRnet API keys (keyring or encrypted config).
-
-### Optional Enhancements
-
-3. **Spectral diagnostics:** Add autocorrelation-based upconverter confidence metrics.
-4. **CI/CD:** Python 3.11+ matrix, coverage thresholds, pre-commit lint hooks.
-5. **Docker Compose:** RTL-SDR + Mosquitto + Grafana dashboard example.
-6. **Performance:** Batch MQTT publishes, streaming decoder optimization, worker pool for multi-band capture.
+   - Status: Binary bundled with the `neo-wspr` package (extracted from the WSJT-X deb package); no external installation required.
+   - Implementation: `scripts/install_wsprd.sh` downloads and extracts the binary to `src/neo_wspr/wspr/bin/wsprd`.
 
 
+### Known limitations / follow-ups
 
-
-### Remaining Work
-
-The project implements the core WSPR pipeline (capture, decoding, calibration,
-and a durable upload queue). The key remaining production items are:
-
-- WSPRnet HTTP integration: implement secure API authentication, parameter
-  validation, and rate-limit-aware retries in ``uploader.upload_spot()``.
-- Credential management: store uploader credentials securely (keyring or
-  encrypted config) and add CLI prompts to capture them.
-- Optional decoder and capture improvements: streaming input to the decoder
-  (avoid temporary IQ files) and richer stderr/drift parsing for diagnostics.
-
-See the CI and tests for the current coverage of the queue and decoder.
-
-Based on the implementation status, here's a targeted plan to address the 4 remaining stubs for production deployment. Each includes steps, code changes, testing, and estimated effort. Total estimated time: 5–7 days, assuming access to RTL-SDR hardware and WSPRnet API docs.
-
-##### 1. **`apply_ppm_to_radio(ppm)` in `calibrate.py`** (RTL-SDR Driver Integration) ✅ **COMPLETED**
-   - **Status**: Implemented with RTL-SDR integration, error handling, and unit tests. Applies PPM correction to tuner in real-time.
-   - **Code Changes**: Modified `src/neo_rx/wspr/calibrate.py` to import `pyrtlsdr` and implement the apply logic.
-   - **Testing**: Added unit tests with mocked `pyrtlsdr` for success, no devices, import errors, and device failures.
-   - **Effort**: 1–2 days; completed with low risk.
-
-##### 2. **`upload_spot(spot)` in `uploader.py`** (WSPRnet HTTP Submission)
-   - **Current State**: Logs spots and returns success; queue management is fully functional.
-   - **Goal**: Submit spots to WSPRnet via their API (requires authentication).
-   - **Steps**:
-     - Review WSPRnet API docs for submission endpoint, required fields (e.g., call, freq, SNR), and auth (likely API key).
-     - Implement HTTP POST in `upload_spot(spot)` using `requests` (add to dependencies).
-     - Handle auth securely (e.g., store key in config or keyring); add retry logic for network failures.
-     - Update CLI to prompt for credentials on first use (via `setup_io.py` helpers).
-   - **Code Changes**: Enhance `src/neo_rx/wspr/uploader.py` with HTTP client and auth handling. Update config schema for WSPRnet credentials.
-   - **Testing**: Mock HTTP responses for success/failure. Add tests for auth, retries, and malformed spots. Validate against WSPRnet sandbox if available.
-   - **Effort**: 2–3 days; moderate risk due to external API dependency—test thoroughly to avoid rate limits or bans.
-   - **Note**: ⚠️ **Critical for production**—do not deploy without real implementation.
-
-##### 3. **`WsprCapture` Real-Time Capture** (RTL-SDR Integration) ✅ **COMPLETED**
-   - **Status**: Fully implemented with RTL-SDR integration, threading for background capture, multi-band cycling (80m/40m/30m/10m), IQ sample capture, and piping to wsprd subprocess.
-   - **Features**: Device detection, frequency tuning, 2-minute band cycles, error handling, and spot publishing to MQTT/JSON-lines.
-   - **Testing**: Unit tests with mocked capture, integration ready for hardware validation.
-   - **Effort**: 1–2 days; builds on existing skeleton—focus on threading stability.
-
-##### 4. **External Dependency: `wsprd` Binary** (User Installation Guidance) ✅ **COMPLETED**
-   - **Status**: Binary bundled with the `wspr` extra (extracted from WSJT-X deb package); no external installation required.
-   - **Implementation**: `scripts/install_wsprd.sh` downloads and extracts the binary to `src/neo_rx/wspr/bin/wsprd`.
-   - **Testing**: Graceful handling when binary is missing.
-   - **Effort**: 0.5–1 day; documentation-focused.
-
-##### 2. **`upload_spot(spot)` in `uploader.py`** (WSPRnet HTTP Submission)
-   - **Current State**: Logs spots and returns success; queue management is fully functional.
-   - **Goal**: Submit spots to WSPRnet via their API (requires authentication).
-   - **Steps**:
-     - Review WSPRnet API docs for submission endpoint, required fields (e.g., call, freq, SNR), and auth (likely API key).
-     - Implement HTTP POST in `upload_spot(spot)` using `requests` (add to dependencies).
-     - Handle auth securely (e.g., store key in config or keyring); add retry logic for network failures.
-     - Update CLI to prompt for credentials on first use (via `setup_io.py` helpers).
-   - **Code Changes**: Enhance `src/neo_rx/wspr/uploader.py` with HTTP client and auth handling. Update config schema for WSPRnet credentials.
-   - **Testing**: Mock HTTP responses for success/failure. Add tests for auth, retries, and malformed spots. Validate against WSPRnet sandbox if available.
-   - **Effort**: 2–3 days; moderate risk due to external API dependency—test thoroughly to avoid rate limits or bans.
-   - **Note**: ⚠️ **Critical for production**—do not deploy without real implementation.
-
-##### 3. **`WsprCapture` Real-Time Capture** (RTL-SDR Integration) ✅ **COMPLETED**
-   - **Status**: Fully implemented with RTL-SDR integration, threading for background capture, multi-band cycling, IQ sample capture, and wsprd subprocess piping.
-   - **Features**: Device detection, frequency tuning, 2-minute band cycles (80m/40m/30m/10m), error handling, and spot publishing.
-   - **Testing**: Unit tests with mocked capture, integration ready for hardware validation.
-   - **Effort**: 1–2 days; builds on existing skeleton—focus on threading stability.
-
-##### 4. **External Dependency: `wsprd` Binary** (User Installation Guidance) ✅ **COMPLETED**
-   - **Status**: Documented installation instructions; binary available via WSJT-X or standalone build.
-   - **Instructions**: Install WSJT-X (`sudo apt install wsjt-x` on Ubuntu) or build from https://github.com/Guenael/wsprd.
-   - **Testing**: Graceful handling when binary is missing.
-   - **Effort**: 0.5–1 day; documentation-focused.
-
-##### Overall Notes
-- **Dependencies**: Ensure `pyrtlsdr` and `requests` are in `pyproject.toml` (add `requests>=2.25` for HTTP).
-- **Testing Strategy**: Expand integration tests for real hardware/API. Run full suite (`.venv/bin/python -m pytest`) after each stub.
-- **Risks**: API auth and hardware integration—test on staging/sandbox environments.
-- **Timeline**: Items #1, #3, #4 completed; tackle #2 next (WSPRnet API).
-- **Post-Resolution**: Update `CHANGELOG.md` and mark as production-ready once all stubs are implemented and tested.
-- **Current State**: The project decodes WSPR spots locally and logs/publishes them, but does not upload to WSPRnet (item #2 pending API access).
+- Uploader credentials beyond callsign/grid/power are not prompted for during setup; `wsprnet.org` currently accepts unauthenticated spot submissions via the query-parameter contract this client uses.
+- Decoder input is written to a temporary IQ file per cycle rather than streamed directly into `wsprd`.
+- Spectral diagnostics could add autocorrelation-based upconverter confidence metrics.
+- See `docs/ROADMAP.md` for broader project-level follow-ups.
