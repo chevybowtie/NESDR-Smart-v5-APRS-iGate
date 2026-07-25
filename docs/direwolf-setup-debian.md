@@ -1,6 +1,6 @@
 # Direwolf Installation and Setup (Debian)
 
-These steps install Direwolf on a Debian-based system (tested on Debian 12 "Bookworm") and prepare it for use with the `neo-rx` CLI.
+These steps install Direwolf on a Debian-based system (tested on Debian 13 "Trixie"; should also work on Debian 12 "Bookworm") and prepare it for use with the `neo-rx` CLI.
 
 ## 1. Install Packages
 
@@ -111,28 +111,30 @@ To launch Direwolf at boot, create a systemd user unit:
 
 ```
 mkdir -p ~/.config/systemd/user
-cat > ~/.config/systemd/user/nesdr-direwolf.service <<'EOF'
+cat > ~/.config/systemd/user/neo-rx-direwolf.service <<'EOF'
 [Unit]
-Description=NESDR Direwolf gateway
+Description=Neo-RX Direwolf gateway
 After=network-online.target
 
 [Service]
-ExecStart=%h/Documents/projects/nesdr-aprs-igate/scripts/run_direwolf.sh
+ExecStart=%h/path/to/neo-rx/scripts/run_direwolf.sh
 Restart=on-failure
 
 [Install]
 WantedBy=default.target
 EOF
 systemctl --user daemon-reload
-systemctl --user enable --now nesdr-direwolf.service
+systemctl --user enable --now neo-rx-direwolf.service
 ```
+
+Replace `%h/path/to/neo-rx` with the actual location of your clone (or installer target directory, e.g. `~/.local/share/neo-rx`).
 
 Log files still land in `~/.local/share/neo-rx/logs/`. Add a host-level `logrotate` rule (weekly, `rotate 4`, `compress`) targeting `~/.local/share/neo-rx/logs/*.log` so Direwolf and CLI logs expire after four weeks. When running under systemd you have two options:
 
 - Keep `copytruncate` in the `logrotate` stanza so Direwolf keeps writing uninterrupted.
-- Or omit `copytruncate` and add a `postrotate systemctl --user restart nesdr-direwolf.service` block so the service reopens a fresh file when rotation occurs.
+- Or omit `copytruncate` and add a `postrotate systemctl --user restart neo-rx-direwolf.service` block so the service reopens a fresh file when rotation occurs.
 
-Check status with `systemctl --user status nesdr-direwolf.service`. Disable with `systemctl --user disable --now nesdr-direwolf.service`.
+Check status with `systemctl --user status neo-rx-direwolf.service`. Disable with `systemctl --user disable --now neo-rx-direwolf.service`.
 
 ---
 
