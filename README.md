@@ -39,6 +39,24 @@ WSPR decoding is supported via the bundled `wsprd` binary (from WSJT-X). No addi
 
 The WSPR feature uses the bundled `wsprd` for IQ data decoding.
 
+## Quick install (recommended)
+
+Neo-RX is not published on PyPI — install it with the interactive installer, which
+downloads a release archive, creates a virtualenv, and installs the package with
+your selected extras:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/chevybowtie/NESDR-Smart-v5-APRS-iGate/HEAD/install.sh | bash
+```
+
+Add `--dry-run` to preview the steps, or `--target-dir PATH` to install somewhere
+other than the default `~/.local/share/neo-rx`. See [docs/INSTALL.md](docs/INSTALL.md)
+for the full walkthrough, including the systemd unit template and manual apt
+package list.
+
+The rest of this section covers installing from a local clone instead, which is
+useful for development or if you want to build your own wheels.
+
 ## 1. Clone the repo and create a virtual environment
 
 ```bash
@@ -52,29 +70,18 @@ python -m pip install --upgrade pip
 
 ## 2. Install project dependencies
 
-### For end users (from PyPI or local wheels)
+### Build and install local wheels
 
-Install the `neo-rx` metapackage, which pulls in all subpackages:
-
-```bash
-pip install neo-rx
-```
-
-To install specific functionality only:
+There is no PyPI package, so `pip install neo-rx` will fail. Build wheels for all
+packages and install the metapackage from `dist/`:
 
 ```bash
-# Core + APRS only
-pip install neo-aprs
-
-# Core + WSPR only
-pip install neo-wspr
-
-# Core + ADS-B only
-pip install neo-adsb
-
-# Core + telemetry (MQTT publishing)
-pip install neo-telemetry
+make build
+pip install dist/neo_rx-*.whl
 ```
+
+`make build` also produces `neo_core`, `neo_telemetry`, `neo_aprs`, `neo_wspr`, and
+`neo_adsb` wheels in `dist/` if you only need specific functionality.
 
 ### For developers (editable install from source)
 
@@ -107,8 +114,6 @@ make setup
 - `dev`: Formatting, linting, and test tooling
 - `all`: All optional dependencies for full functionality
 
-Note about APRS library: the project pins a relaxed constraint for `aprslib` in `pyproject.toml` (for example `aprslib>=0.7.2,<0.9`) because `aprslib>=0.8` is not available on PyPI as of Oct 2025. If you need a newer upstream release, pin to a VCS URL or wait for the official PyPI release. See `DEVELOPER_NOTES.md` for more details.
-
 ## 3. Run the interactive setup
 
 Launch the onboarding wizard to capture station details and render the initial configuration:
@@ -119,6 +124,9 @@ neo-rx aprs setup
 
 # WSPR setup (if you need WSPR-specific configuration)
 neo-rx wspr setup
+
+# ADS-B setup (if you need ADS-B-specific configuration)
+neo-rx adsb setup
 ```
 
 During setup you will be asked for:
@@ -177,9 +185,7 @@ Add `--json` for machine-readable output.
 
 Diagnostics also validates your configuration (e.g., checking that you're using device serial number addressing instead of index-based, and fixed gain instead of auto-gain to prevent thermal issues).
 
-Colorized output
-
-----------------
+### Colorized output
 
 The textual diagnostics output can optionally be colorized for interactive
 terminals so status tokens (OK / WARNING / ERROR) are easier to scan:
@@ -206,7 +212,7 @@ Notes:
 - JSON output produced with `--json` is always plain and machine-readable (no ANSI color codes are injected).
 - When colors are enabled the status labels in the human-readable report are marked with ANSI color sequences; these may be visible when capturing logs to files, so prefer `--json` for automated tooling or CI.
 
-## 5. Start listening
+## 6. Start listening
 
 ```bash
 neo-rx aprs listen
@@ -248,7 +254,7 @@ You can also set the log level via the `NEO_RX_LOG_LEVEL` environment variable:
 NEO_RX_LOG_LEVEL=debug neo-rx aprs listen
 ```
 
-## 6. WSPR Monitoring (optional)
+## 7. WSPR Monitoring (optional)
 
 If you installed WSPR support, you can monitor WSPR bands for propagation reports:
 
@@ -323,7 +329,7 @@ Uploader logs live under `~/.local/share/neo-rx/logs/wspr/` (or per-instance whe
 
 > **Safety gate:** `neo-rx wspr upload` refuses to contact WSPRnet unless `[wspr].uploader_enabled = true`, preventing accidental network submissions.
 
-## 7. ADS-B Monitoring (optional)
+## 8. ADS-B Monitoring (optional)
 
 Monitor aircraft traffic using dump1090/readsb with optional ADS-B Exchange reporting:
 
@@ -384,8 +390,6 @@ Useful flags:
 - `--config PATH` to point at your `config.toml` (ensures MQTT settings load)
 
 ### Live map
-
---------
 
 If you installed `tar1090` (commonly bundled with readsb setups), you can view a
 live map of local traffic at:
@@ -555,4 +559,19 @@ Each instance maintains isolated data and log directories:
 
 For a full specification of the interactive onboarding flow (what `neo-rx aprs setup` does, preconditions, prompts, validation rules, and implementation notes), see the detailed onboarding specification in the docs:
 
-- docs/onboarding-spec.md
+- [docs/onboarding-spec.md](docs/onboarding-spec.md)
+
+## More documentation
+
+- [docs/INSTALL.md](docs/INSTALL.md) — full installer walkthrough and manual setup
+- [docs/diagnostics.md](docs/diagnostics.md) — diagnostics internals and log rotation
+- [docs/wspr.md](docs/wspr.md) — WSPR uploader rate limits and troubleshooting
+- [docs/direwolf-setup-debian.md](docs/direwolf-setup-debian.md) / [docs/direwolf-integration.md](docs/direwolf-integration.md) — Direwolf configuration
+- [docs/troubleshooting.md](docs/troubleshooting.md) — common problems and fixes
+- [docs/ROADMAP.md](docs/ROADMAP.md) — planned features and open follow-ups
+- [CHANGELOG.md](CHANGELOG.md) — release history
+- [CONTRIBUTING.md](CONTRIBUTING.md) / [DEVELOPER_NOTES.md](DEVELOPER_NOTES.md) — contribution workflow and coding conventions
+
+## License
+
+Neo-RX is proprietary software (`LicenseRef-Proprietary`); it is not published to PyPI and is not open source. Contact the author for licensing terms.
