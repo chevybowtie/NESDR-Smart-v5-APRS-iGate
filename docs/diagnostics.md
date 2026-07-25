@@ -29,7 +29,7 @@ This is critical for robust configuration: use the serial number (e.g., `6741160
 ### 1. Environment
 - Active virtual environment detected?
 - Python version and executable path.
-- Package versions (`pyrtlsdr`, `aprslib`, `numpy`, etc.).
+- Package versions (`pyrtlsdr`, `numpy`, etc.).
 
 ### 2. Configuration Validation
 - **Device Addressing**: Checks if configured to use serial number (robust) vs USB index (fragile).
@@ -84,18 +84,18 @@ This is critical for robust configuration: use the serial number (e.g., `6741160
 
 ## WSPR-Specific Checks
 
-### 7. Decoder Binary
+### 9. Decoder Binary
 - Verify bundled `wsprd` binary is present and executable.
 - Report version information from wsprd.
 
-### 8. Upconverter Detection
+### 10. Upconverter Detection
 - Analyze recent WSPR spots (if available) to detect frequency offsets.
 - Report hint: "likely upconverter" or "direct sampling" based on frequency clusters.
 - Use `--band BAND` to focus detection on specific band data.
 
 ## Configuration & Paths (All Modes)
 
-### 9. Configuration & Paths
+### 11. Configuration & Paths
 - Display config file path(s):
   - `~/.config/neo-rx/config.toml` (legacy)
   - `~/.config/neo-rx/defaults.toml`, `aprs.toml`, `wspr.toml` (layered)
@@ -104,9 +104,11 @@ This is critical for robust configuration: use the serial number (e.g., `6741160
 - Location of mode-specific logs:
   - APRS: `~/.local/share/neo-rx/logs/aprs/` (or per-instance)
   - WSPR: `~/.local/share/neo-rx/logs/wspr/` (or per-instance)
+  - ADS-B: `~/.local/share/neo-rx/logs/adsb/` (or per-instance)
 - Data directories:
   - APRS: N/A (minimal state)
   - WSPR: `~/.local/share/neo-rx/wspr/` (spots, queue, runs)
+  - ADS-B: `~/.local/share/neo-rx/adsb/`
 
 ## Output Schema
 ```

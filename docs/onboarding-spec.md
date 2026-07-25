@@ -1,7 +1,6 @@
-```markdown
 # Onboarding Flow Specification
 
-This document defines the interactive setup commands (`neo-rx aprs setup`, `neo-rx wspr setup`) used to prepare a host for running the APRS iGate or WSPR monitor.
+This document defines the interactive setup commands (`neo-rx aprs setup`, `neo-rx wspr setup`, `neo-rx adsb setup`) used to prepare a host for running the APRS iGate, WSPR monitor, or ADS-B tracker.
 
 ## Goals
 - Verify hardware and software prerequisites without modifying system-level configuration.
@@ -13,13 +12,14 @@ This document defines the interactive setup commands (`neo-rx aprs setup`, `neo-
 
 ## Preconditions
 - Host has Python 3.11+ with project virtual environment activated.
-   - `neo-rx` CLI installed (`pip install -e '.[dev]'` or `pip install -e '.[direwolf,wspr]'`).
+   - `neo-rx` CLI installed (`pip install -e '.[dev,all]'` for a full editable install, or the narrower `direwolf`/`adsb` extras — see the README for the current extras list).
 - For APRS: `direwolf` installed via system package manager or manual build.
-- For WSPR: bundled `wsprd` is included with the `wspr` extra.
+- For WSPR: the `wsprd` binary is bundled with the `neo-wspr` package (no separate extra required).
+- For ADS-B: a decoder daemon (`readsb` or `dump1090`) must already be running; `neo-rx` reads its `aircraft.json` output rather than tuning the SDR itself.
 
-> NOTE (Oct 2025): Packaging caveats
+> NOTE: Packaging caveats
 >
-> - `aprslib >=0.8` is not available on PyPI as of this date; the project uses a relaxed constraint (`aprslib >=0.7.2,<0.9`) in `pyproject.toml` to allow installs. If you require `>=0.8`, consider pinning to a VCS URL or waiting for an official release.
+> - `aprslib` is not a dependency; `neo-aprs` implements its own minimal APRS-IS client.
 > - `types-keyring` does not appear on PyPI; rely on the runtime `keyring` package for secure storage rather than a non-existent typing package.
 
 ## High-Level Steps
@@ -100,5 +100,3 @@ This document defines the interactive setup commands (`neo-rx aprs setup`, `neo-
 - Should onboarding auto-generate a Direwolf config file tailored to device, or simply validate user-provided config?
 - Do we prompt for secondary SDR devices now, or defer until multi-backend support is implemented?
 - How should we handle headless deployments where interactive prompts are impossible (env vars vs. config file)?
-
-```
