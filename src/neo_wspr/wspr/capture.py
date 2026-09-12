@@ -23,6 +23,15 @@ LOG = logging.getLogger(__name__)
 CaptureFunc = Callable[[int, int], Iterable[bytes | str]]
 
 
+def _encode_iq_samples(samples: Iterable[complex]) -> bytes:
+    """Encode complex SDR samples as interleaved signed 16-bit IQ bytes."""
+    return b"".join(
+        int(sample.real * 32767).to_bytes(2, "little", signed=True)
+        + int(sample.imag * 32767).to_bytes(2, "little", signed=True)
+        for sample in samples
+    )
+
+
 class WsprCapture:
     """Orchestrate WSPR captures across bands using RTL-SDR.
 
@@ -235,17 +244,7 @@ class WsprCapture:
                             def _async_cb(samples, rtlsdr_obj=None):
                                 # samples is typically a numpy array of complex64
                                 try:
-                                    for sample in samples:
-                                        buf.extend(
-                                            int(sample.real * 32767).to_bytes(
-                                                2, "little", signed=True
-                                            )
-                                        )
-                                        buf.extend(
-                                            int(sample.imag * 32767).to_bytes(
-                                                2, "little", signed=True
-                                            )
-                                        )
+                                    buf.extend(_encode_iq_samples(samples))
                                     # Do not call cancel_read_async() from the callback; the
                                     # main thread will stop the async read when the duration
                                     # has elapsed. Calling cancel from the callback can race
@@ -307,15 +306,7 @@ class WsprCapture:
                                     chunk_size
                                 )  # Read in larger chunks
                                 # Convert complex samples to bytes (IQ as int16)
-                                iq_bytes = b"".join(
-                                    int(sample.real * 32767).to_bytes(
-                                        2, "little", signed=True
-                                    )
-                                    + int(sample.imag * 32767).to_bytes(
-                                        2, "little", signed=True
-                                    )
-                                    for sample in samples
-                                )
+                                iq_bytes = _encode_iq_samples(samples)
                                 iq_data += iq_bytes
 
                                 iterations += 1
