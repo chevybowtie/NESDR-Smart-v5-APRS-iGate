@@ -37,4 +37,3 @@ wspr_*.dat
 *.out
 .context/session.json
 .context/query-context.md
-.context/session.json
