@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.1] - 2026-09-11
+
+### Added
+- APRS listener frequency override via `--frequency-hz`.
+- APRS receive-only mode via `--no-aprsis`.
+- Documentation for APRS listener flags and `--help`.
+
 ## [0.5.0] - 2026-04-13
 
 ### Added

@@ -112,8 +112,17 @@ def run_listen(args: Namespace) -> int:
         )
         return 1
 
+    frequency_hz = getattr(args, "frequency_hz", None)
+    if frequency_hz is None:
+        frequency_hz = station_config.center_frequency_hz
+    if frequency_hz <= 0:
+        logger.error("Frequency must be greater than zero Hz.")
+        return 1
+
+    logger.info("Listening center frequency: %.6f MHz", frequency_hz / 1_000_000)
+
     rtl_config = RtlFmConfig(
-        frequency_hz=station_config.center_frequency_hz,
+        frequency_hz=frequency_hz,
         sample_rate=AUDIO_SAMPLE_RATE,
         gain=station_config.gain,
         ppm=station_config.ppm_correction or 0,

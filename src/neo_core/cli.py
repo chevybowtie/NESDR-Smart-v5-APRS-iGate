@@ -69,6 +69,16 @@ def build_parser() -> argparse.ArgumentParser:
     aprs_listen.add_argument(
         "--once", action="store_true", help="Process a single frame and exit"
     )
+    aprs_listen.add_argument(
+        "--no-aprsis",
+        action="store_true",
+        help="Disable APRS-IS uplink (receive-only mode)",
+    )
+    aprs_listen.add_argument(
+        "--frequency-hz",
+        type=float,
+        help="Override the SDR center frequency for this run, in Hz",
+    )
 
     aprs_diag = aprs_sub.add_parser("diagnostics", help="Run APRS diagnostics")
     _add_common_flags(aprs_diag)

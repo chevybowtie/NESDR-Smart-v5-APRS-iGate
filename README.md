@@ -215,7 +215,7 @@ Notes:
 ## 6. Start listening
 
 ```bash
-neo-rx aprs listen
+neo-rx aprs listen --no-aprsis
 ```
 
 The listener will:
@@ -223,16 +223,35 @@ The listener will:
 1. Launch `rtl_fm` and pipe audio into Direwolf
 2. Read KISS frames from Direwolf
 3. Decode AX.25 payloads for console display
-4. Forward packets to APRS-IS using the configured credentials
+4. Optionally forward packets to APRS-IS using the configured credentials
+
+For a receive-only trial on a non-standard APRS frequency, specify the
+frequency in Hz:
+
+```bash
+neo-rx aprs listen --frequency-hz 146520000 --no-aprsis
+```
+
+`--frequency-hz` overrides the saved `[radio].center_frequency_hz` value for
+that run. The saved value defaults to 144.390 MHz and can be changed in
+`~/.config/neo-rx/config.toml`.
 
 Useful flags:
 
 - `--no-aprsis` to operate receive-only without APRS-IS uplink
 - `--once` to process a single frame batch (helpful for smoke tests)
+- `--frequency-hz HZ` to override the SDR center frequency for one run
 - `--config PATH` to point at an alternate configuration file
 - `--instance-id NAME` to isolate data/logs for concurrent runs
 - `--device-id SERIAL` to select a specific RTL-SDR device
 - `--log-level {debug,info,warning,error}` to control console output verbosity
+- `--help` to display the complete command help
+
+Inspect the available options with:
+
+```bash
+neo-rx aprs listen --help
+```
 
 ### Console output and logging
 

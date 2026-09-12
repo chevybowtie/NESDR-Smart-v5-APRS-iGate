@@ -79,6 +79,16 @@ WantedBy=default.target
 
 If you prefer to manage a system service, create a `systemd --user` unit and enable it manually.
 
+For a receive-only trial, add `--no-aprsis` to the command. To monitor a
+frequency other than the default 144.390 MHz, add
+`--frequency-hz FREQUENCY_IN_HZ`; for example:
+
+```bash
+neo-rx aprs listen --frequency-hz 146520000 --no-aprsis
+```
+
+Use `neo-rx aprs listen --help` to display all listener options.
+
 If you want the installer to automatically fetch a master archive from GitHub
 when pushes to `master` occur, create a GitHub Actions job that produces a
 branch archive URL — a placeholder workflow file is included in the repo as
