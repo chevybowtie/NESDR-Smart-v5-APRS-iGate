@@ -1,4 +1,5 @@
 import json
+import sys
 import time
 from pathlib import Path
 
@@ -145,6 +146,7 @@ class _SyncFakeRtlSdr:
 
 def _patch_rtlsdr_classes(monkeypatch, fake_class) -> None:
     """Prevent capture tests from selecting a real pyrtlsdr implementation."""
+    monkeypatch.setitem(sys.modules, "rtlsdr", rtlsdr_module)
     monkeypatch.setattr(rtlsdr_module, "RtlSdr", fake_class, raising=False)
     monkeypatch.setattr(rtlsdr_module, "RtlSdrAio", fake_class, raising=False)
 

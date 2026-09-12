@@ -13,6 +13,21 @@ def _reset_rtlsdr(sys_modules: MutableMapping[str, Any]) -> None:
     sys_modules.pop("rtlsdr", None)
 
 
+@pytest.fixture(autouse=True)
+def _restore_rtlsdr_module():
+    original = sys.modules.get("rtlsdr")
+    if original is None:
+        try:
+            original = __import__("rtlsdr")
+        except ImportError:
+            original = None
+    yield
+    if original is None:
+        sys.modules.pop("rtlsdr", None)
+    else:
+        sys.modules["rtlsdr"] = original
+
+
 def test_patch_source_without_pkg_resources_returns_input() -> None:
     source = "print('hello')\n"
     assert rtlsdr._patch_source(source) == source
