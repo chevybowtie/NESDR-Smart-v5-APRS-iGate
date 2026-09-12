@@ -5,9 +5,16 @@ All notable changes to this project will be documented in this file.
 ## [0.5.1] - 2026-09-11
 
 ### Added
-- APRS listener frequency override via `--frequency-hz`.
-- APRS receive-only mode via `--no-aprsis`.
-- Documentation for APRS listener flags and `--help`.
+
+- Modernized dependency/tooling versions and added Python 3.13 support.
+- Removed the  aprslib  dependency; APRS-IS handling is now internal.
+- Added/updated multi-package packaging and  make setup ,  make mypy , build, and release workflows.
+- Removed obsolete backup source files.
+- Updated README, installation, Direwolf, diagnostics, WSPR, onboarding, and release documentation.
+- Added extensive  .github/copilot-instructions.md .
+- Minor APRS UX improvement: logs that  q  quits the listener.
+- APRS listener frequency temproary override via `--frequency-hz`.
+- APRS receive-only mode via `--no-aprsis` (No internet logging).
 
 ## [0.5.0] - 2026-04-13
 
