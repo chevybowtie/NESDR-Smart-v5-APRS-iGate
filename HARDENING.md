@@ -75,13 +75,13 @@ exhausted.
 
 ## Medium
 
-8. **Systemd guidance is incomplete for a long-lived deployment.**
-   The sample unit in [`docs/INSTALL.md`](docs/INSTALL.md) covers APRS only,
-   and the examples do not include the full set of durability controls that
-   are helpful in practice for a months-scale deployment (`RestartSec`,
-   `StartLimitBurst`, `StartLimitIntervalSec`, and per-mode service units).
-   This is a deployment/documentation gap more than a code bug, but it is
-   still important for real-world reliability.
+8. **RESOLVED — Systemd guidance was incomplete for a long-lived deployment.**
+   [`docs/INSTALL.md`](docs/INSTALL.md) now documents a
+   "Running as a systemd service" section with a separate sample unit per
+   listener mode (APRS, WSPR, ADS-B), each including `RestartSec`,
+   `StartLimitBurst`, and `StartLimitIntervalSec`, plus a note that
+   `Restart=on-failure` doesn't catch the failure modes in items 1 and 3
+   until those are fixed.
 
 9. **Legacy duplicate package (`src/neo_rx/`) remains a compatibility-risk
    drift point.**
@@ -119,8 +119,8 @@ exhausted.
    remediate the service (#1-4).
 2. ~~Add rotation or size limits to `adsb_aircraft.jsonl` and
    `wspr_spots.jsonl` (#5-6).~~ Done — see #5-7.
-3. Publish complete systemd units for all three modes, including backoff and
-   restart timing guidance (#8).
+3. ~~Publish complete systemd units for all three modes, including backoff and
+   restart timing guidance (#8).~~ Done — see #8.
 4. Fold or remove the legacy `neo_rx` package once compatibility imports are
    no longer needed (#9).
 

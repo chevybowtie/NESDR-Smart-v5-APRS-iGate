@@ -63,21 +63,83 @@ is created, use:
 ./scripts/run_direwolf.sh
 ```
 
-Systemd unit (sample — installer does NOT create this automatically):
+## Running as a systemd service
+
+The installer does NOT create or enable services automatically. For a
+months-scale unattended deployment, create a separate `systemd --user` unit
+per listener mode you run, and include the durability controls below —
+`Restart=on-failure` alone is not enough for a long-lived deployment:
+
+- `RestartSec` — delay between restart attempts, so a flaky USB/SDR device
+  isn't hammered with instant restart loops.
+- `StartLimitIntervalSec` + `StartLimitBurst` — bounds how many restarts
+  systemd will attempt in a given window. Once the burst limit is hit,
+  systemd marks the unit failed instead of restart-looping forever, which
+  makes a persistent hardware problem visible in `systemctl --user status`
+  and to any external monitoring, rather than silently retrying forever.
+
+APRS:
 
 ```ini
 [Unit]
-Description=Neo-RX Direwolf helper
+Description=Neo-RX APRS listener
+StartLimitIntervalSec=600
+StartLimitBurst=5
 
 [Service]
 ExecStart=%h/.local/share/neo-rx/.venv/bin/neo-rx aprs listen
 Restart=on-failure
+RestartSec=10
 
 [Install]
 WantedBy=default.target
 ```
 
-If you prefer to manage a system service, create a `systemd --user` unit and enable it manually.
+WSPR:
+
+```ini
+[Unit]
+Description=Neo-RX WSPR listener
+StartLimitIntervalSec=600
+StartLimitBurst=5
+
+[Service]
+ExecStart=%h/.local/share/neo-rx/.venv/bin/neo-rx wspr listen
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target
+```
+
+ADS-B:
+
+```ini
+[Unit]
+Description=Neo-RX ADS-B listener
+StartLimitIntervalSec=600
+StartLimitBurst=5
+
+[Service]
+ExecStart=%h/.local/share/neo-rx/.venv/bin/neo-rx adsb listen
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target
+```
+
+Save each as `~/.config/systemd/user/neo-rx-<mode>.service`, then enable with
+`systemctl --user enable --now neo-rx-<mode>.service`. If you prefer a system
+service instead of `systemd --user`, adapt the same units under
+`/etc/systemd/system/` and drop the `%h` prefix from `ExecStart`.
+
+Note: `Restart=on-failure` only helps when the process actually exits
+non-zero on failure. As of this writing, the WSPR listener can exit 0 after
+a hardware/init failure, and the APRS listener's audio-capture thread can
+die without stopping the main process — in both cases systemd won't see a
+failure to restart from. See `HARDENING.md` items 1 and 3 for the underlying
+issue.
 
 For a receive-only trial, add `--no-aprsis` to the command. To monitor a
 frequency other than the default 144.390 MHz, add
