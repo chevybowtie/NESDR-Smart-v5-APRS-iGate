@@ -35,3 +35,5 @@ wspr_wisdom.dat
 wspr_*.dat
 *.iq
 *.out
+.context/session.json
+.context/query-context.md
