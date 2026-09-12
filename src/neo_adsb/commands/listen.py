@@ -10,6 +10,7 @@ import os
 import time
 from argparse import Namespace
 import threading
+from collections import OrderedDict
 from queue import Queue
 from datetime import datetime, timezone
 from pathlib import Path
@@ -18,6 +19,26 @@ from neo_core import config as config_module
 from neo_core.term import start_keyboard_listener, process_commands
 
 LOG = logging.getLogger(__name__)
+
+# The per-process set of seen aircraft hex IDs is bounded to this many
+# entries (evicting least-recently-seen first) so a months-long run can't
+# accumulate unbounded memory (see HARDENING.md item 11). The *count* of
+# unique aircraft ever seen is tracked separately as a plain int, so it
+# stays accurate even after the membership set has evicted old entries.
+UNIQUE_AIRCRAFT_CAP_ENV_VAR = "NEO_RX_ADSB_UNIQUE_AIRCRAFT_CAP"
+DEFAULT_UNIQUE_AIRCRAFT_CAP = 10_000
+
+
+def _resolve_unique_aircraft_cap() -> int:
+    raw = os.getenv(UNIQUE_AIRCRAFT_CAP_ENV_VAR)
+    if raw:
+        try:
+            value = int(raw.strip())
+        except ValueError:
+            value = 0
+        if value > 0:
+            return value
+    return DEFAULT_UNIQUE_AIRCRAFT_CAP
 
 
 def _find_aircraft_json() -> str:
@@ -160,9 +181,12 @@ def run_listen(args: Namespace) -> int:
     )
 
     # Statistics tracking
+    unique_aircraft_cap = _resolve_unique_aircraft_cap()
     stats = {
         "total_aircraft": 0,
-        "unique_aircraft": set(),
+        "unique_aircraft_count": 0,
+        # Bounded LRU membership set; see UNIQUE_AIRCRAFT_CAP_ENV_VAR above.
+        "_unique_aircraft_seen": OrderedDict(),
         "start_time": datetime.now(timezone.utc),
         "display_paused": False,
         "pause_until": 0.0,
@@ -172,8 +196,15 @@ def run_listen(args: Namespace) -> int:
         """Callback for aircraft updates."""
         nonlocal stats
         stats["total_aircraft"] = len(aircraft_list)
+        seen = stats["_unique_aircraft_seen"]
         for ac in aircraft_list:
-            stats["unique_aircraft"].add(ac.hex_id)
+            if ac.hex_id in seen:
+                seen.move_to_end(ac.hex_id)
+                continue
+            seen[ac.hex_id] = None
+            stats["unique_aircraft_count"] += 1
+            if len(seen) > unique_aircraft_cap:
+                seen.popitem(last=False)
 
         # Display aircraft only if not paused
         if aircraft_list and not getattr(args, "quiet", False):
@@ -222,7 +253,7 @@ def run_listen(args: Namespace) -> int:
             f"ADS-B activity summary\n"
             f"Runtime: {runtime}\n"
             f"Current aircraft: {stats['total_aircraft']}\n"
-            f"Unique aircraft seen: {len(stats['unique_aircraft'])}\n"
+            f"Unique aircraft seen: {stats['unique_aircraft_count']}\n"
             f"{'=' * 50}\n",
             flush=True,
         )

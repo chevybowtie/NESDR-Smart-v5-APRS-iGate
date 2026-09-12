@@ -5,8 +5,14 @@ import sys
 import time
 from typing import List
 
+from neo_core.rotation import build_weekly_rotating_handler, resolve_retention_weeks
+
 # Temporary imports to delegate to existing implementation during refactor
 from neo_rx.cli import main as legacy_main
+
+# `neo-rx.log` rotates weekly; override the retention window (in weeks) via
+# this environment variable. See HARDENING.md item 7.
+LOG_RETENTION_ENV_VAR = "NEO_RX_LOG_RETENTION_WEEKS"
 
 
 def _add_common_flags(p: argparse.ArgumentParser) -> None:
@@ -246,7 +252,11 @@ def main(argv: list[str] | None = None) -> int:
             log_dir = base_path / "logs" / subdir
             log_dir.mkdir(parents=True, exist_ok=True)
             log_file = log_dir / "neo-rx.log"
-            file_handler = logging.FileHandler(log_file, encoding="utf-8")
+            file_handler = build_weekly_rotating_handler(
+                log_file,
+                retention_weeks=resolve_retention_weeks(LOG_RETENTION_ENV_VAR),
+                delay=False,
+            )
             file_formatter = logging.Formatter(
                 "%(asctime)sZ %(message)s", datefmt="%Y-%m-%dT%H:%M:%S"
             )

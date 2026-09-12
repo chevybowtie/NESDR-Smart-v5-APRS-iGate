@@ -1,5 +1,10 @@
 """Tests for WSPR diagnostics upconverter detection heuristics."""
 
+import json
+from argparse import Namespace
+
+from neo_core.diagnostics_helpers import DiskSpaceResult
+from neo_wspr.commands import diagnostics as diagnostics_command
 from neo_wspr.wspr.diagnostics import detect_upconverter_hint
 
 
@@ -134,3 +139,47 @@ def test_upconverter_hint_single_spot():
     result = detect_upconverter_hint(spots)
     assert result["median_freq_hz"] == 14130000
     assert result["mean_snr_db"] == -12.0
+
+
+def test_run_diagnostics_reports_ok_disk_space(monkeypatch, tmp_path, capsys):
+    """HARDENING.md #10: diagnostics surfaces free disk space on the WSPR data dir."""
+    monkeypatch.setattr(
+        diagnostics_command.config_module, "get_mode_data_dir", lambda _mode: tmp_path
+    )
+    monkeypatch.setattr(
+        diagnostics_command,
+        "check_disk_space",
+        lambda _path: DiskSpaceResult(
+            status="ok", message="90.0% free on data", details={"percent_free": 90.0}
+        ),
+    )
+
+    exit_code = diagnostics_command.run_diagnostics(
+        Namespace(config=None, json=False)
+    )
+
+    assert exit_code == 0
+    captured = capsys.readouterr()
+    assert "Disk space: 90.0% free on data" in captured.out
+
+
+def test_run_diagnostics_json_includes_disk_space(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(
+        diagnostics_command.config_module, "get_mode_data_dir", lambda _mode: tmp_path
+    )
+    monkeypatch.setattr(
+        diagnostics_command,
+        "check_disk_space",
+        lambda _path: DiskSpaceResult(
+            status="error",
+            message="1.0% free on data",
+            details={"percent_free": 1.0},
+        ),
+    )
+
+    exit_code = diagnostics_command.run_diagnostics(Namespace(config=None, json=True))
+
+    assert exit_code == 1
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["disk_space"]["status"] == "error"
+    assert payload["disk_space"]["details"]["percent_free"] == 1.0

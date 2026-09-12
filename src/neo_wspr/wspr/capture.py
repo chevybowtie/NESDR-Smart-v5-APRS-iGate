@@ -14,6 +14,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Iterable, Optional, TYPE_CHECKING
 
+from neo_core.rotation import RotatingJsonlWriter
+
 if TYPE_CHECKING:  # pragma: no cover - type-checking only
     from neo_wspr.wspr.uploader import WsprUploader
 
@@ -21,6 +23,10 @@ LOG = logging.getLogger(__name__)
 
 
 CaptureFunc = Callable[[int, int], Iterable[bytes | str]]
+
+# `wspr_spots.jsonl` rotates weekly; override the retention window (in
+# weeks) via this environment variable. See HARDENING.md item 6.
+SPOTS_LOG_RETENTION_ENV_VAR = "NEO_RX_WSPR_LOG_RETENTION_WEEKS"
 
 
 def _encode_iq_samples(samples: Iterable[complex]) -> bytes:
@@ -74,6 +80,9 @@ class WsprCapture:
         self._data_dir = Path(data_dir) if data_dir is not None else Path("./data")
         self._data_dir.mkdir(parents=True, exist_ok=True)
         self._spots_file = self._data_dir / "wspr_spots.jsonl"
+        self._spots_writer = RotatingJsonlWriter(
+            self._spots_file, retention_env_var=SPOTS_LOG_RETENTION_ENV_VAR
+        )
         self._publisher = publisher
         self._upconverter_enabled = upconverter_enabled
         self._upconverter_offset_hz = (
@@ -107,6 +116,7 @@ class WsprCapture:
             self._thread.join(timeout=5)
             if self._thread.is_alive():
                 LOG.warning("WSPR capture thread did not stop cleanly")
+        self._spots_writer.close()
 
     def is_running(self) -> bool:
         return self._running
@@ -411,8 +421,7 @@ class WsprCapture:
 
     def _persist_spot(self, spot: dict) -> None:
         try:
-            with self._spots_file.open("a", encoding="utf-8") as fh:
-                fh.write(json.dumps(spot, default=str) + "\n")
+            self._spots_writer.write_line(json.dumps(spot, default=str))
         except Exception:
             LOG.exception("Failed to write spot to file: %s", self._spots_file)
 

@@ -53,24 +53,25 @@ exhausted.
 
 ## High — unbounded on-disk growth
 
-5. **`adsb_aircraft.jsonl` grows forever.**
-   [`src/neo_adsb/adsb/capture.py`](src/neo_adsb/adsb/capture.py) appends a
-   JSON line per aircraft on each poll, with no rotation, size cap, or
-   pruning. Even a modest ADS-B feed can produce hundreds of MB or more per
-   month, which is a real long-term storage risk on small SBCs and Pi-class
-   systems.
+5. **RESOLVED — `adsb_aircraft.jsonl` grows forever.**
+   [`src/neo_adsb/adsb/capture.py`](src/neo_adsb/adsb/capture.py) now writes
+   through a `RotatingJsonlWriter`
+   ([`src/neo_core/rotation.py`](src/neo_core/rotation.py)) that rotates the
+   file weekly and retains 12 weeks of backups by default. Override via the
+   `NEO_RX_ADSB_LOG_RETENTION_WEEKS` environment variable.
 
-6. **`wspr_spots.jsonl` has the same unbounded-append pattern.**
-   [`src/neo_wspr/wspr/capture.py`](src/neo_wspr/wspr/capture.py) writes one
-   line per decoded spot to `wspr_spots.jsonl`, also with no bounds or
-   retention policy. The volume is lower than ADS-B, but the same months-long
-   growth issue applies.
+6. **RESOLVED — `wspr_spots.jsonl` had the same unbounded-append pattern.**
+   [`src/neo_wspr/wspr/capture.py`](src/neo_wspr/wspr/capture.py) now writes
+   through the same `RotatingJsonlWriter` helper, rotating weekly with a
+   12-week default retention. Override via the
+   `NEO_RX_WSPR_LOG_RETENTION_WEEKS` environment variable.
 
-7. **Log files use plain, non-rotating `FileHandler`s.**
-   [`src/neo_core/cli.py`](src/neo_core/cli.py) configures file logging with
-   `logging.FileHandler`, not a rotating handler. This is a deployment
-   concern rather than a crash bug, but it makes unattended operation more
-   fragile over time because the logs themselves are not bounded.
+7. **RESOLVED — Log files used plain, non-rotating `FileHandler`s.**
+   [`src/neo_core/cli.py`](src/neo_core/cli.py) now configures file logging
+   with a `TimedRotatingFileHandler` (via
+   [`src/neo_core/rotation.py`](src/neo_core/rotation.py)) that rotates
+   `neo-rx.log` weekly and retains 12 weeks of backups by default. Override
+   via the `NEO_RX_LOG_RETENTION_WEEKS` environment variable.
 
 ## Medium
 
@@ -91,27 +92,33 @@ exhausted.
    future fixes can land in one tree without the other, creating confusing
    "I already fixed that" bugs later.
 
-10. **No disk-space or queue-depth health check is surfaced in diagnostics.**
-    The current diagnostics focus on SDR/network reachability, but they do
-    not warn when the data or log filesystem is running low. Once the JSONL
-    logs above are present for months at a time, free space becomes a more
-    important health signal than raw connectivity.
+10. **RESOLVED — No disk-space health check was surfaced in diagnostics.**
+    All three diagnostics commands (APRS, WSPR, ADS-B) now report free disk
+    space on the relevant data directory via a shared
+    `check_disk_space()` helper in
+    [`src/neo_core/diagnostics_helpers.py`](src/neo_core/diagnostics_helpers.py).
+    Warning/error thresholds default to 10%/3% free and are overridable via
+    `NEO_RX_DISK_WARN_PERCENT_FREE` / `NEO_RX_DISK_ERROR_PERCENT_FREE`. (The
+    queue-depth half of this item — e.g. the WSPR upload queue backing up
+    during an outage — is not yet covered; left as a follow-up.)
 
 ## Minor
 
-11. **`stats["unique_aircraft"]` grows without bound.**
+11. **RESOLVED — `stats["unique_aircraft"]` grew without bound.**
     In [`src/neo_adsb/commands/listen.py`](src/neo_adsb/commands/listen.py),
-    the per-process `set()` of seen aircraft hex IDs is never reset or capped.
-    The impact is limited compared with the JSONL growth, but it is the same
-    general pattern of "state accumulates forever".
+    the per-process set of seen aircraft hex IDs is now a bounded LRU
+    (default 10,000 entries, overridable via
+    `NEO_RX_ADSB_UNIQUE_AIRCRAFT_CAP`) used only for membership checks; the
+    displayed "unique aircraft seen" total is tracked separately as a plain
+    counter, so it stays accurate even after old entries are evicted.
 
 ## Recommended priority order
 
 1. Make the APRS/WSPR capture loops detect dead subprocesses or failed
    devices and either restart the subsystem or exit non-zero so systemd can
    remediate the service (#1-4).
-2. Add rotation or size limits to `adsb_aircraft.jsonl` and
-   `wspr_spots.jsonl` (#5-6).
+2. ~~Add rotation or size limits to `adsb_aircraft.jsonl` and
+   `wspr_spots.jsonl` (#5-6).~~ Done — see #5-7.
 3. Publish complete systemd units for all three modes, including backoff and
    restart timing guidance (#8).
 4. Fold or remove the legacy `neo_rx` package once compatibility imports are

@@ -15,7 +15,7 @@ from typing import Any, Iterable, cast, TYPE_CHECKING, Literal
 
 from neo_core import config as config_module
 from neo_core.config import StationConfig
-from neo_core.diagnostics_helpers import probe_tcp_endpoint
+from neo_core.diagnostics_helpers import check_disk_space, probe_tcp_endpoint
 
 try:  # Python 3.10+ exposes metadata here
     from importlib import metadata as importlib_metadata
@@ -88,6 +88,7 @@ def run_diagnostics(args: Namespace) -> int:
     sections.append(_check_sdr())
     sections.append(_check_direwolf(station_config))
     sections.append(_check_aprs_is(station_config))
+    sections.append(_check_disk_space())
 
     generated_at = time.time()
     summary = _summarize_sections(sections)
@@ -355,6 +356,11 @@ def _check_aprs_is(config: StationConfig | None) -> Section:
         f"Unable to reach APRS-IS server {host}:{port}",
         {"error": result.error},
     )
+
+
+def _check_disk_space() -> Section:
+    result = check_disk_space(config_module.get_data_dir())
+    return Section("Disk Space", result.status, result.message, result.details)
 
 
 def _sections_to_mapping(sections: Iterable[Section]) -> dict[str, Any]:

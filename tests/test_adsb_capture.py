@@ -11,6 +11,7 @@ from neo_adsb.adsb.capture import (
     Dump1090Client,
     AdsbCapture,
     ADSB_FREQUENCY_HZ,
+    AIRCRAFT_LOG_RETENTION_ENV_VAR,
 )
 
 
@@ -248,6 +249,42 @@ class TestAdsbCapture:
 
             capture.add_callback(test_callback)
             assert len(capture._callbacks) == 1
+
+    def test_log_aircraft_appends_jsonl_lines(self):
+        """Test that _log_aircraft writes one JSON line per aircraft."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            capture = AdsbCapture(
+                json_path="/nonexistent/aircraft.json",
+                data_dir=Path(tmpdir),
+            )
+            aircraft = [AircraftState(hex_id="ABC123"), AircraftState(hex_id="DEF456")]
+
+            capture._log_aircraft(aircraft)
+            capture._log_aircraft(aircraft)
+
+            lines = capture._aircraft_file.read_text(encoding="utf-8").splitlines()
+            assert len(lines) == 4
+            assert json.loads(lines[0])["hex"] == "ABC123"
+
+    def test_aircraft_log_retention_configurable_via_env_var(self, monkeypatch):
+        """Test that the aircraft JSONL retention window honors its env var."""
+        monkeypatch.setenv(AIRCRAFT_LOG_RETENTION_ENV_VAR, "3")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            capture = AdsbCapture(
+                json_path="/nonexistent/aircraft.json",
+                data_dir=Path(tmpdir),
+            )
+            assert capture._aircraft_writer.retention_weeks == 3
+
+    def test_aircraft_log_retention_defaults_to_twelve_weeks(self, monkeypatch):
+        """Test the default 12-week retention when no override is set."""
+        monkeypatch.delenv(AIRCRAFT_LOG_RETENTION_ENV_VAR, raising=False)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            capture = AdsbCapture(
+                json_path="/nonexistent/aircraft.json",
+                data_dir=Path(tmpdir),
+            )
+            assert capture._aircraft_writer.retention_weeks == 12
 
 
 class TestConstants:

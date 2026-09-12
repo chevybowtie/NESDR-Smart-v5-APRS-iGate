@@ -16,6 +16,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Optional, TYPE_CHECKING
 
+from neo_core.rotation import RotatingJsonlWriter
+
 if TYPE_CHECKING:  # pragma: no cover - type-checking only
     from neo_adsb.adsb.reporter import AdsbExchangeReporter
 
@@ -23,6 +25,10 @@ LOG = logging.getLogger(__name__)
 
 # ADS-B frequency (1090 MHz)
 ADSB_FREQUENCY_HZ = 1_090_000_000
+
+# `adsb_aircraft.jsonl` rotates weekly; override the retention window (in
+# weeks) via this environment variable. See HARDENING.md item 5.
+AIRCRAFT_LOG_RETENTION_ENV_VAR = "NEO_RX_ADSB_LOG_RETENTION_WEEKS"
 
 
 @dataclass
@@ -211,6 +217,9 @@ class AdsbCapture:
         self._data_dir = Path(data_dir) if data_dir is not None else Path("./data")
         self._data_dir.mkdir(parents=True, exist_ok=True)
         self._aircraft_file = self._data_dir / "adsb_aircraft.jsonl"
+        self._aircraft_writer = RotatingJsonlWriter(
+            self._aircraft_file, retention_env_var=AIRCRAFT_LOG_RETENTION_ENV_VAR
+        )
         self._publisher = publisher
         self._reporter = reporter
         self._station_config = station_config
@@ -246,6 +255,7 @@ class AdsbCapture:
             self._thread.join(timeout=5)
             if self._thread.is_alive():
                 LOG.warning("ADS-B capture thread did not stop cleanly")
+        self._aircraft_writer.close()
 
     def is_running(self) -> bool:
         """Return True if the capture thread is running."""
@@ -334,22 +344,21 @@ class AdsbCapture:
         """Log aircraft state to JSON-lines file."""
         try:
             now = datetime.now(timezone.utc).isoformat()
-            with self._aircraft_file.open("a", encoding="utf-8") as f:
-                for ac in aircraft:
-                    record = {
-                        "timestamp": now,
-                        "hex": ac.hex_id,
-                        "flight": ac.flight,
-                        "altitude_ft": ac.altitude_ft,
-                        "ground_speed_kt": ac.ground_speed_kt,
-                        "track_deg": ac.track_deg,
-                        "latitude": ac.latitude,
-                        "longitude": ac.longitude,
-                        "squawk": ac.squawk,
-                        "rssi_db": ac.rssi_db,
-                        "messages": ac.messages,
-                    }
-                    f.write(json.dumps(record) + "\n")
+            for ac in aircraft:
+                record = {
+                    "timestamp": now,
+                    "hex": ac.hex_id,
+                    "flight": ac.flight,
+                    "altitude_ft": ac.altitude_ft,
+                    "ground_speed_kt": ac.ground_speed_kt,
+                    "track_deg": ac.track_deg,
+                    "latitude": ac.latitude,
+                    "longitude": ac.longitude,
+                    "squawk": ac.squawk,
+                    "rssi_db": ac.rssi_db,
+                    "messages": ac.messages,
+                }
+                self._aircraft_writer.write_line(json.dumps(record))
         except OSError as exc:
             LOG.warning("Failed to log aircraft: %s", exc)
 

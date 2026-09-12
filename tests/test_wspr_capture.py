@@ -7,7 +7,7 @@ import rtlsdr as rtlsdr_module
 
 from neo_core.config import StationConfig
 from neo_wspr.wspr import decoder as decoder_module
-from neo_wspr.wspr.capture import WsprCapture
+from neo_wspr.wspr.capture import SPOTS_LOG_RETENTION_ENV_VAR, WsprCapture
 
 
 def fake_capture_fn(band_hz: int, duration_s: int):
@@ -242,3 +242,15 @@ def test_start_is_idempotent_and_stop_without_start_is_safe(tmp_path: Path):
 
     cap.stop()
     assert cap.is_running() is False
+
+
+def test_spots_log_retention_configurable_via_env_var(monkeypatch, tmp_path: Path):
+    monkeypatch.setenv(SPOTS_LOG_RETENTION_ENV_VAR, "5")
+    cap = WsprCapture(bands_hz=[14080000], data_dir=tmp_path / "data")
+    assert cap._spots_writer.retention_weeks == 5
+
+
+def test_spots_log_retention_defaults_to_twelve_weeks(monkeypatch, tmp_path: Path):
+    monkeypatch.delenv(SPOTS_LOG_RETENTION_ENV_VAR, raising=False)
+    cap = WsprCapture(bands_hz=[14080000], data_dir=tmp_path / "data")
+    assert cap._spots_writer.retention_weeks == 12

@@ -9,6 +9,7 @@ import logging
 from argparse import Namespace
 
 from neo_core import config as config_module
+from neo_core.diagnostics_helpers import check_disk_space
 
 LOG = logging.getLogger(__name__)
 
@@ -41,6 +42,14 @@ def run_diagnostics(args: Namespace) -> int:
     hint = wspr_diag.detect_upconverter_hint(spots)
     LOG.info("Upconverter diagnostic: %s", hint)
 
+    # HARDENING.md #10: surface low free-space as a health signal, since it
+    # matters more than raw connectivity for a months-long unattended run.
+    disk = check_disk_space(data_dir)
+    if disk.status == "ok":
+        LOG.info("Disk space: %s", disk.message)
+    else:
+        LOG.warning("Disk space: %s", disk.message)
+
     # Emit JSON if requested
     if getattr(args, "json", False):
         import json
@@ -48,7 +57,14 @@ def run_diagnostics(args: Namespace) -> int:
         result = {
             "upconverter_hint": hint,
             "spots_analyzed": len(spots),
+            "disk_space": {
+                "status": disk.status,
+                "message": disk.message,
+                "details": disk.details,
+            },
         }
         print(json.dumps(result, indent=2))
+    else:
+        print(f"Disk space: {disk.message}")
 
-    return 0
+    return 1 if disk.status == "error" else 0

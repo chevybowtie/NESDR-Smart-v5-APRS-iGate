@@ -212,6 +212,68 @@ def test_listen_runs_capture_processes_commands_and_stops(
     assert calls[0][1]["json_path"] == str(json_path)
 
 
+def test_listen_unique_aircraft_count_survives_lru_eviction(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    """HARDENING.md #11: the seen-aircraft set is capped, but the reported
+    unique-aircraft count keeps counting correctly even once eviction
+    kicks in (a stale hex reappearing after eviction is counted again,
+    which is the accepted tradeoff for bounded memory use)."""
+    monkeypatch.setenv(listen.UNIQUE_AIRCRAFT_CAP_ENV_VAR, "2")
+
+    json_path = tmp_path / "aircraft.json"
+    json_path.write_text('{"aircraft": []}', encoding="utf-8")
+
+    class FakeCapture:
+        def __init__(self, **_kwargs):
+            self.callback = None
+            self.running = False
+
+        def add_callback(self, callback):
+            self.callback = callback
+
+        def start(self):
+            self.running = True
+            # 4 unique sightings, but with cap=2 the LRU set can only hold
+            # 2 at a time: A, B pushes A out on the third; seeing A again
+            # afterward is treated as a new sighting.
+            self.callback([AircraftState(hex_id="AAA111")])
+            self.callback([AircraftState(hex_id="BBB222")])
+            self.callback([AircraftState(hex_id="CCC333")])
+            self.callback([AircraftState(hex_id="AAA111")])
+
+        def is_running(self):
+            return self.running
+
+        def stop(self):
+            self.running = False
+
+    monkeypatch.setattr(listen.config_module, "load_config", lambda *_args: None)
+    monkeypatch.setattr(listen.config_module, "get_mode_data_dir", lambda _mode: tmp_path)
+    monkeypatch.setattr(listen.config_module, "get_logs_dir", lambda _mode: tmp_path)
+    monkeypatch.setattr(listen, "_find_aircraft_json", lambda: str(json_path))
+    monkeypatch.setattr(listen, "start_keyboard_listener", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(capture_module, "AdsbCapture", FakeCapture)
+    monkeypatch.setattr(
+        listen,
+        "process_commands",
+        lambda _queue, handlers: (handlers["s"](), handlers["q"]()),
+    )
+    monkeypatch.setattr(
+        listen.threading,
+        "Timer",
+        lambda *_args, **_kwargs: argparse.Namespace(start=lambda: None),
+    )
+
+    assert (
+        listen.run_listen(argparse.Namespace(json_path=str(json_path), poll_interval=0.01))
+        == 0
+    )
+
+    output = capsys.readouterr().out
+    assert "Unique aircraft seen: 4" in output
+
+
 def test_listen_quiet_mode_suppresses_aircraft_display(
     monkeypatch, tmp_path: Path, capsys
 ) -> None:

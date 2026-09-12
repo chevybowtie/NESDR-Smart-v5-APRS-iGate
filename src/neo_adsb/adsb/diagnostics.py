@@ -17,6 +17,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from neo_core import config as config_module
+from neo_core.diagnostics_helpers import check_disk_space as _check_disk_space
+
 LOG = logging.getLogger(__name__)
 
 
@@ -525,6 +528,18 @@ def check_readsb_config() -> DiagnosticResult:
         )
 
 
+def check_disk_space() -> DiagnosticResult:
+    """Check free disk space on the ADS-B data directory (HARDENING.md #10)."""
+    data_dir = config_module.get_mode_data_dir("adsb")
+    result = _check_disk_space(data_dir)
+    return DiagnosticResult(
+        name="disk_space",
+        status=result.status.upper(),
+        message=result.message,
+        details=result.details,
+    )
+
+
 def run_diagnostics(
     check_adsbexchange: bool = True,
     json_path: str | Path | None = None,
@@ -549,6 +564,7 @@ def run_diagnostics(
     else:
         report.checks.append(check_dump1090_json())
     report.checks.append(check_rtl_sdr())
+    report.checks.append(check_disk_space())
 
     # ADS-B Exchange checks
     if check_adsbexchange:

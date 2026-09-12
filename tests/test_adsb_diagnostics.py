@@ -5,12 +5,15 @@ from pathlib import Path
 import tempfile
 
 
+from neo_adsb.adsb import diagnostics as diagnostics_module
 from neo_adsb.adsb.diagnostics import (
     DiagnosticResult,
     DiagnosticsReport,
+    check_disk_space,
     check_dump1090_json,
     run_diagnostics,
 )
+from neo_core.diagnostics_helpers import DiskSpaceResult
 
 
 class TestDiagnosticResult:
@@ -128,6 +131,45 @@ class TestDump1090JsonCheck:
             assert "Invalid JSON" in result.message
         finally:
             Path(temp_path).unlink()
+
+
+class TestCheckDiskSpace:
+    """Tests for the disk-space diagnostic check (HARDENING.md #10)."""
+
+    def test_check_disk_space_ok(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(
+            diagnostics_module.config_module, "get_mode_data_dir", lambda _mode: tmp_path
+        )
+        monkeypatch.setattr(
+            diagnostics_module,
+            "_check_disk_space",
+            lambda _path: DiskSpaceResult(
+                status="ok", message="90.0% free", details={"percent_free": 90.0}
+            ),
+        )
+
+        result = check_disk_space()
+
+        assert isinstance(result, DiagnosticResult)
+        assert result.name == "disk_space"
+        assert result.status == "OK"
+        assert result.details["percent_free"] == 90.0
+
+    def test_check_disk_space_warning(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(
+            diagnostics_module.config_module, "get_mode_data_dir", lambda _mode: tmp_path
+        )
+        monkeypatch.setattr(
+            diagnostics_module,
+            "_check_disk_space",
+            lambda _path: DiskSpaceResult(
+                status="warning", message="low", details={"percent_free": 5.0}
+            ),
+        )
+
+        result = check_disk_space()
+
+        assert result.status == "WARNING"
 
 
 class TestRunDiagnostics:

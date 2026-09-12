@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import shutil
+from pathlib import Path
+
 from neo_core import diagnostics_helpers as helpers
 
 
@@ -51,3 +54,78 @@ def test_probe_tcp_endpoint_failure(monkeypatch) -> None:
     assert result.success is False
     assert result.latency_ms is None
     assert "connection refused" in (result.error or "")
+
+
+def test_check_disk_space_ok(monkeypatch, tmp_path: Path) -> None:
+    def fake_disk_usage(_path):
+        return _DiskUsage(total=100_000, used=50_000, free=50_000)
+
+    monkeypatch.setattr(helpers.shutil, "disk_usage", fake_disk_usage)
+
+    result = helpers.check_disk_space(tmp_path)
+
+    assert result.status == "ok"
+    assert result.details["percent_free"] == 50.0
+    assert str(tmp_path) in result.message
+
+
+def test_check_disk_space_warning_below_threshold(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.delenv(helpers.DISK_WARN_PERCENT_ENV_VAR, raising=False)
+    monkeypatch.delenv(helpers.DISK_ERROR_PERCENT_ENV_VAR, raising=False)
+
+    def fake_disk_usage(_path):
+        return _DiskUsage(total=100_000, used=92_000, free=8_000)
+
+    monkeypatch.setattr(helpers.shutil, "disk_usage", fake_disk_usage)
+
+    result = helpers.check_disk_space(tmp_path)
+
+    assert result.status == "warning"
+    assert result.details["percent_free"] == 8.0
+
+
+def test_check_disk_space_error_below_threshold(monkeypatch, tmp_path: Path) -> None:
+    def fake_disk_usage(_path):
+        return _DiskUsage(total=100_000, used=98_000, free=2_000)
+
+    monkeypatch.setattr(helpers.shutil, "disk_usage", fake_disk_usage)
+
+    result = helpers.check_disk_space(tmp_path)
+
+    assert result.status == "error"
+    assert result.details["percent_free"] == 2.0
+
+
+def test_check_disk_space_thresholds_configurable_via_env_var(
+    monkeypatch, tmp_path: Path
+) -> None:
+    def fake_disk_usage(_path):
+        return _DiskUsage(total=100_000, used=80_000, free=20_000)
+
+    monkeypatch.setattr(helpers.shutil, "disk_usage", fake_disk_usage)
+    monkeypatch.setenv(helpers.DISK_WARN_PERCENT_ENV_VAR, "50")
+
+    result = helpers.check_disk_space(tmp_path)
+
+    assert result.status == "warning"
+
+
+def test_check_disk_space_handles_missing_path(monkeypatch, tmp_path: Path) -> None:
+    missing = tmp_path / "does" / "not" / "exist"
+
+    def fake_disk_usage(path):
+        assert Path(path) == tmp_path
+        return _DiskUsage(total=100_000, used=10_000, free=90_000)
+
+    monkeypatch.setattr(helpers.shutil, "disk_usage", fake_disk_usage)
+
+    result = helpers.check_disk_space(missing)
+
+    assert result.status == "ok"
+
+
+class _DiskUsage:
+    def __init__(self, total: int, used: int, free: int) -> None:
+        self.total = total
+        self.used = used
+        self.free = free

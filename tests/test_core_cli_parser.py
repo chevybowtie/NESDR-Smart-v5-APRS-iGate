@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import logging
+import logging.handlers
+from pathlib import Path
+
 import pytest
 
-from neo_core.cli import build_parser
+from neo_core.cli import LOG_RETENTION_ENV_VAR, build_parser, main
 
 
 def test_aprs_listen_defaults() -> None:
@@ -133,3 +137,36 @@ def test_parser_rejects_incomplete_or_invalid_arguments(argv: list[str]) -> None
         build_parser().parse_args(argv)
 
     assert excinfo.value.code == 2
+
+
+def test_main_configures_weekly_rotating_log_handler(monkeypatch, tmp_path: Path) -> None:
+    """HARDENING.md #7: log files rotate weekly with a configurable retention."""
+    monkeypatch.setenv(LOG_RETENTION_ENV_VAR, "5")
+
+    main(["adsb", "find-devices", "--data-dir", str(tmp_path)])
+
+    log_file = tmp_path / "logs" / "adsb" / "neo-rx.log"
+    assert log_file.exists()
+
+    file_handlers = [
+        h
+        for h in logging.getLogger().handlers
+        if isinstance(h, logging.handlers.TimedRotatingFileHandler)
+    ]
+    assert len(file_handlers) == 1
+    assert file_handlers[0].when == "W0"
+    assert file_handlers[0].backupCount == 5
+
+
+def test_main_defaults_log_retention_to_twelve_weeks(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.delenv(LOG_RETENTION_ENV_VAR, raising=False)
+
+    main(["adsb", "find-devices", "--data-dir", str(tmp_path)])
+
+    file_handlers = [
+        h
+        for h in logging.getLogger().handlers
+        if isinstance(h, logging.handlers.TimedRotatingFileHandler)
+    ]
+    assert len(file_handlers) == 1
+    assert file_handlers[0].backupCount == 12

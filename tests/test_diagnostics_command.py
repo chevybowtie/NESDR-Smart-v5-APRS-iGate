@@ -308,6 +308,29 @@ def test_check_aprs_is_failure(monkeypatch) -> None:
     assert section.details["error"] == "reset"
 
 
+def test_check_disk_space_delegates_to_shared_helper(monkeypatch) -> None:
+    from neo_core.diagnostics_helpers import DiskSpaceResult
+
+    monkeypatch.setattr(
+        diagnostics.config_module, "get_data_dir", lambda: Path("/fake/data")
+    )
+    monkeypatch.setattr(
+        diagnostics,
+        "check_disk_space",
+        lambda path: DiskSpaceResult(
+            status="warning",
+            message="low space",
+            details={"path": str(path), "percent_free": 5.0},
+        ),
+    )
+
+    section = diagnostics._check_disk_space()
+
+    assert section.name == "Disk Space"
+    assert section.status == "warning"
+    assert section.details["path"] == "/fake/data"
+
+
 def test_sections_to_mapping() -> None:
     section = diagnostics.Section("Sample", "ok", "message", {"a": 1})
     report = diagnostics._sections_to_mapping([section])
@@ -351,12 +374,14 @@ def test_run_diagnostics_json_includes_meta_and_summary(
     sdr_section = diagnostics.Section("SDR", "ok", "sdr", {})
     direwolf_section = diagnostics.Section("Direwolf", "warning", "dw", {})
     aprs_section = diagnostics.Section("APRS-IS", "ok", "aprs", {})
+    disk_section = diagnostics.Section("Disk Space", "ok", "disk", {})
 
     monkeypatch.setattr(diagnostics, "_check_environment", lambda: env_section)
     monkeypatch.setattr(diagnostics, "_check_config", lambda *_: (config_section, None))
     monkeypatch.setattr(diagnostics, "_check_sdr", lambda: sdr_section)
     monkeypatch.setattr(diagnostics, "_check_direwolf", lambda *_: direwolf_section)
     monkeypatch.setattr(diagnostics, "_check_aprs_is", lambda *_: aprs_section)
+    monkeypatch.setattr(diagnostics, "_check_disk_space", lambda: disk_section)
     monkeypatch.setattr(diagnostics, "_package_version", lambda: "9.9.9")
     monkeypatch.setattr(
         diagnostics.config_module,
@@ -390,12 +415,14 @@ def test_run_diagnostics_text_emits_summary(monkeypatch, tmp_path, caplog) -> No
     sdr_section = diagnostics.Section("SDR", "ok", "sdr", {})
     direwolf_section = diagnostics.Section("Direwolf", "warning", "dw", {})
     aprs_section = diagnostics.Section("APRS-IS", "ok", "aprs", {})
+    disk_section = diagnostics.Section("Disk Space", "ok", "disk", {})
 
     monkeypatch.setattr(diagnostics, "_check_environment", lambda: env_section)
     monkeypatch.setattr(diagnostics, "_check_config", lambda *_: (config_section, None))
     monkeypatch.setattr(diagnostics, "_check_sdr", lambda: sdr_section)
     monkeypatch.setattr(diagnostics, "_check_direwolf", lambda *_: direwolf_section)
     monkeypatch.setattr(diagnostics, "_check_aprs_is", lambda *_: aprs_section)
+    monkeypatch.setattr(diagnostics, "_check_disk_space", lambda: disk_section)
     monkeypatch.setattr(
         diagnostics.config_module,
         "resolve_config_path",
