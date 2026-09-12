@@ -1,5 +1,5 @@
 # SigMap Query Context
-Generated: 2026-09-12T18:22:42.220Z
+Generated: 2026-09-12T19:07:10.865Z
 
 ## docs/diagnostics.md
 ```
@@ -25,51 +25,50 @@ h3 9. Configuration & Paths
 h2 Output Schema
 ```
 
-## docs/developer.md
+## tests/test_wspr_calibrate.py
 ```
-h1 Install packages in dependency order
-h1 from the repo root
-h1 install only the wheels built from this repo
-h1 install any runtime deps reported on import
-h1 quick import checks
-h1 CLI smoke
-h1 Dry-run for version 0.2.8
-h1 Build and create tags locally (no upload)
-h1 Build, create tags, and upload to PyPI (requires credentials)
-code-fence bash
-code-fence plain
+class TestComputePpmFromOffset
+def test_positive_offset()
+def test_negative_offset()
+def test_zero_freq_raises()
+class TestApplyPpmToRadio
+def test_successful_application(mock_rtlsdr_cls)
+def test_no_devices_found(mock_rtlsdr_cls)
+def test_import_error()
+def mock_import(name, *args, **kwargs)
+def test_device_error(mock_rtlsdr_cls)
+class TestPersistPpmToConfig
+def test_successful_persist(mock_config)
+class TestEstimateOffsetFromSpots
+def test_with_expected_freq()
+def test_without_expected_freq()
+def test_no_freqs_raises()
+def test_skips_invalid_freq()
+class TestLoadSpotsFromJsonl
+def test_load_valid_file()
+def test_file_not_found()
 ```
 
-## docs/troubleshooting.md
+## tests/test_wspr_capture_publish.py
 ```
-h2 RTL-SDR Thermal Issues
-h1 Before (thermal issues)
-h1 After (stable)
-h2 General Troubleshooting Tips
-code-fence bash
-code-fence plain
+class MockPublisher
+def __init__()
+def connect()
+def publish(topic, payload)
+def close()
+def fake_capture_fn(band_hz: int, duration_s: int)
+def test_capture_publishes(tmp_path: Path)
 ```
 
-## tests/test_listen_command_extended.py
+## tests/test_wspr_capture.py
 ```
-def test_resolve_direwolf_config_prefers_local(tmp_path) → None
-def test_resolve_direwolf_config_fallback(tmp_path, monkeypatch) → None
-def test_wait_for_kiss_success_after_retry(monkeypatch) → None
-def test_wait_for_kiss_exhausts_attempts() → None
-def test_display_frame_truncates_output(caplog) → None
-def test_report_audio_error_logs_message(caplog) → None
-def test_run_listen_config_missing(monkeypatch, tmp_path, caplog) → None
-def test_run_listen_config_invalid(monkeypatch, tmp_path, caplog) → None
-def test_run_listen_missing_direwolf_config(monkeypatch, tmp_path, caplog) → None
-def test_run_listen_audio_capture_failure(monkeypatch, tmp_path, caplog) → None
-def test_run_listen_direwolf_launch_failure(monkeypatch, tmp_path, caplog) → None
-def test_run_listen_kiss_unreachable(monkeypatch, tmp_path, caplog) → None
-def test_run_listen_receive_only_once(monkeypatch, tmp_path, caplog) → None
-def test_apply_software_tocall_before_send(monkeypatch, tmp_path, caplog) → None
-def test_run_listen_aprs_connect_failure(monkeypatch, tmp_path, caplog) → None
-def test_run_listen_timeout_triggers_polling(monkeypatch, tmp_path, caplog) → None
-def test_run_listen_kiss_client_error(monkeypatch, tmp_path, caplog) → None
-def test_run_listen_skips_bad_frame(monkeypatch, tmp_path, caplog) → None
+class DummyUploader
+def __init__() → None
+def enqueue_spot(spot: dict) → None
+def fake_capture_fn(band_hz: int, duration_s: int)
+def test_run_capture_cycle_enriches_spots(tmp_path: Path)
+def test_capture_enqueues_when_metadata_present(tmp_path: Path)
+def test_capture_skips_enqueue_without_grid(tmp_path: Path)
 ```
 
 ## tests/test_wspr_uploader.py

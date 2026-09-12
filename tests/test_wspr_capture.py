@@ -143,6 +143,12 @@ class _SyncFakeRtlSdr:
         self.closed = True
 
 
+def _patch_rtlsdr_classes(monkeypatch, fake_class) -> None:
+    """Prevent capture tests from selecting a real pyrtlsdr implementation."""
+    monkeypatch.setattr(rtlsdr_module, "RtlSdr", fake_class, raising=False)
+    monkeypatch.setattr(rtlsdr_module, "RtlSdrAio", fake_class, raising=False)
+
+
 def test_capture_loop_tunes_reads_and_decodes_one_band(monkeypatch, tmp_path: Path):
     """Exercise the real tune -> read_samples -> decode sequence in _capture_loop.
 
@@ -153,7 +159,7 @@ def test_capture_loop_tunes_reads_and_decodes_one_band(monkeypatch, tmp_path: Pa
     wsprd decoder so the test is deterministic and needs no hardware.
     """
     _SyncFakeRtlSdr.created.clear()
-    monkeypatch.setattr(rtlsdr_module, "RtlSdr", _SyncFakeRtlSdr, raising=False)
+    _patch_rtlsdr_classes(monkeypatch, _SyncFakeRtlSdr)
 
     # Schedule-sync uses time.time() to align to the next even WSPR minute;
     # feed a sequence that skips the (real-time) wait and then deterministically
@@ -207,7 +213,7 @@ def test_capture_loop_no_devices_found(monkeypatch, tmp_path: Path):
         def get_device_count() -> int:
             return 0
 
-    monkeypatch.setattr(rtlsdr_module, "RtlSdr", _NoDeviceRtlSdr, raising=False)
+    _patch_rtlsdr_classes(monkeypatch, _NoDeviceRtlSdr)
 
     cap = WsprCapture(bands_hz=[14080000], data_dir=tmp_path / "data")
     cap._running = True

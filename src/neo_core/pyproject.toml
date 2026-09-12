@@ -22,7 +22,7 @@ classifiers = [
 dependencies = [
 	"numpy>=2.2,<3",
 	"pyrtlsdr>=0.3.0,<0.4",
-	"tomli-w>=1.1,<2",
+	"tomli-w>=1.2,<2",
 ]
 
 [project.urls]

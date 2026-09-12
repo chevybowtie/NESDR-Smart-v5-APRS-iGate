@@ -21,7 +21,7 @@ classifiers = [
 ]
 dependencies = [
 	"neo-core==0.5.1",
-	"requests>=2.32,<3",
+	"requests>=2.34.2,<3",
 ]
 
 [project.urls]
