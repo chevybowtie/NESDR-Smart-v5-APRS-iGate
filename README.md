@@ -2,6 +2,8 @@
 
 Multi-mode command-line utility for turning an SDR (for example a NESDR Smart v5 RTL-SDR) into a turn-key APRS iGate, WSPR monitor, or ADS-B aircraft tracker.
 
+[![Setup manual](https://gitmanual.com/chevybowtie/NESDR-Smart-v5-APRS-iGate/badge.svg)](https://gitmanual.com/chevybowtie/NESDR-Smart-v5-APRS-iGate)
+
 Features:
 - **APRS iGate**: Receive-only APRS with APRS-IS uplink via Direwolf
 - **WSPR monitoring**: Multi-band propagation tracking with WSPRnet integration
